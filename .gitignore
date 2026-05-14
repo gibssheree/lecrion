@@ -1,0 +1,10 @@
+node_modules/
+.env
+.claude
+.env/*
+apps/api/.env
+
+# SQLite database file (contains live data — backup separately)
+database/canteen.db
+database/canteen.db-shm
+database/canteen.db-wal

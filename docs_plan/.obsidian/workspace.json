@@ -1,0 +1,220 @@
+{
+  "main": {
+    "id": "55b6ef60972adb21",
+    "type": "split",
+    "children": [
+      {
+        "id": "3a30678a3f3e0009",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2e59a2972c556eb5",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "07-ultimate-tasks.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "07-ultimate-tasks"
+            }
+          },
+          {
+            "id": "7b7e32ac0bb1c541",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "16-pos-agent-execution-strategy.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "16-pos-agent-execution-strategy"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "a7322d2c9271becd",
+    "type": "split",
+    "children": [
+      {
+        "id": "468d2a1144c0ca61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fb30f3c0f0f3d2dc",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "0e7da8d91d7a3153",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "3fd3c5ae6f6bb0c3",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "72933ea42f741fcd",
+    "type": "split",
+    "children": [
+      {
+        "id": "5660e6646ae61431",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "11ef2c3876e198cb",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "04-data-events.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for 04-data-events"
+            }
+          },
+          {
+            "id": "bcf0e92c49eb5779",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "04-data-events.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from 04-data-events"
+            }
+          },
+          {
+            "id": "17a284a610abc848",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "3a966f1e471cf810",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "f3c73c226871be4f",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "04-data-events.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of 04-data-events"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false,
+      "markdown-importer:Open format converter": false
+    }
+  },
+  "active": "7b7e32ac0bb1c541",
+  "lastOpenFiles": [
+    "15-enterprise-pos-parity-plan.md",
+    "16-pos-agent-execution-strategy.md",
+    "09-zed-based-plan.md",
+    "10-overall-assessment.md",
+    "08-fix-tasks.md",
+    "07-ultimate-tasks.md",
+    "06-codebase-verification-and-migration.md",
+    "03-file-architecture.md",
+    "02-roadmap.md",
+    "01-blueprint.md",
+    "Untitled",
+    "README.md",
+    "05-security-ops.md",
+    "04-data-events.md"
+  ]
+}

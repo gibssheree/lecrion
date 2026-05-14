@@ -1,0 +1,63 @@
+{
+  "name": "lecrion",
+  "version": "1.0.0",
+  "description": "Lecrion WA Bot + Admin Dashboard — monorepo root",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/bot",
+    "apps/dashboard",
+    "apps/pos-web",
+    "apps/worker",
+    "libs/contracts",
+    "libs/db",
+    "libs/queue",
+    "libs/realtime",
+    "libs/common"
+  ],
+  "scripts": {
+    "start:api": "npm --prefix apps/api run start",
+    "start:api:dev": "npm --prefix apps/api run start:dev",
+    "start:worker": "ts-node -r tsconfig-paths/register apps/worker/src/main.ts",
+    "start:dashboard": "npm --prefix apps/dashboard run dev",
+    "start:bot": "npm --prefix apps/bot run start",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "build:api": "npm --prefix apps/api run build",
+    "lint:api": "npm --prefix apps/api run lint"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "gemini",
+    "pos",
+    "canteen"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "axios": "^1.13.2",
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "mysql2": "^3.20.0",
+    "openai": "^6.9.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@tsconfig/node20": "^20.1.9",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.7.0",
+    "nodemon": "^3.1.0",
+    "prisma": "^7.8.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,387 @@
+// prisma/schema.prisma
+//
+// ── Storage strategy ─────────────────────────────────────────────────────────
+// Current provider: SQLite (dev / single-node deployments)
+// Production target: PostgreSQL — see prisma.config.ts for migration path
+//
+// ── Timestamp convention ─────────────────────────────────────────────────────
+// All timestamp columns use String (ISO 8601) rather than DateTime.
+// Reason: SQLite has no native DateTime type; storing as ISO strings avoids
+// timezone conversion issues and keeps the schema portable.
+// When migrating to PostgreSQL, convert these to @db.Timestamptz(3) columns.
+//
+// ── Status enum convention ───────────────────────────────────────────────────
+// Status values are stored as plain strings. The canonical enum values are
+// defined in libs/contracts/src/enums/index.ts — always import from there,
+// never hardcode status strings in application code.
+//
+// ── store_settings key convention ────────────────────────────────────────────
+// The store_settings table has no store_id column (single-store schema).
+// Application code namespaces keys as "{storeId}:{key}" to support multiple
+// stores in the same table. When this table gains a store_id column (future
+// schema migration), remove the prefix logic in StoresService.
+//
+// ── admins table ─────────────────────────────────────────────────────────────
+// The admins table is a legacy table from the pre-NestJS era.
+// New user accounts use the users table. The admins table is kept for
+// backward compatibility with existing data only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ── Legacy admin accounts (pre-NestJS) ───────────────────────────────────────
+model admins {
+  id         Int    @id @default(autoincrement())
+  email      String @unique(map: "sqlite_autoindex_admins_1")
+  password   String
+  name       String
+  created_at String @default("datetime('now')")
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+model audit_logs {
+  id             Int     @id @default(autoincrement())
+  actor          String
+  action         String
+  resource       String
+  resource_id    String?
+  before_value   String?
+  after_value    String?
+  tenant_id      String  @default("default")
+  store_id       String  @default("default-store")
+  correlation_id String?
+  channel        String  @default("api")
+  created_at     String  @default("datetime('now')")
+
+  @@index([created_at(sort: Desc)], map: "idx_audit_created")
+  @@index([resource, resource_id], map: "idx_audit_resource")
+  @@index([action], map: "idx_audit_action")
+  @@index([actor], map: "idx_audit_actor")
+}
+
+// ── Cart (per-sender, DB-backed) ──────────────────────────────────────────────
+model cart_items {
+  id         Int    @id @default(autoincrement())
+  sender     String
+  product_id Int
+  name       String
+  price      Float
+  qty        Int    @default(1)
+  updated_at String @default("datetime('now')")
+  menu       menu   @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([sender, product_id], map: "sqlite_autoindex_cart_items_1")
+  @@index([sender], map: "idx_cart_sender")
+}
+
+model carts {
+  sender     String @id
+  payload    String
+  updated_at String
+}
+
+// ── Cash register sessions ────────────────────────────────────────────────────
+// status values: "open" | "suspended" | "closed"  (RegisterSessionStatus enum)
+model cash_register_sessions {
+  id            Int     @id @default(autoincrement())
+  store_id      String  @default("default-store")
+  cashier_id    String
+  status        String  @default("open")
+  opening_cash  Float   @default(0)
+  expected_cash Float   @default(0)
+  counted_cash  Float?
+  variance      Float?
+  notes         String?
+  opened_at     String  @default("datetime('now')")
+  closed_at     String?
+
+  @@index([store_id, status], map: "idx_register_store")
+}
+
+// ── Legacy cashflow table (pre-NestJS ledger) ─────────────────────────────────
+// New cashflow entries use cashflow_entries. This table is kept for
+// backward compatibility with existing data.
+model cashflow {
+  id         Int     @id @default(autoincrement())
+  type       String
+  amount     Float
+  category   String
+  reference  String?
+  note       String?
+  actor_id   String?
+  created_at String  @default("datetime('now')")
+}
+
+// ── Cashflow entries (append-only ledger) ─────────────────────────────────────
+// entry_type values: "income" | "expense" | "refund"  (CashflowEntryType enum)
+model cashflow_entries {
+  id             Int     @id @default(autoincrement())
+  session_id     Int
+  store_id       String  @default("default-store")
+  entry_type     String
+  amount         Float
+  payment_method String  @default("Cash")
+  reference_type String?
+  reference_id   String?
+  category       String?
+  note           String?
+  operator_id    String
+  created_at     String  @default("datetime('now')")
+
+  @@index([created_at(sort: Desc)], map: "idx_cashflow_created")
+  @@index([session_id], map: "idx_cashflow_session")
+}
+
+// ── Chat history ──────────────────────────────────────────────────────────────
+model chat_history {
+  id          Int     @id @default(autoincrement())
+  sender      String
+  name        String?
+  question    String
+  reply       String
+  type        String  @default("chat")
+  cart_items  String?
+  total_price Float?
+  order_id    Int?
+  created_at  String  @default("datetime('now')")
+
+  @@index([created_at(sort: Desc)], map: "idx_chat_created_at")
+  @@index([sender], map: "idx_chat_sender")
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+model favorites {
+  id         Int    @id @default(autoincrement())
+  user_id    Int
+  menu_id    Int
+  created_at String @default("datetime('now')")
+  menu       menu   @relation(fields: [menu_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users      users  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([user_id, menu_id], map: "sqlite_autoindex_favorites_1")
+}
+
+// ── Idempotency keys ──────────────────────────────────────────────────────────
+model idempotency_keys {
+  key        String @id
+  result     String
+  created_at String @default("datetime('now')")
+  expires_at String
+
+  @@index([expires_at], map: "idx_idempotency_expires")
+}
+
+// ── Product catalog (menu) ────────────────────────────────────────────────────
+// NOTE: No store_id column — catalog is currently global (single-store schema).
+// Add store_id when multi-store catalog isolation is required.
+model menu {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  price             Float
+  stock             Int                 @default(0)
+  description       String?
+  image_url         String?
+  cart_items        cart_items[]
+  favorites         favorites[]
+  order_items       order_items[]
+  stock_change_logs stock_change_logs[]
+
+  @@index([stock], map: "idx_menu_stock")
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+model notifications {
+  id         Int    @id @default(autoincrement())
+  user_id    Int
+  order_id   Int?
+  title      String
+  message    String
+  type       String @default("info")
+  is_read    Int    @default(0)
+  created_at String @default("datetime('now')")
+  users      users  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ── Order items ───────────────────────────────────────────────────────────────
+model order_items {
+  id       Int    @id @default(autoincrement())
+  order_id Int
+  menu_id  Int
+  name     String
+  price    Float
+  qty      Int
+  menu     menu   @relation(fields: [menu_id], references: [id], onDelete: NoAction)
+  orders   orders @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([menu_id], map: "idx_order_items_menu")
+  @@index([order_id], map: "idx_order_items_order")
+}
+
+// ── Order ratings ─────────────────────────────────────────────────────────────
+model order_ratings {
+  id         Int     @id @default(autoincrement())
+  order_id   Int     @unique(map: "sqlite_autoindex_order_ratings_1")
+  user_id    Int
+  rating     Int
+  review     String?
+  created_at String  @default("datetime('now')")
+  users      users   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders     orders  @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+// status values: "pending" | "pending_payment" | "paid" | "confirmed" |
+//                "completed" | "cancelled" | "refunded"  (OrderStatus enum)
+//
+// MIGRATION NOTE: Existing rows may contain legacy status values:
+//   "Not Ready" → "pending"
+//   "Ready"     → "confirmed"
+//   "Success"   → "paid"
+//   "Completed" → "completed"
+// Run the following SQL to normalize legacy rows:
+//   UPDATE orders SET status = 'pending'   WHERE status = 'Not Ready';
+//   UPDATE orders SET status = 'confirmed' WHERE status = 'Ready';
+//   UPDATE orders SET status = 'paid'      WHERE status = 'Success';
+//   UPDATE orders SET status = 'completed' WHERE status = 'Completed';
+model orders {
+  id                  Int            @id @default(autoincrement())
+  user_id             Int
+  type                String
+  name                String
+  phone               String?        @default("")
+  address             String?        @default("")
+  delivery_cost       Int?
+  payment_method      String?        @default("Transfer")
+  status              String         @default("pending")
+  created_at          String         @default("datetime('now')")
+  estimated_time      Int?           @default(15)
+  cancelled_at        String?
+  cancellation_reason String?
+  order_items         order_items[]
+  order_ratings       order_ratings?
+  users               users          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments            payments[]
+
+  @@index([user_id], map: "idx_orders_user")
+  @@index([created_at], map: "idx_orders_created_at")
+  @@index([status], map: "idx_orders_status")
+}
+
+// ── Payments ──────────────────────────────────────────────────────────────────
+// status values: "pending" | "paid" | "failed" | "refunded"  (PaymentStatus enum)
+model payments {
+  id             Int     @id @default(autoincrement())
+  order_id       Int
+  store_id       String  @default("default-store")
+  amount         Float
+  paid_amount    Float   @default(0)
+  discount       Float   @default(0)
+  tax            Float   @default(0)
+  payment_method String  @default("Cash")
+  status         String  @default("pending")
+  completed_at   String?
+  created_at     String  @default("datetime('now')")
+  orders         orders  @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status], map: "idx_payments_status")
+  @@index([order_id], map: "idx_payments_order")
+}
+
+// ── Read model snapshots (legacy — superseded by report_snapshots) ────────────
+model read_model_snapshots {
+  name       String @id
+  data       String
+  updated_at String
+}
+
+// ── Report snapshots (projection cache) ──────────────────────────────────────
+model report_snapshots {
+  projection String @id
+  payload    String
+  built_at   String @default("datetime('now')")
+}
+
+// ── Stock change log (append-only ledger) ─────────────────────────────────────
+model stock_change_logs {
+  id          Int     @id @default(autoincrement())
+  menu_id     Int
+  admin_id    Int?
+  order_id    Int?
+  change_type String
+  qty_before  Int
+  qty_change  Int
+  qty_after   Int
+  note        String?
+  created_at  String  @default("datetime('now')")
+  menu        menu    @relation(fields: [menu_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_scl_created")
+  @@index([menu_id, created_at], map: "idx_scl_menu_created")
+}
+
+// ── Store settings (key-value config per store) ───────────────────────────────
+// NOTE: No store_id column — keys are namespaced as "{storeId}:{key}" by
+// StoresService to support multiple stores. Add a store_id column and index
+// when this table is migrated to PostgreSQL.
+model store_settings {
+  key        String @id
+  value      String @default("")
+  updated_at String @default("datetime('now')")
+}
+
+// ── Sync outbox (transactional event publishing) ──────────────────────────────
+// status values: "pending" | "processing" | "processed" | "failed" | "dead"
+model sync_outbox {
+  id              Int     @id @default(autoincrement())
+  event_type      String
+  payload         String
+  status          String  @default("pending")
+  attempts        Int     @default(0)
+  processed_at    String?
+  created_at      String  @default("datetime('now')")
+  next_attempt_at String?
+  last_error      String?
+}
+
+// ── Sync inbox (event delivery tracking) ─────────────────────────────────────
+model sync_inbox {
+  id               Int     @id @default(autoincrement())
+  event_type       String
+  payload          String
+  source_outbox_id Int?
+  status           String  @default("pending")
+  processed_at     String?
+  created_at       String  @default("datetime('now')")
+
+  @@index([created_at], map: "idx_inbox_created")
+  @@index([status], map: "idx_inbox_status")
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+// NOTE: No role column — all users default to 'owner' role until a role
+// column is added. See auth.service.ts TODO comment.
+// NOTE: No phone column — bot users are identified by WhatsApp sender ID,
+// not by a phone column in this table. Add phone column to enable
+// bot→user_id resolution for favorites and notifications.
+model users {
+  id            Int             @id @default(autoincrement())
+  email         String          @unique(map: "sqlite_autoindex_users_1")
+  password_hash String
+  created_at    String          @default("datetime('now')")
+  updated_at    String?
+  favorites     favorites[]
+  notifications notifications[]
+  order_ratings order_ratings[]
+  orders        orders[]
+}
+
+// ── Webhook deduplication ─────────────────────────────────────────────────────
+model webhook_dedupes {
+  dedupe_key String @id
+  created_at String @default("datetime('now')")
+}

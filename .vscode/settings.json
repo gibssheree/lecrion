@@ -1,0 +1,24 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "database/canteen.db": true,
+    "database/canteen.db-shm": true,
+    "database/canteen.db-wal": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "database/canteen.db": true,
+    "apps/*/dist": true
+  },
+  "javascript.suggest.autoImports": true,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "eslint.workingDirectories": [
+    { "directory": ".", "changeProcessCWD": true },
+    { "directory": "apps/dashboard", "changeProcessCWD": true }
+  ]
+}

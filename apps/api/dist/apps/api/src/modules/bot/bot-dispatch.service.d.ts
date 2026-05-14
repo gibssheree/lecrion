@@ -1,0 +1,71 @@
+import { CatalogService } from '../catalog/catalog.service';
+import { InventoryService } from '../inventory/inventory.service';
+import { CartService } from '../chatbot/cart.service';
+import { CheckoutService } from '../checkout/checkout.service';
+import { HistoryService } from '../chatbot/history.service';
+import { LlmService } from '../llm/llm.service';
+import { ReportsService } from '../reports/reports.service';
+import { NutritionAdvisorService } from '../llm/nutrition-advisor.service';
+import { AppConfigService } from '../../infrastructure/config/app-config.service';
+export interface DispatchContext {
+    userMessage: string;
+    sender: string;
+    conversationSender: string;
+    resolvedName: string | null;
+    userWaIdentity: string;
+    imageUrl: string | null;
+    isgroup: boolean;
+}
+export interface DispatchResult {
+    reply: string;
+    entryType: string;
+    orderId?: number;
+    totalPrice?: number;
+    cartItems?: any[];
+}
+export declare class BotDispatchService {
+    private readonly catalog;
+    private readonly inventory;
+    private readonly cart;
+    private readonly checkout;
+    private readonly history;
+    private readonly llm;
+    private readonly reports;
+    private readonly nutrition;
+    private readonly config;
+    private readonly logger;
+    constructor(catalog: CatalogService, inventory: InventoryService, cart: CartService, checkout: CheckoutService, history: HistoryService, llm: LlmService, reports: ReportsService, nutrition: NutritionAdvisorService, config: AppConfigService);
+    dispatch(ctx: DispatchContext): Promise<DispatchResult>;
+    private route;
+    private handleMenu;
+    private handleHelpQuick;
+    private handleProductDetail;
+    private handleIngredientsSingle;
+    private handleIngredientsAll;
+    private handleNutritionQuery;
+    private handleCartView;
+    private handleCartAdd;
+    private handleCartRemove;
+    private handleCartClear;
+    private handleCheckout;
+    private handleDeliveryFollowup;
+    private doCheckout;
+    private handleIngredientSummary;
+    private handleIngredientAllStock;
+    private handleIngredientByCategory;
+    private handleIngredientSingleStock;
+    private handleIngredientOutSummary;
+    private handleIngredientLowStock;
+    private handleIngredientPopIce;
+    private handleReportToday;
+    private handleReportYear;
+    private handleReportYearDetail;
+    private handleReportMonth;
+    private handleReportBestMonth;
+    private handleReportSummary;
+    private handleAiFallback;
+    private handleFavoritesUnsupported;
+    private resolveProductRef;
+    private isValidYear;
+    private isValidMonth;
+}

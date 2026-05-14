@@ -1,0 +1,67 @@
+version: "3.9"
+
+# Phase 6 Docker Compose — Hardened
+# NestJS API + Worker + Dashboard + SQLite (file-based)
+#
+# Development: docker compose -f infra/docker/docker-compose.yml up
+# Production:  use separate orchestration with secrets manager
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      AUTH_DISABLED: "false"
+    volumes:
+      - lecrion_db:/app/database
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.worker
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      OUTBOX_POLL_MS: "5000"
+      READ_MODEL_INTERVAL_MS: "60000"
+    volumes:
+      - lecrion_db:/app/database
+    depends_on:
+      api:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    command: ["node", "web/server.js"]
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file: ../../.env
+    volumes:
+      - lecrion_db:/app/database
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  lecrion_db:
+    driver: local

@@ -1,0 +1,18 @@
+{
+  "name": "@libs/db",
+  "version": "0.0.1",
+  "description": "Prisma service and transaction helpers",
+  "private": true,
+  "main": "src/prisma.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.3.1",
+    "typescript": "^5.1.3"
+  }
+}

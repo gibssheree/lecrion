@@ -1,0 +1,32 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../../../",
+  "testMatch": ["<rootDir>/apps/api/test/**/*.e2e-spec.ts"],
+  "testEnvironment": "node",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@libs/(.*)$": "<rootDir>/libs/$1",
+    "^@api/(.*)$": "<rootDir>/apps/api/src/$1",
+    "^@bot/(.*)$": "<rootDir>/apps/bot/src/$1"
+  },
+  "globals": {
+    "ts-jest": {
+      "tsconfig": {
+        "module": "commonjs",
+        "target": "ES2021",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "strictNullChecks": false,
+        "noImplicitAny": false,
+        "types": ["jest", "node"]
+      }
+    }
+  },
+  "setupFiles": ["<rootDir>/apps/api/test/jest-setup.ts"],
+  "testTimeout": 30000
+}

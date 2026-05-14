@@ -1,0 +1,15 @@
+.git
+node_modules
+apps/dashboard/node_modules
+apps/pos-web/node_modules
+database/*.db
+database/*.db-shm
+database/*.db-wal
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+infra/
+prisma/
+docs_plan/

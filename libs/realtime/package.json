@@ -1,0 +1,17 @@
+{
+  "name": "@libs/realtime",
+  "version": "0.0.1",
+  "description": "Socket.IO singleton, channel names, publishers, and subscribers",
+  "private": true,
+  "main": "src/socket.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.3.1",
+    "typescript": "^5.1.3"
+  }
+}
