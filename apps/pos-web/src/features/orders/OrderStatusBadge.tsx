@@ -1,11 +1,24 @@
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   {
+    // Legacy / bot statuses
     "Not Ready": { label: "Pending", color: "#92400e", bg: "#fffbeb" },
-    confirmed: { label: "Confirmed", color: "#1e40af", bg: "#eff6ff" },
-    pending_payment: { label: "Unpaid", color: "#1e40af", bg: "#eff6ff" },
+    Success: { label: "Sukses", color: "#166534", bg: "#f0fdf4" },
+
+    // POS statuses
+    pending: { label: "Pending", color: "#92400e", bg: "#fffbeb" },
+    pending_payment: { label: "Belum Bayar", color: "#1e40af", bg: "#eff6ff" },
+    confirmed: { label: "Dikonfirmasi", color: "#1e40af", bg: "#eff6ff" },
+    paid: { label: "Lunas", color: "#166534", bg: "#f0fdf4" },
     completed: { label: "Selesai", color: "#166534", bg: "#f0fdf4" },
     cancelled: { label: "Batal", color: "#991b1b", bg: "#fef2f2" },
-    Success: { label: "Sukses", color: "#166534", bg: "#f0fdf4" },
+    refunded: { label: "Refund", color: "#7c3aed", bg: "#f5f3ff" },
+    partially_refunded: {
+      label: "Refund Sebagian",
+      color: "#7c3aed",
+      bg: "#f5f3ff",
+    },
+    voided: { label: "Void", color: "#991b1b", bg: "#fef2f2" },
+    void: { label: "Void", color: "#991b1b", bg: "#fef2f2" },
   };
 
 export default function OrderStatusBadge({ status }: { status: string }) {
@@ -23,6 +36,7 @@ export default function OrderStatusBadge({ status }: { status: string }) {
         fontWeight: 600,
         background: s.bg,
         color: s.color,
+        whiteSpace: "nowrap",
       }}
     >
       {s.label}

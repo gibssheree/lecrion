@@ -8,7 +8,9 @@ export type ProjectionName =
   | 'payment_mix'
   | 'stock_alerts'
   | 'open_orders'
-  | 'bot_conversation_counts';
+  | 'bot_conversation_counts'
+  | 'hourly_sales'
+  | 'cashier_performance';
 
 export interface ProjectionResult {
   data: any;
@@ -23,7 +25,24 @@ const ALL_PROJECTION_NAMES: ProjectionName[] = [
   'stock_alerts',
   'open_orders',
   'bot_conversation_counts',
+  'hourly_sales',
+  'cashier_performance',
 ];
+
+function normalizeJsonValue(value: any): any {
+  if (typeof value === 'bigint') return Number(value);
+  if (Array.isArray(value))
+    return value.map((item) => normalizeJsonValue(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        normalizeJsonValue(nested),
+      ]),
+    );
+  }
+  return value;
+}
 
 /**
  * ReadModelService
@@ -47,7 +66,7 @@ export class ReadModelService implements OnModuleInit {
     const targets = projectionName ? [projectionName] : ALL_PROJECTION_NAMES;
     for (const name of targets) {
       try {
-        const data = await this.buildProjection(name);
+        const data = normalizeJsonValue(await this.buildProjection(name));
         const now = new Date().toISOString();
         await this.prisma.report_snapshots.upsert({
           where: { projection: name },
@@ -106,8 +125,14 @@ export class ReadModelService implements OnModuleInit {
       case 'daily_revenue':
         return this.prisma.$queryRawUnsafe<any[]>(`
           SELECT DATE(o.created_at) AS date, COUNT(o.id) AS order_count,
-                 COALESCE(SUM(oi.price * oi.qty), 0) AS revenue
-          FROM orders o JOIN order_items oi ON oi.order_id = o.id
+                 COALESCE(SUM(order_payments.revenue), 0) AS revenue
+          FROM orders o
+          JOIN (
+            SELECT order_id, SUM(amount) AS revenue
+            FROM payments
+            WHERE status = 'paid'
+            GROUP BY order_id
+          ) order_payments ON order_payments.order_id = o.id
           WHERE o.status NOT IN ('cancelled','refunded')
           GROUP BY DATE(o.created_at) ORDER BY date DESC LIMIT 30
         `);
@@ -115,8 +140,14 @@ export class ReadModelService implements OnModuleInit {
       case 'monthly_revenue':
         return this.prisma.$queryRawUnsafe<any[]>(`
           SELECT strftime('%Y-%m', o.created_at) AS month, COUNT(o.id) AS order_count,
-                 COALESCE(SUM(oi.price * oi.qty), 0) AS revenue
-          FROM orders o JOIN order_items oi ON oi.order_id = o.id
+                 COALESCE(SUM(order_payments.revenue), 0) AS revenue
+          FROM orders o
+          JOIN (
+            SELECT order_id, SUM(amount) AS revenue
+            FROM payments
+            WHERE status = 'paid'
+            GROUP BY order_id
+          ) order_payments ON order_payments.order_id = o.id
           WHERE o.status NOT IN ('cancelled','refunded')
           GROUP BY strftime('%Y-%m', o.created_at) ORDER BY month DESC LIMIT 12
         `);
@@ -134,12 +165,14 @@ export class ReadModelService implements OnModuleInit {
 
       case 'payment_mix':
         return this.prisma.$queryRawUnsafe<any[]>(`
-          SELECT payment_method, COUNT(*) AS order_count,
-                 COALESCE(SUM(oi.price * oi.qty), 0) AS revenue
-          FROM orders o JOIN order_items oi ON oi.order_id = o.id
+          SELECT p.payment_method, COUNT(DISTINCT p.order_id) AS order_count,
+                 COALESCE(SUM(p.amount), 0) AS revenue
+          FROM payments p
+          JOIN orders o ON o.id = p.order_id
           WHERE o.status NOT IN ('cancelled','refunded')
+            AND p.status = 'paid'
             AND DATE(o.created_at) >= DATE('now', '-30 days')
-          GROUP BY payment_method
+          GROUP BY p.payment_method
         `);
 
       case 'stock_alerts':
@@ -167,6 +200,36 @@ export class ReadModelService implements OnModuleInit {
           FROM chat_history
           WHERE DATE(created_at) >= DATE('now', '-7 days')
           GROUP BY DATE(created_at) ORDER BY date DESC
+        `);
+
+      // ── Phase 10: Hourly sales (today) ────────────────────────────────────
+      case 'hourly_sales':
+        return this.prisma.$queryRawUnsafe<any[]>(`
+          SELECT
+            CAST(strftime('%H', ps.created_at) AS INTEGER) AS hour,
+            COUNT(ps.id) AS sale_count,
+            COALESCE(SUM(ps.total), 0) AS gross_sales
+          FROM pos_sales ps
+          WHERE DATE(ps.created_at) = DATE('now')
+            AND ps.status IN ('paid', 'partially_refunded')
+          GROUP BY strftime('%H', ps.created_at)
+          ORDER BY hour ASC
+        `);
+
+      // ── Phase 10: Cashier performance (last 30 days) ──────────────────────
+      case 'cashier_performance':
+        return this.prisma.$queryRawUnsafe<any[]>(`
+          SELECT
+            ps.cashier_id,
+            COUNT(ps.id) AS sale_count,
+            COALESCE(SUM(CASE WHEN ps.status IN ('paid','partially_refunded') THEN ps.total ELSE 0 END), 0) AS gross_sales,
+            COALESCE(SUM(CASE WHEN ps.status IN ('paid','partially_refunded') THEN ps.discount_amount ELSE 0 END), 0) AS discount_total,
+            COUNT(CASE WHEN ps.status = 'voided' THEN 1 END) AS void_count,
+            COALESCE(AVG(CASE WHEN ps.status IN ('paid','partially_refunded') THEN ps.total ELSE NULL END), 0) AS avg_sale_value
+          FROM pos_sales ps
+          WHERE DATE(ps.created_at) >= DATE('now', '-30 days')
+          GROUP BY ps.cashier_id
+          ORDER BY gross_sales DESC
         `);
 
       default:

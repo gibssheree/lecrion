@@ -33,6 +33,19 @@ export declare const PAYMENT_EVENTS: {
     readonly FAILED: "payment.failed";
     readonly REFUNDED: "payment.refunded";
 };
+export declare const POS_SALE_EVENTS: {
+    readonly RECEIPT_ISSUED: "pos.sale.receipt_issued";
+    readonly VOIDED: "pos.sale.voided";
+    readonly REFUNDED: "pos.sale.refunded";
+};
+export declare const POS_CORRECTION_EVENTS: {
+    readonly CREATED: "pos.correction.created";
+};
+export declare const MANAGER_APPROVAL_EVENTS: {
+    readonly REQUESTED: "manager_approval.requested";
+    readonly APPROVED: "manager_approval.approved";
+    readonly REJECTED: "manager_approval.rejected";
+};
 export declare const STOCK_EVENTS: {
     readonly RESERVED: "stock.reserved";
     readonly RELEASED: "stock.released";
@@ -85,6 +98,11 @@ export declare const EVENT_TYPES: {
     readonly CONFIRMED: "payment.confirmed";
     readonly FAILED: "payment.failed";
     readonly REFUNDED: "payment.refunded";
+    readonly RECEIPT_ISSUED: "pos.sale.receipt_issued";
+    readonly VOIDED: "pos.sale.voided";
+    readonly REQUESTED: "manager_approval.requested";
+    readonly APPROVED: "manager_approval.approved";
+    readonly REJECTED: "manager_approval.rejected";
     readonly CREATED: "order.created";
     readonly STATUS_CHANGED: "order.status_changed";
     readonly COMPLETED: "order.completed";

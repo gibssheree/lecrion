@@ -1,7 +1,37 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CheckoutService } from '../checkout/checkout.service';
 import { CartService } from '../chatbot/cart.service';
 import { ReadModelService } from '../reports/read-model.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
+import { CreatePosSaleDto } from './pos-sales.dto';
+import { PosSalesService } from './pos-sales.service';
+import { PosCorrectionsService } from './pos-corrections.service';
+import { PosApprovalService } from './pos-approval.service';
+import {
+  VoidOrderDto,
+  RefundOrderDto,
+  ReturnItemsDto,
+} from './pos-corrections.dto';
+import {
+  RequestApprovalDto,
+  ResolveApprovalDto,
+  RejectApprovalDto,
+  InlineApprovalDto,
+} from './pos-approval.dto';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 interface PosCheckoutItem {
   productId: number;
@@ -22,22 +52,42 @@ interface PosCheckoutDto {
 /**
  * PosController — thin checkout endpoint for apps/pos-web.
  *
- * Auth is handled globally by JwtAuthGuard in AppModule.
- * No need to re-declare it here — doing so causes DI issues
- * because PosModule doesn't import AuthModule.
- *
- * Route: POST /api/pos/checkout
+ * Phase 9: Added @Roles guards.
+ *   - createSale, checkout: cashier and above
+ *   - void, refund, return: manager and above (cashier needs manager approval)
+ *   - approval endpoints: any authenticated user (approval itself is PIN-gated)
  */
 @Controller('pos')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class PosController {
   constructor(
     private readonly checkoutService: CheckoutService,
     private readonly cartService: CartService,
     private readonly readModelService: ReadModelService,
+    private readonly posSalesService: PosSalesService,
+    private readonly posCorrectionsService: PosCorrectionsService,
+    private readonly posApprovalService: PosApprovalService,
   ) {}
+
+  @Post('sales')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  async createSale(
+    @Body() dto: CreatePosSaleDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.posSalesService.createSale(dto, user);
+  }
+
+  @Get('sales/:orderId/receipt')
+  @Roles('owner', 'manager', 'cashier')
+  async getSaleReceipt(@Param('orderId', ParseIntPipe) orderId: number) {
+    return this.posSalesService.getReceiptByOrderId(orderId);
+  }
 
   @Post('checkout')
   @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
   async checkout(@Body() dto: PosCheckoutDto) {
     const { items, paymentMethod, cashierId, customerName } = dto;
 
@@ -75,5 +125,88 @@ export class PosController {
       items: result.items,
       paymentMethod,
     };
+  }
+
+  // ── Phase 5: Correction endpoints ─────────────────────────────────────────
+
+  @Post('orders/:id/void')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  voidOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: VoidOrderDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.posCorrectionsService.voidOrder(id, dto, user);
+  }
+
+  @Post('orders/:id/refund')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  refundOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RefundOrderDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.posCorrectionsService.refundOrder(id, dto, user);
+  }
+
+  @Post('orders/:id/return-items')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  returnItems(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReturnItemsDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.posCorrectionsService.returnItems(id, dto, user);
+  }
+
+  // ── Phase 5D: Manager Approval endpoints ──────────────────────────────────
+
+  @Get('approval/thresholds')
+  @Roles('owner', 'manager', 'cashier')
+  getApprovalThresholds() {
+    return this.posApprovalService.getThresholds();
+  }
+
+  @Post('approval/request')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  requestApproval(@Body() dto: RequestApprovalDto) {
+    return this.posApprovalService.requestApproval(dto);
+  }
+
+  @Post('approval/:id/approve')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager')
+  approveRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ResolveApprovalDto,
+  ) {
+    return this.posApprovalService.approveRequest(id, dto);
+  }
+
+  @Post('approval/:id/reject')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager')
+  rejectRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RejectApprovalDto,
+  ) {
+    return this.posApprovalService.rejectRequest(id, dto);
+  }
+
+  @Post('approval/inline')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  inlineApprove(@Body() dto: InlineApprovalDto) {
+    return this.posApprovalService.inlineApprove(dto);
+  }
+
+  @Get('approval/:id')
+  @Roles('owner', 'manager', 'cashier')
+  getApproval(@Param('id', ParseIntPipe) id: number) {
+    return this.posApprovalService.getApproval(id);
   }
 }

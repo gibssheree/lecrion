@@ -1,4 +1,10 @@
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsIn,
+} from 'class-validator';
 
 export type UserRole =
   | 'owner'
@@ -30,6 +36,22 @@ export interface AuthUser {
   channel: 'api' | 'bot' | 'dashboard' | 'worker';
 }
 
+export type LoginMode = 'operator' | 'manager' | 'owner';
+
+/** Roles allowed per login mode */
+export const LOGIN_MODE_ROLES: Record<LoginMode, UserRole[]> = {
+  operator: ['cashier', 'inventory_staff', 'support'],
+  manager: ['manager'],
+  owner: ['owner'],
+};
+
+/** Human-readable mode label for error messages */
+export const LOGIN_MODE_LABEL: Record<LoginMode, string> = {
+  operator: 'Operator',
+  manager: 'Manager',
+  owner: 'Owner',
+};
+
 /**
  * LoginDto — validated by the global ValidationPipe.
  * Bad requests (missing email/password) return 400 before hitting the service.
@@ -45,6 +67,12 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   storeId?: string;
+
+  @IsOptional()
+  @IsIn(['operator', 'manager', 'owner'], {
+    message: 'loginMode must be operator, manager, or owner',
+  })
+  loginMode?: LoginMode;
 }
 
 export class RefreshDto {

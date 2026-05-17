@@ -8,3 +8,4 @@ apps/api/.env
 database/canteen.db
 database/canteen.db-shm
 database/canteen.db-wal
+apps/*/dist/

@@ -247,7 +247,9 @@ export class CashflowService {
       Array<{ entry_type: string; total: number }>
     >(
       `SELECT entry_type, SUM(amount) AS total
-       FROM cashflow_entries WHERE session_id = ? GROUP BY entry_type`,
+       FROM cashflow_entries
+       WHERE session_id = ? AND lower(payment_method) = 'cash'
+       GROUP BY entry_type`,
       sessionId,
     );
 

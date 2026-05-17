@@ -6,7 +6,6 @@
   "workspaces": [
     "apps/api",
     "apps/bot",
-    "apps/dashboard",
     "apps/pos-web",
     "apps/worker",
     "libs/contracts",
@@ -16,10 +15,13 @@
     "libs/common"
   ],
   "scripts": {
+    "dev": "npm run dev:pos",
+    "dev:all": "npm run dev:pos",
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "dev:pos": "npm --prefix apps/pos-web run dev",
     "start:api": "npm --prefix apps/api run start",
     "start:api:dev": "npm --prefix apps/api run start:dev",
     "start:worker": "ts-node -r tsconfig-paths/register apps/worker/src/main.ts",
-    "start:dashboard": "npm --prefix apps/dashboard run dev",
     "start:bot": "npm --prefix apps/bot run start",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

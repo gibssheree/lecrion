@@ -1,17 +1,24 @@
+// apps/pos-web/src/components/layout/TopBar.tsx
+// Phase 12: Enterprise UI polish — compact, informative, always-visible state
+
 import { useState, useEffect } from "react";
 import {
   ShoppingBag,
   User,
   Clock,
   Wifi,
+  WifiOff,
   Lock,
   ClipboardList,
+  RefreshCw,
+  Store,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useRegisterStore } from "../../store/register.store";
 import SuspendResumeButton from "../../features/register/SuspendResumeButton";
 import CloseRegisterModal from "../../features/register/CloseRegisterModal";
 import { getOrders } from "../../services/api";
+import { useOnlineContext } from "../../app/OnlineStatusProvider";
 
 interface Props {
   onOpenOrders: () => void;
@@ -45,8 +52,9 @@ export default function TopBar({ onOpenOrders }: Props) {
   const session = useRegisterStore((s) => s.session);
   const status = useRegisterStore((s) => s.status);
   const time = useClock();
+  const { isOnline, isBrowserOffline, pendingCount, isSyncing, triggerSync } =
+    useOnlineContext();
 
-  // Fetch today's order count
   useEffect(() => {
     async function fetchCount() {
       try {
@@ -65,17 +73,18 @@ export default function TopBar({ onOpenOrders }: Props) {
     return () => clearInterval(t);
   }, []);
 
+  const chipClass: Record<string, string> = {
+    open: "topbar-chip topbar-chip--open",
+    suspended: "topbar-chip topbar-chip--suspended",
+    closed: "topbar-chip topbar-chip--closed",
+    none: "topbar-chip topbar-chip--none",
+  };
+
   const statusLabel: Record<string, string> = {
     open: "OPEN",
     suspended: "SUSPENDED",
     closed: "CLOSED",
     none: "NO SESSION",
-  };
-  const statusClass: Record<string, string> = {
-    open: "status-badge--open",
-    suspended: "status-badge--suspended",
-    closed: "status-badge--closed",
-    none: "status-badge--none",
   };
 
   return (
@@ -83,16 +92,22 @@ export default function TopBar({ onOpenOrders }: Props) {
       <div className="topbar">
         {/* Brand */}
         <div className="topbar-brand">
-          <ShoppingBag size={18} strokeWidth={2.5} />
+          <ShoppingBag size={16} strokeWidth={2.5} />
           Lecrion POS
         </div>
 
         <div className="topbar-divider" />
 
-        {/* Register status */}
-        {session && (
-          <span className={`status-badge ${statusClass[status]}`}>
-            Register #{session.id} — {statusLabel[status]}
+        {/* Register status chip */}
+        {session ? (
+          <span className={chipClass[status]}>
+            <Store size={10} />
+            Reg #{session.id} · {statusLabel[status]}
+          </span>
+        ) : (
+          <span className={chipClass["none"]}>
+            <Store size={10} />
+            {statusLabel["none"]}
           </span>
         )}
 
@@ -100,34 +115,117 @@ export default function TopBar({ onOpenOrders }: Props) {
 
         {/* Cashier */}
         <div className="topbar-info">
-          <User size={13} />
-          {user?.email ?? "Kasir"}
+          <User size={12} />
+          <span
+            style={{
+              maxWidth: 120,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {user?.email ?? "Kasir"}
+          </span>
+          {user?.role && user.role !== "cashier" && (
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                padding: "1px 5px",
+                borderRadius: 8,
+                background:
+                  user.role === "owner"
+                    ? "rgba(139,92,246,0.12)"
+                    : "rgba(59,130,246,0.12)",
+                color:
+                  user.role === "owner" ? "#7c3aed" : "var(--primary-dark)",
+                border: `1px solid ${user.role === "owner" ? "rgba(139,92,246,0.25)" : "rgba(59,130,246,0.25)"}`,
+                textTransform: "uppercase" as const,
+                letterSpacing: "0.3px",
+                flexShrink: 0,
+              }}
+            >
+              {user.role === "owner" ? "Owner" : "Mgr"}
+            </span>
+          )}
         </div>
 
         <div className="topbar-divider" />
 
         {/* Clock */}
         <div className="topbar-info">
-          <Clock size={13} />
+          <Clock size={12} />
           {time}
         </div>
 
         <div className="topbar-divider" />
 
-        {/* Connection */}
+        {/* Connection status */}
         <div className="topbar-info">
-          <Wifi size={13} color="var(--stock-ok)" />
-          Online
+          {isBrowserOffline ? (
+            <>
+              <WifiOff size={12} color="var(--stock-out)" />
+              <span style={{ color: "var(--stock-out)", fontWeight: 600 }}>
+                Offline
+              </span>
+            </>
+          ) : !isOnline ? (
+            <>
+              <WifiOff size={12} color="var(--stock-low)" />
+              <span style={{ color: "var(--stock-low)", fontWeight: 600 }}>
+                Terbatas
+              </span>
+            </>
+          ) : (
+            <>
+              <Wifi size={12} color="var(--stock-ok)" />
+              <span style={{ color: "var(--stock-ok)", fontWeight: 600 }}>
+                Online
+              </span>
+            </>
+          )}
         </div>
+
+        {/* Pending sync indicator */}
+        {pendingCount > 0 && (
+          <button
+            onClick={triggerSync}
+            disabled={isSyncing}
+            title={`${pendingCount} transaksi menunggu sinkronisasi`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--stock-low-bg)",
+              border: "1px solid var(--stock-low-border)",
+              color: "var(--stock-low)",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            <RefreshCw
+              size={10}
+              style={{
+                animation: isSyncing ? "spin 1s linear infinite" : "none",
+              }}
+            />
+            {isSyncing ? "Sync…" : `${pendingCount} pending`}
+          </button>
+        )}
 
         {/* Actions */}
         <div className="topbar-actions">
           <button
             className="btn btn-ghost btn-sm"
             onClick={onOpenOrders}
-            style={{ display: "flex", alignItems: "center", gap: 5 }}
+            style={{ gap: 5 }}
+            title="Riwayat transaksi (F4)"
           >
-            <ClipboardList size={14} /> Transaksi
+            <ClipboardList size={13} />
+            Transaksi
             {todayCount > 0 && (
               <span
                 style={{
@@ -152,9 +250,10 @@ export default function TopBar({ onOpenOrders }: Props) {
             <button
               className="btn btn-danger btn-sm"
               onClick={() => setShowCloseModal(true)}
-              style={{ display: "flex", alignItems: "center", gap: 5 }}
+              style={{ gap: 5 }}
+              title="Tutup register"
             >
-              <Lock size={14} /> Tutup Register
+              <Lock size={13} /> Tutup
             </button>
           )}
         </div>

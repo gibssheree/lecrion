@@ -1,8 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { login as apiLogin, getMe } from "../services/api";
+import {
+  clearSharedAuthToken,
+  getMe,
+  getStoredPosToken,
+  login as apiLogin,
+  setSharedAuthToken,
+} from "../services/api";
 
-interface AuthUser {
+export interface AuthUser {
   actor: string;
   email: string;
   role: string;
@@ -14,24 +20,36 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, loginMode?: string) => Promise<void>;
   logout: () => void;
   restore: () => Promise<void>;
+  /** Convenience helpers for role checks */
+  hasRole: (role: string | string[]) => boolean;
+  isOwnerOrManager: () => boolean;
+  isCashierOrAbove: () => boolean;
 }
+
+const ROLE_HIERARCHY: Record<string, number> = {
+  owner: 100,
+  manager: 80,
+  cashier: 60,
+  inventory_staff: 50,
+  support: 40,
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isLoading: false,
       error: null,
 
-      login: async (email, password) => {
+      login: async (email, password, loginMode) => {
         set({ isLoading: true, error: null });
         try {
-          const res = await apiLogin(email, password);
-          sessionStorage.setItem("pos_token", res.accessToken);
+          const res = await apiLogin(email, password, loginMode);
+          setSharedAuthToken(res.accessToken);
           set({ token: res.accessToken, user: res.user, isLoading: false });
         } catch (err: unknown) {
           set({
@@ -43,20 +61,40 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        sessionStorage.removeItem("pos_token");
+        clearSharedAuthToken();
         set({ user: null, token: null });
       },
 
       restore: async () => {
-        const token = sessionStorage.getItem("pos_token");
+        const token = getStoredPosToken() ?? get().token;
         if (!token) return;
+        setSharedAuthToken(token);
         try {
           const user = await getMe();
           set({ token, user });
         } catch {
-          sessionStorage.removeItem("pos_token");
+          clearSharedAuthToken();
           set({ user: null, token: null });
         }
+      },
+
+      hasRole: (role) => {
+        const user = get().user;
+        if (!user) return false;
+        const roles = Array.isArray(role) ? role : [role];
+        return roles.includes(user.role);
+      },
+
+      isOwnerOrManager: () => {
+        const user = get().user;
+        if (!user) return false;
+        return ["owner", "manager"].includes(user.role);
+      },
+
+      isCashierOrAbove: () => {
+        const user = get().user;
+        if (!user) return false;
+        return (ROLE_HIERARCHY[user.role] ?? 0) >= ROLE_HIERARCHY.cashier;
       },
     }),
     { name: "pos-auth", partialize: (s) => ({ token: s.token, user: s.user }) },

@@ -71,6 +71,7 @@ docs_plan/        Architecture reference docs (this folder)
 11. [11-dashboard-components-and-routing-plan.md](11-dashboard-components-and-routing-plan.md) — dashboard UI extraction and routing plan
 12. [12-app-store-bootstrap-plan.md](12-app-store-bootstrap-plan.md) — future dashboard app/store bootstrap plan
 13. [13-app-and-store-implementation-plan.md](13-app-and-store-implementation-plan.md) — concrete dashboard app/store implementation plan
+14. [17-business-vertical-navigation-architecture-plan.md](17-business-vertical-navigation-architecture-plan.md) — business-category-based sidebar, module capability, and backend entitlement plan
 
 ## Current implementation status
 

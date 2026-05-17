@@ -65,6 +65,28 @@ export const PAYMENT_EVENTS = {
   REFUNDED: "payment.refunded",
 } as const;
 
+// POS sale / receipt events
+// Aggregate: pos_sales / sale_id
+export const POS_SALE_EVENTS = {
+  RECEIPT_ISSUED: "pos.sale.receipt_issued",
+  VOIDED: "pos.sale.voided",
+  REFUNDED: "pos.sale.refunded",
+} as const;
+
+// POS correction document events
+// Aggregate: pos_corrections / correction_id
+export const POS_CORRECTION_EVENTS = {
+  CREATED: "pos.correction.created",
+} as const;
+
+// Manager approval request events
+// Aggregate: manager_approvals / approval_id
+export const MANAGER_APPROVAL_EVENTS = {
+  REQUESTED: "manager_approval.requested",
+  APPROVED: "manager_approval.approved",
+  REJECTED: "manager_approval.rejected",
+} as const;
+
 // ── Stock events ──────────────────────────────────────────────────────────────
 // Aggregate: menu / product_id
 export const STOCK_EVENTS = {
@@ -113,10 +135,41 @@ export const AUDIT_EVENTS = {
   RECORDED: "audit.recorded",
 } as const;
 
+// ── Operation document events ─────────────────────────────────────────────────
+// Aggregate: operation_documents / document_id
+export const OPERATION_DOCUMENT_EVENTS = {
+  CREATED: "operation_document.created",
+  SUBMITTED: "operation_document.submitted",
+  POSTED: "operation_document.posted",
+  CANCELLED: "operation_document.cancelled",
+} as const;
+
+// ── F&B vertical events ───────────────────────────────────────────────────────
+// Aggregate: kitchen_tickets / ticket_id
+export const FNB_EVENTS = {
+  TICKET_CREATED: "fnb.ticket.created",
+  TICKET_READY: "fnb.ticket.ready",
+  TICKET_SERVED: "fnb.ticket.served",
+  TABLE_OCCUPIED: "fnb.table.occupied",
+  TABLE_AVAILABLE: "fnb.table.available",
+} as const;
+
+// ── Customer / loyalty events ─────────────────────────────────────────────────
+// Aggregate: customers / customer_id
+export const CUSTOMER_EVENTS = {
+  CREATED: "customer.created",
+  POINTS_EARNED: "customer.points.earned",
+  POINTS_REDEEMED: "customer.points.redeemed",
+  TIER_UPGRADED: "customer.tier.upgraded",
+} as const;
+
 // ── Flat map for backward-compat and quick lookup ─────────────────────────────
 export const EVENT_TYPES = {
   ...ORDER_EVENTS,
   ...PAYMENT_EVENTS,
+  ...POS_SALE_EVENTS,
+  ...POS_CORRECTION_EVENTS,
+  ...MANAGER_APPROVAL_EVENTS,
   ...STOCK_EVENTS,
   ...CASHFLOW_EVENTS,
   ...REGISTER_EVENTS,
@@ -124,6 +177,9 @@ export const EVENT_TYPES = {
   ...LLM_EVENTS,
   ...CONFIG_EVENTS,
   ...AUDIT_EVENTS,
+  ...OPERATION_DOCUMENT_EVENTS,
+  ...FNB_EVENTS,
+  ...CUSTOMER_EVENTS,
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];

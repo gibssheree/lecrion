@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@libs/db/src/prisma';
-import { OrderStatus } from '@libs/contracts/src/enums';
+import { OrderStatus, PaymentStatus } from '@libs/contracts/src/enums';
 
 function toNumber(value: any): number {
   const parsed = Number(value);
@@ -20,6 +20,7 @@ const REVENUE_STATUSES = [
 
 // Pre-built SQL fragment for use in $queryRawUnsafe (no array binding support)
 const REVENUE_STATUS_SQL = REVENUE_STATUSES.map((s) => `'${s}'`).join(',');
+const PAID_PAYMENT_SQL = `'${PaymentStatus.PAID}'`;
 
 // Statuses that should be excluded from open-order projections
 const CLOSED_STATUS_SQL = [
@@ -38,14 +39,34 @@ export class ReportsService {
 
   async getSalesSummary() {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`
+      WITH revenue_orders AS (
+        SELECT DISTINCT o.id
+        FROM orders o
+        JOIN payments p ON p.order_id = o.id
+        WHERE o.status IN (${REVENUE_STATUS_SQL})
+          AND p.status = ${PAID_PAYMENT_SQL}
+      ),
+      payment_totals AS (
+        SELECT p.order_id, SUM(p.amount) AS total_revenue
+        FROM payments p
+        JOIN revenue_orders ro ON ro.id = p.order_id
+        WHERE p.status = ${PAID_PAYMENT_SQL}
+        GROUP BY p.order_id
+      ),
+      item_totals AS (
+        SELECT oi.order_id, SUM(oi.qty) AS total_items
+        FROM order_items oi
+        JOIN revenue_orders ro ON ro.id = oi.order_id
+        GROUP BY oi.order_id
+      )
       SELECT
-        COUNT(DISTINCT o.id) AS total_orders,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue,
-        COALESCE(SUM(oi.qty * oi.price) / NULLIF(COUNT(DISTINCT o.id), 0), 0) AS avg_order_value
-      FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
-      WHERE o.status IN (${REVENUE_STATUS_SQL})
+        COUNT(ro.id) AS total_orders,
+        COALESCE(SUM(it.total_items), 0) AS total_items,
+        COALESCE(SUM(pt.total_revenue), 0) AS total_revenue,
+        COALESCE(SUM(pt.total_revenue) / NULLIF(COUNT(ro.id), 0), 0) AS avg_order_value
+      FROM revenue_orders ro
+      LEFT JOIN item_totals it ON it.order_id = ro.id
+      LEFT JOIN payment_totals pt ON pt.order_id = ro.id
     `);
     const row = rows[0] ?? {};
     return {
@@ -59,14 +80,26 @@ export class ReportsService {
   async getSalesByPayment() {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT
-        o.payment_method,
-        COUNT(DISTINCT o.id) AS total_sales,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
-      FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+        p.payment_method,
+        COUNT(DISTINCT p.order_id) AS total_sales,
+        COALESCE((
+          SELECT SUM(oi.qty)
+          FROM order_items oi
+          WHERE oi.order_id IN (
+            SELECT DISTINCT p2.order_id
+            FROM payments p2
+            JOIN orders o2 ON o2.id = p2.order_id
+            WHERE p2.payment_method = p.payment_method
+              AND p2.status = ${PAID_PAYMENT_SQL}
+              AND o2.status IN (${REVENUE_STATUS_SQL})
+          )
+        ), 0) AS total_items,
+        COALESCE(SUM(p.amount), 0) AS total_revenue
+      FROM payments p
+      JOIN orders o ON o.id = p.order_id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
-      GROUP BY o.payment_method
+        AND p.status = ${PAID_PAYMENT_SQL}
+      GROUP BY p.payment_method
       ORDER BY total_sales DESC
     `);
     return rows.map((r) => ({
@@ -82,11 +115,23 @@ export class ReportsService {
       SELECT
         o.type AS order_type,
         COUNT(DISTINCT o.id) AS total_sales,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
+        COALESCE((
+          SELECT SUM(oi.qty)
+          FROM order_items oi
+          WHERE oi.order_id IN (
+            SELECT DISTINCT o2.id
+            FROM orders o2
+            JOIN payments p2 ON p2.order_id = o2.id
+            WHERE o2.type = o.type
+              AND o2.status IN (${REVENUE_STATUS_SQL})
+              AND p2.status = ${PAID_PAYMENT_SQL}
+          )
+        ), 0) AS total_items,
+        COALESCE(SUM(p.amount), 0) AS total_revenue
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+      JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
+        AND p.status = ${PAID_PAYMENT_SQL}
       GROUP BY o.type
       ORDER BY total_sales DESC
     `);
@@ -104,11 +149,20 @@ export class ReportsService {
       `SELECT
         strftime('%Y-%m-%d', o.created_at) AS sales_date,
         COUNT(DISTINCT o.id) AS total_sales,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
+        COALESCE((
+          SELECT SUM(oi.qty)
+          FROM order_items oi
+          JOIN orders o2 ON o2.id = oi.order_id
+          JOIN payments p2 ON p2.order_id = o2.id
+          WHERE o2.status IN (${REVENUE_STATUS_SQL})
+            AND p2.status = ${PAID_PAYMENT_SQL}
+            AND strftime('%Y-%m-%d', o2.created_at) = strftime('%Y-%m-%d', o.created_at)
+        ), 0) AS total_items,
+        COALESCE(SUM(p.amount), 0) AS total_revenue
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+      JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
+        AND p.status = ${PAID_PAYMENT_SQL}
       GROUP BY strftime('%Y-%m-%d', o.created_at)
       ORDER BY sales_date DESC
       LIMIT ?`,
@@ -126,12 +180,25 @@ export class ReportsService {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
         COUNT(DISTINCT o.id) AS total_orders,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
+        COALESCE((
+          SELECT SUM(oi.qty)
+          FROM order_items oi
+          WHERE oi.order_id IN (
+            SELECT DISTINCT o2.id
+            FROM orders o2
+            JOIN payments p2 ON p2.order_id = o2.id
+            WHERE o2.status IN (${REVENUE_STATUS_SQL})
+              AND p2.status = ${PAID_PAYMENT_SQL}
+              AND strftime('%Y-%m-%d', o2.created_at) = strftime('%Y-%m-%d', ?)
+          )
+        ), 0) AS total_items,
+        COALESCE(SUM(p.amount), 0) AS total_revenue
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+      JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
+        AND p.status = ${PAID_PAYMENT_SQL}
         AND strftime('%Y-%m-%d', o.created_at) = strftime('%Y-%m-%d', ?)`,
+      dateValue,
       dateValue,
     );
     const row = rows[0] ?? {};
@@ -146,12 +213,25 @@ export class ReportsService {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
         COUNT(DISTINCT o.id) AS total_orders,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
+        COALESCE((
+          SELECT SUM(oi.qty)
+          FROM order_items oi
+          WHERE oi.order_id IN (
+            SELECT DISTINCT o2.id
+            FROM orders o2
+            JOIN payments p2 ON p2.order_id = o2.id
+            WHERE o2.status IN (${REVENUE_STATUS_SQL})
+              AND p2.status = ${PAID_PAYMENT_SQL}
+              AND strftime('%Y', o2.created_at) = ?
+          )
+        ), 0) AS total_items,
+        COALESCE(SUM(p.amount), 0) AS total_revenue
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+      JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
+        AND p.status = ${PAID_PAYMENT_SQL}
         AND strftime('%Y', o.created_at) = ?`,
+      String(yearValue),
       String(yearValue),
     );
     const row = rows[0] ?? {};
@@ -169,13 +249,28 @@ export class ReportsService {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
         COUNT(DISTINCT o.id) AS total_orders,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
+        COALESCE((
+          SELECT SUM(oi.qty)
+          FROM order_items oi
+          WHERE oi.order_id IN (
+            SELECT DISTINCT o2.id
+            FROM orders o2
+            JOIN payments p2 ON p2.order_id = o2.id
+            WHERE o2.status IN (${REVENUE_STATUS_SQL})
+              AND p2.status = ${PAID_PAYMENT_SQL}
+              AND strftime('%Y', o2.created_at) = ?
+              AND strftime('%m', o2.created_at) = ?
+          )
+        ), 0) AS total_items,
+        COALESCE(SUM(p.amount), 0) AS total_revenue
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+      JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
+        AND p.status = ${PAID_PAYMENT_SQL}
         AND strftime('%Y', o.created_at) = ?
         AND strftime('%m', o.created_at) = ?`,
+      String(yearValue),
+      String(monthValue).padStart(2, '0'),
       String(yearValue),
       String(monthValue).padStart(2, '0'),
     );
@@ -192,11 +287,11 @@ export class ReportsService {
       `SELECT
         CAST(strftime('%m', o.created_at) AS INTEGER) AS month_number,
         COUNT(DISTINCT o.id) AS total_orders,
-        COALESCE(SUM(oi.qty), 0) AS total_items,
-        COALESCE(SUM(oi.qty * oi.price), 0) AS total_revenue
+        COALESCE(SUM(p.amount), 0) AS total_revenue
       FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
+      JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
+        AND p.status = ${PAID_PAYMENT_SQL}
         AND strftime('%Y', o.created_at) = ?
       GROUP BY strftime('%m', o.created_at)
       ORDER BY month_number ASC`,
@@ -205,7 +300,7 @@ export class ReportsService {
     return rows.map((r) => ({
       monthNumber: toNumber(r.month_number),
       totalOrders: toNumber(r.total_orders),
-      totalItems: toNumber(r.total_items),
+      totalItems: 0,
       totalRevenue: toNumber(r.total_revenue),
     }));
   }

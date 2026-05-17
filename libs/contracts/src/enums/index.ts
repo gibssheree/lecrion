@@ -39,6 +39,8 @@ export const OrderStatus = {
   CANCELLED: "cancelled",
   /** Refunded after payment. */
   REFUNDED: "refunded",
+  /** Partially refunded — some items/amount returned but not all. */
+  PARTIALLY_REFUNDED: "partially_refunded",
 } as const;
 
 export type OrderStatusValue = (typeof OrderStatus)[keyof typeof OrderStatus];
@@ -79,6 +81,7 @@ export const StockMovementType = {
   ADJUSTMENT: "adjustment",
   WASTE: "waste",
   RETURN: "return",
+  TRANSFER: "transfer",
 } as const;
 
 export type StockMovementTypeValue =
@@ -105,3 +108,223 @@ export const PaymentStatus = {
 
 export type PaymentStatusValue =
   (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+// POS immutable sale status.
+export const PosSaleStatus = {
+  PAID: "paid",
+  VOIDED: "voided",
+  REFUNDED: "refunded",
+  PARTIALLY_REFUNDED: "partially_refunded",
+} as const;
+
+export type PosSaleStatusValue =
+  (typeof PosSaleStatus)[keyof typeof PosSaleStatus];
+
+// Order-level tax mode placeholder for receipt total persistence.
+export const PosTaxMode = {
+  EXCLUSIVE: "exclusive",
+  INCLUSIVE: "inclusive",
+} as const;
+
+export type PosTaxModeValue = (typeof PosTaxMode)[keyof typeof PosTaxMode];
+
+// Correction document type.
+export const PosCorrectionType = {
+  VOID: "void",
+  REFUND: "refund",
+  RETURN: "return",
+} as const;
+
+export type PosCorrectionTypeValue =
+  (typeof PosCorrectionType)[keyof typeof PosCorrectionType];
+
+// Manager approval foundation.
+export const ManagerApprovalStatus = {
+  PENDING: "pending",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  CANCELLED: "cancelled",
+} as const;
+
+export type ManagerApprovalStatusValue =
+  (typeof ManagerApprovalStatus)[keyof typeof ManagerApprovalStatus];
+
+// ── Product type ──────────────────────────────────────────────────────────────
+//
+// Controls how the POS and inventory treat each product:
+//   simple   – standard physical item with stock tracking (default for legacy rows)
+//   variant  – a child product of a parent; shares parent_product_id
+//   service  – labour/service item; no physical stock; is_stock_tracked = false
+//   bundle   – a kit of multiple products sold together
+//   material – raw ingredient / material (warehouse / toko bangunan use)
+//
+// DB storage: String column "product_type" in menu table.
+// Default: "simple" — applied automatically to all existing rows via migration.
+//
+export const ProductType = {
+  SIMPLE: "simple",
+  VARIANT: "variant",
+  SERVICE: "service",
+  BUNDLE: "bundle",
+  MATERIAL: "material",
+} as const;
+
+export type ProductTypeValue = (typeof ProductType)[keyof typeof ProductType];
+
+/** All valid product_type strings — use for validation / guards. */
+export const PRODUCT_TYPE_VALUES = Object.values(
+  ProductType,
+) as ProductTypeValue[];
+
+// ── Common unit codes (ISO-like shortcodes) ───────────────────────────────────
+// Stored in menu.unit_code. unit_name holds the human-readable label.
+// This is a suggestion list; the field is free-text so custom units are allowed.
+export const UnitCode = {
+  PCS: "pcs", // pieces
+  BOX: "box", // box
+  KG: "kg", // kilogram
+  G: "g", // gram
+  L: "l", // litre
+  ML: "ml", // millilitre
+  M: "m", // metre
+  M2: "m2", // square metre (lumber/tiles)
+  ROLL: "roll", // roll
+  PACK: "pack", // pack
+  SET: "set", // set
+  SVC: "svc", // service (labour hour, session)
+} as const;
+
+export type UnitCodeValue = (typeof UnitCode)[keyof typeof UnitCode];
+
+// ── Inventory location type ───────────────────────────────────────────────────
+//
+// Describes the physical or logical role of a stock location:
+//   warehouse  – main storage area (default for most stores)
+//   floor      – sales floor / display area
+//   pos        – point-of-sale counter stock
+//   transit    – stock in transit between locations
+//   damaged    – quarantine / damaged goods area
+//   virtual    – non-physical location (e.g. consignment, online)
+//
+// DB storage: String column "type" in inventory_locations table.
+//
+export const InventoryLocationType = {
+  WAREHOUSE: "warehouse",
+  FLOOR: "floor",
+  POS: "pos",
+  TRANSIT: "transit",
+  DAMAGED: "damaged",
+  VIRTUAL: "virtual",
+} as const;
+
+export type InventoryLocationTypeValue =
+  (typeof InventoryLocationType)[keyof typeof InventoryLocationType];
+
+export const INVENTORY_LOCATION_TYPE_VALUES = Object.values(
+  InventoryLocationType,
+) as InventoryLocationTypeValue[];
+
+// ── Operation document type ───────────────────────────────────────────────────
+//
+// Controls which stock movements are created when a document is posted:
+//   purchase_order  – intent to purchase; no stock movement until received
+//   goods_receipt   – receiving goods from supplier; creates RESTOCK movement
+//   stock_transfer  – move stock between locations; creates TRANSFER_OUT + TRANSFER_IN
+//   stock_adjustment – manual correction; creates ADJUSTMENT movement
+//
+// DB storage: String column "document_type" in operation_documents table.
+//
+export const OperationDocumentType = {
+  PURCHASE_ORDER: "purchase_order",
+  GOODS_RECEIPT: "goods_receipt",
+  STOCK_TRANSFER: "stock_transfer",
+  STOCK_ADJUSTMENT: "stock_adjustment",
+} as const;
+
+export type OperationDocumentTypeValue =
+  (typeof OperationDocumentType)[keyof typeof OperationDocumentType];
+
+export const OPERATION_DOCUMENT_TYPE_VALUES = Object.values(
+  OperationDocumentType,
+) as OperationDocumentTypeValue[];
+
+// ── Operation document status ─────────────────────────────────────────────────
+//
+// Lifecycle:
+//   draft → submitted → posted
+//                     ↘ cancelled
+//   draft → cancelled
+//
+// Only "posted" documents affect stock.
+// "cancelled" documents are immutable and do not affect stock.
+//
+export const OperationDocumentStatus = {
+  /** Document created, not yet submitted for review. */
+  DRAFT: "draft",
+  /** Submitted for posting — awaiting confirmation. */
+  SUBMITTED: "submitted",
+  /** Posted — stock movements have been applied. Immutable. */
+  POSTED: "posted",
+  /** Cancelled — no stock movements applied. Immutable. */
+  CANCELLED: "cancelled",
+} as const;
+
+export type OperationDocumentStatusValue =
+  (typeof OperationDocumentStatus)[keyof typeof OperationDocumentStatus];
+
+export const OPERATION_DOCUMENT_STATUS_VALUES = Object.values(
+  OperationDocumentStatus,
+) as OperationDocumentStatusValue[];
+
+// ── Product variant type ──────────────────────────────────────────────────────
+//
+// Describes the dimension along which a product varies:
+//   size     – S / M / L / XL / 1kg / 2kg
+//   color    – Red / Blue / Black / White
+//   material – Kayu / Besi / Plastik
+//   grade    – Grade A / Grade B / Premium
+//   custom   – any other dimension
+//
+// DB storage: String column "variant_type" in product_variants table.
+//
+export const ProductVariantType = {
+  SIZE: "size",
+  COLOR: "color",
+  MATERIAL: "material",
+  GRADE: "grade",
+  CUSTOM: "custom",
+} as const;
+
+export type ProductVariantTypeValue =
+  (typeof ProductVariantType)[keyof typeof ProductVariantType];
+
+export const PRODUCT_VARIANT_TYPE_VALUES = Object.values(
+  ProductVariantType,
+) as ProductVariantTypeValue[];
+
+// ── Barcode type ──────────────────────────────────────────────────────────────
+//
+// Describes the barcode format stored in product_barcodes:
+//   ean13    – standard retail barcode (13 digits)
+//   ean8     – short retail barcode (8 digits)
+//   qr       – QR code
+//   code128  – alphanumeric barcode (logistics/warehouse)
+//   internal – internal/custom barcode
+//   custom   – any other format
+//
+// DB storage: String column "barcode_type" in product_barcodes table.
+//
+export const BarcodeType = {
+  EAN13: "ean13",
+  EAN8: "ean8",
+  QR: "qr",
+  CODE128: "code128",
+  INTERNAL: "internal",
+  CUSTOM: "custom",
+} as const;
+
+export type BarcodeTypeValue = (typeof BarcodeType)[keyof typeof BarcodeType];
+
+export const BARCODE_TYPE_VALUES = Object.values(
+  BarcodeType,
+) as BarcodeTypeValue[];

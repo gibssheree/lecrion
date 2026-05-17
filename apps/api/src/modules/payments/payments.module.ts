@@ -3,9 +3,10 @@ import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { AuditModule } from '../audit/audit.module';
 import { SyncModule } from '../sync/sync.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuditModule, SyncModule],
+  imports: [AuditModule, SyncModule, AuthModule],
   controllers: [PaymentsController],
   providers: [PaymentsService],
   exports: [PaymentsService],

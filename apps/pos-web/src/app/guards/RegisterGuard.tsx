@@ -15,6 +15,7 @@ export default function RegisterGuard({
   children: React.ReactNode;
 }) {
   const status = useRegisterStore((s) => s.status);
+  const session = useRegisterStore((s) => s.session);
   const initialized = useRegisterStore((s) => s.initialized);
 
   // Still waiting for first fetch — show nothing to avoid wrong branch
@@ -35,7 +36,7 @@ export default function RegisterGuard({
   }
 
   // No active session → show open-register form
-  if (status === "none") return <RegisterGatePage />;
+  if (status === "none" || !session?.id) return <RegisterGatePage />;
 
   // Session active or suspended → go to kasir
   return <>{children}</>;

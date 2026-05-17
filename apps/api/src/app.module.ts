@@ -27,6 +27,10 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { HealthModule } from './modules/health/health.module';
 import { BotModule } from './modules/bot/bot.module';
 import { PosModule } from './modules/pos/pos.module';
+import { OperationsModule } from './modules/operations/operations.module';
+import { FnbModule } from './modules/fnb/fnb.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { SuppliersModule } from './modules/suppliers/suppliers.module';
 
 @Module({
   imports: [
@@ -57,6 +61,10 @@ import { PosModule } from './modules/pos/pos.module';
     HealthModule,
     BotModule,
     PosModule,
+    OperationsModule,
+    FnbModule,
+    CustomersModule,
+    SuppliersModule,
   ],
   controllers: [],
   providers: [],

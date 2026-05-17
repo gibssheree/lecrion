@@ -1,6 +1,8 @@
 # Lecrion Enterprise POS Parity Plan
 
-Goal: evolve Lecrion POS from the current cashier checkout app into a robust POS operating layer comparable in discipline to mature systems such as Odoo POS, Mekari POS, majoo, and Moka, without trying to copy every feature at once.
+Goal: evolve Lecrion POS from the current cashier checkout app into a robust multi-business operating layer comparable in discipline to mature systems such as Odoo POS, Mekari POS, majoo, and Moka, without trying to copy every feature at once.
+
+Lecrion is not restaurant-only. The core platform must support many business fields: restaurant, cafe, retail store, fashion store, building materials, warehouse, logistics, shipping/vessel operations, service jobs, project-based sales, and other inventory or order-driven businesses. F&B features such as tables and KDS must be implemented as vertical modules on top of shared product, inventory, document, payment, and workflow primitives.
 
 This plan is written for AI agents. Execute phases in order. Do not skip Phase 0 and Phase 1, because all advanced POS features depend on transaction, cashflow, stock, reporting, and realtime correctness.
 
@@ -397,7 +399,7 @@ Keep compatibility with `menu` until migration is complete.
 
 ## 7. Phase 4 - Advanced Payment, Discount, Tax, and Receipt
 
-Purpose: add realistic retail/F&B checkout controls.
+Purpose: add realistic multi-business checkout controls for retail, F&B, service, warehouse issue, and project/job order flows.
 
 ### Backend Tasks
 
@@ -496,58 +498,183 @@ Rules:
 - Dashboard revenue excludes or subtracts refunded amounts according to policy.
 - Audit log records who approved and why.
 
-## 9. Phase 6 - F&B Operations: Dine-In, Tables, KDS, Order Status
+## 9. Phase 6 - Multi-Business Operating Foundation
 
-Purpose: make Lecrion useful for canteen/cafe/restaurant workflows, not only retail checkout.
+Purpose: make Lecrion useful beyond restaurants and cafes. This phase creates the shared business primitives needed by retail stores, warehouses, building material shops, fashion stores, service businesses, logistics operations, shipping/vessel operations, and F&B verticals.
 
-### Database Tasks
+Do not hardcode restaurant concepts into the core domain. Tables, KDS, and kitchen tickets belong to an F&B vertical module after the shared foundation exists.
 
-Add tables:
+### Phase 6A - Product and Catalog Generalization
 
-- `tables`
-- `dining_areas`
-- `kitchen_tickets`
-- `kitchen_ticket_items`
-- `order_notes`
+Add product metadata that works across business types:
 
-### Backend Tasks
+- SKU
+- barcode
+- category
+- brand
+- unit of measure
+- cost price/HPP
+- selling price
+- active flag
+- taxable flag
+- image
+- product type:
+  - `stocked`
+  - `non_stock`
+  - `service`
+  - `bundle`
+  - `material`
+  - `menu_item`
+  - `rental`
+  - `serialized`
 
-Add endpoints:
+Add compatibility with the current `menu` table until a full product migration is safe.
 
-- `GET /api/tables`
-- `POST /api/tables/:id/open-order`
-- `PATCH /api/orders/:id/table`
-- `PATCH /api/kitchen/items/:id/status`
-- `GET /api/kitchen/tickets`
+Recommended tables:
 
-Order item statuses:
+- `product_categories`
+- `product_units`
+- `product_variants`
+- `product_barcodes`
+- `product_attributes`
+- `product_bundles`
 
-- `queued`
-- `preparing`
-- `ready`
-- `served`
+Acceptance criteria:
+
+- Product search works by name, SKU, barcode, and category.
+- A product can be marked as stock-tracked or non-stock/service.
+- Variants can represent size/color or similar retail attributes.
+- Existing POS menu products still work.
+
+### Phase 6B - Inventory Location Foundation
+
+Add stock structure that can support stores, warehouses, stock rooms, project sites, vessels, and yards.
+
+Recommended concepts:
+
+- location type:
+  - `store`
+  - `warehouse`
+  - `bin`
+  - `project_site`
+  - `vessel`
+  - `vehicle`
+  - `supplier`
+  - `customer`
+
+- stock balance by product and location
+- stock movement by source and destination
+- stock transfer
+- goods receipt
+- stock issue
+- stock opname
+- batch/lot tracking where needed
+- serial number tracking where needed
+- unit conversion for materials and wholesale
+
+Recommended APIs:
+
+- `GET /api/locations`
+- `POST /api/locations`
+- `GET /api/inventory/balances`
+- `POST /api/inventory/transfers`
+- `POST /api/inventory/receipts`
+- `POST /api/inventory/issues`
+- `POST /api/inventory/opnames`
+
+Acceptance criteria:
+
+- A sale can decrement stock from the active store/location.
+- A warehouse transfer moves stock between locations with ledger rows.
+- Manual adjustments and returns are location-aware.
+- Stock history explains source, destination, operator, and reason.
+
+### Phase 6C - Document Workflow Foundation
+
+Create shared business documents that can represent many fields:
+
+- quotation
+- sales order
+- invoice/payment
+- delivery note
+- goods receipt
+- stock issue
+- return document
+- service/job order
+- project order
+
+Recommended fields:
+
+- document number
+- document type
+- status
+- customer/vendor/project reference
+- source location
+- destination location
+- line items
+- totals
+- linked payments
+- linked stock movements
+- audit history
+
+Recommended statuses:
+
+- `draft`
+- `confirmed`
+- `in_progress`
+- `partially_fulfilled`
+- `fulfilled`
+- `paid`
 - `cancelled`
+- `refunded`
 
-### Frontend Tasks
+Acceptance criteria:
 
-- Add order type selector:
-  - pickup
-  - dine-in
-  - delivery
+- POS sale remains a fast path, but can be linked to a general document model later.
+- Non-POS workflows such as warehouse issue or service order can reuse products, inventory, payments, and audit.
+- Reports can group business activity by document type.
 
-- Add table picker.
-- Add item notes and kitchen notes.
-- Add KDS page:
-  - queued orders
-  - item timers
-  - ready/served controls
+### Phase 6D - Vertical Modules
 
-### Acceptance Criteria
+After Phase 6A-6C, add optional vertical workflows:
 
-- Dine-in sale can attach to table.
-- Kitchen sees paid/confirmed orders.
-- Cashier sees preparation status.
-- Completed kitchen items can be marked ready/served.
+- F&B:
+  - dining areas
+  - tables
+  - kitchen tickets
+  - kitchen display system
+  - item preparation statuses
+
+- Retail/fashion:
+  - size/color variants
+  - barcode labels
+  - outlet stock
+  - exchange workflow
+
+- Building materials:
+  - unit conversion
+  - delivery scheduling
+  - project/customer job reference
+  - wholesale price tiers
+
+- Warehouse/logistics:
+  - receiving
+  - picking
+  - packing
+  - dispatch
+  - bin locations
+
+- Shipping/vessel/service operations:
+  - vessel/job reference
+  - stock issue to vessel/project
+  - maintenance/service orders
+  - materials usage tracking
+
+Acceptance criteria:
+
+- Vertical modules do not break the generic retail POS flow.
+- Vertical-specific screens use shared catalog, inventory, document, payment, and audit primitives.
+- Business type can be enabled per store/company configuration.
 
 ## 10. Phase 7 - Customer, Loyalty, Promo, and CRM
 
@@ -1009,6 +1136,31 @@ First task:
 
 - Add stock movement ledger while preserving current `menu` compatibility.
 
+### Agent I - Multi-Business Product and Location Foundation
+
+Owns:
+
+- `prisma/schema.prisma` and migrations for Phase 6 only
+- `apps/api/src/modules/catalog/*`
+- `apps/api/src/modules/inventory/*`
+- new modules for locations/documents if created
+- dashboard/POS product and inventory screens only where needed
+
+First task:
+
+- Implement Phase 6A product/catalog generalization and Phase 6B location-aware inventory foundation without adding F&B-specific tables first.
+
+### Agent V - Vertical Workflow Modules
+
+Owns:
+
+- optional vertical modules after Phase 6A-6C are stable
+- F&B tables/KDS, retail variants UX, warehouse picking, service/job/vessel screens
+
+First task:
+
+- Add one vertical module at a time using shared product, inventory, document, payment, and audit primitives.
+
 ## 17. Testing Strategy
 
 ### API Tests
@@ -1095,13 +1247,14 @@ Outcome:
 
 - Discounts, taxes, split payments, receipts, refunds, and voids work.
 
-### Milestone 5 - F&B/Business Suite
+### Milestone 5 - Multi-Business Foundation
 
 Includes Phase 6 and Phase 7.
 
 Outcome:
 
-- Tables, KDS, customer, loyalty, and promo workflows exist.
+- Lecrion supports generic product types, SKU/barcode/category, location-aware stock, shared business documents, customers, loyalty, and promo workflows.
+- F&B tables/KDS, warehouse picking, retail variants, building material delivery, and vessel/project workflows are optional vertical modules built on the shared foundation.
 
 ### Milestone 6 - Operational Maturity
 
@@ -1133,4 +1286,4 @@ Start with these exact tasks:
 8. Rebuild or refresh projections after sale/payment confirmation.
 9. Add API tests for the above.
 
-Do not start discounts, receipts, refunds, tables, loyalty, or offline mode until these are done.
+Do not start discounts, receipts, refunds, vertical modules, loyalty, or offline mode until these are done.

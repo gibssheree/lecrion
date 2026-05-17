@@ -40,7 +40,7 @@ Execution phases from the main plan:
 - Phase 3: Product catalog and inventory foundation.
 - Phase 4: Advanced payment, discount, tax, and receipt.
 - Phase 5: Void, refund, return, and manager approval.
-- Phase 6: F&B operations: dine-in, tables, KDS, order status.
+- Phase 6: Multi-business operating foundation: product generalization, location-aware inventory, document workflow, and optional vertical modules.
 - Phase 7: Customer, loyalty, promo, and CRM.
 - Phase 8: Offline mode and sync.
 - Phase 9: Multi-store, roles, security, and audit hardening.
@@ -377,23 +377,55 @@ Verify:
 - Void/refund appears in audit logs.
 - Reports do not double count refunded sales.
 
-## 8. Parallel Wave 4 - Business Suite Expansion
+## 8. Parallel Wave 4 - Multi-Business Foundation
 
 Start this wave only after core POS correctness is stable.
 
-### Agent I - F&B Operations
+### Agent I - Product and Catalog Generalization
 
 Works on:
 
-- Phase 6
+- Phase 6A
 
 Scope:
 
-- dine-in
-- tables
-- kitchen display
-- item status
-- order notes
+- SKU/barcode/category
+- unit of measure
+- brand
+- product type
+- variants and attributes
+- stocked vs non-stock/service products
+- compatibility with current `menu`
+
+### Agent P - Inventory Locations and Documents
+
+Works on:
+
+- Phase 6B and Phase 6C
+
+Scope:
+
+- locations: store, warehouse, bin, project site, vessel, vehicle
+- stock balances by location
+- stock transfers
+- goods receipt
+- stock issue
+- stock opname
+- shared document workflow for quote/order/invoice/delivery/return/service/job/project documents
+
+### Agent V - Vertical Modules
+
+Works on:
+
+- Phase 6D after Phase 6A-6C are stable
+
+Scope:
+
+- F&B: dining areas, tables, kitchen tickets, KDS
+- Retail/fashion: size/color variants and exchange workflow
+- Building materials: unit conversion, delivery scheduling, project/customer job reference
+- Warehouse/logistics: receiving, picking, packing, dispatch, bin locations
+- Shipping/vessel/service: vessel/job reference, stock issue to vessel/project, service/maintenance orders
 
 ### Agent J - Customer, Loyalty, Promo
 
@@ -426,7 +458,10 @@ Scope:
 
 Verify:
 
-- Dine-in and pickup do not break existing POS flow.
+- Generic retail POS flow still works with generalized products.
+- Location-aware stock movements reconcile.
+- Document workflow can link to sales/payments/stock movements.
+- Any vertical module uses shared primitives and does not hardcode its rules into the core POS sale.
 - Promo/loyalty totals reconcile with receipt and reports.
 - WhatsApp summaries match dashboard numbers.
 
@@ -525,7 +560,9 @@ Before migration work:
 Migration-owning phases:
 
 - Phase 3: Agent D
-- Phase 6: Agent I
+- Phase 6A: Agent I
+- Phase 6B/6C: Agent P
+- Phase 6D: Agent V only when a vertical requires new tables and after coordination
 - Phase 7: Agent J
 - Phase 8: Agent L if sync tables are needed
 - Phase 9: Agent M
@@ -662,13 +699,16 @@ Run Wave 4 and Wave 5 by business priority.
 
 Recommended order:
 
-1. Phase 6 F&B if Lecrion is used for canteen/cafe operations.
-2. Phase 7 customer/loyalty if repeat customer workflows matter.
-3. Phase 10 analytics/WhatsApp reporting for owner visibility.
-4. Phase 8 offline mode after sale idempotency is battle-tested.
-5. Phase 9 multi-store/roles before real multi-branch deployment.
-6. Phase 11 hardware polish.
-7. Phase 12 UI polish after logic is stable.
+1. Phase 6A product/catalog generalization.
+2. Phase 6B location-aware inventory.
+3. Phase 6C shared document workflow.
+4. Phase 7 customer/loyalty/promo if repeat customer workflows matter.
+5. Phase 10 analytics/WhatsApp reporting for owner visibility.
+6. Phase 6D vertical modules by business priority, for example F&B tables/KDS, warehouse picking, retail variants, building material delivery, or vessel/project workflows.
+7. Phase 8 offline mode after sale idempotency is battle-tested.
+8. Phase 9 multi-store/roles before real multi-branch deployment.
+9. Phase 11 hardware polish.
+10. Phase 12 UI polish after logic is stable.
 
 ## 16. Immediate Instruction To Give Agents
 
@@ -691,4 +731,3 @@ Final response must include changed files, implemented items, contracts used, ve
 ```
 
 After that passes, use the Wave 1 agent scopes exactly as written in this document.
-

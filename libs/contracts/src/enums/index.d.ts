@@ -45,3 +45,28 @@ export declare const PaymentStatus: {
     readonly REFUNDED: "refunded";
 };
 export type PaymentStatusValue = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+export declare const PosSaleStatus: {
+    readonly PAID: "paid";
+    readonly VOIDED: "voided";
+    readonly REFUNDED: "refunded";
+    readonly PARTIALLY_REFUNDED: "partially_refunded";
+};
+export type PosSaleStatusValue = (typeof PosSaleStatus)[keyof typeof PosSaleStatus];
+export declare const PosTaxMode: {
+    readonly EXCLUSIVE: "exclusive";
+    readonly INCLUSIVE: "inclusive";
+};
+export type PosTaxModeValue = (typeof PosTaxMode)[keyof typeof PosTaxMode];
+export declare const PosCorrectionType: {
+    readonly VOID: "void";
+    readonly REFUND: "refund";
+    readonly RETURN: "return";
+};
+export type PosCorrectionTypeValue = (typeof PosCorrectionType)[keyof typeof PosCorrectionType];
+export declare const ManagerApprovalStatus: {
+    readonly PENDING: "pending";
+    readonly APPROVED: "approved";
+    readonly REJECTED: "rejected";
+    readonly CANCELLED: "cancelled";
+};
+export type ManagerApprovalStatusValue = (typeof ManagerApprovalStatus)[keyof typeof ManagerApprovalStatus];

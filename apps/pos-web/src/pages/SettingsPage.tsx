@@ -1,18 +1,54 @@
 import { useState, useEffect } from "react";
-import { Save, RotateCcw, Settings } from "lucide-react";
+import { Save, RotateCcw, Send, Settings } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
 import { useApi } from "../hooks/useApi";
-import { getSettings, saveSettings } from "../services/api";
+import {
+  getBusinessProfile,
+  getSettings,
+  requestBusinessProfile,
+  saveSettings,
+} from "../services/api";
+
+const BUSINESS_VERTICAL_OPTIONS = [
+  { value: "general", label: "General / Mixed Business" },
+  { value: "retail", label: "Retail Store" },
+  { value: "grocery_minimarket", label: "Grocery / Minimarket" },
+  { value: "restaurant_cafe", label: "Restaurant / Cafe" },
+  { value: "wholesale_distribution", label: "Wholesale / Distribution" },
+  { value: "warehouse_logistics", label: "Warehouse / Logistics" },
+  { value: "manufacturing", label: "Manufacturing / Production" },
+  { value: "construction_materials", label: "Building Materials" },
+  { value: "service_repair", label: "Services / Repair Shop" },
+  { value: "health_wellness", label: "Health / Wellness" },
+];
 
 export default function SettingsPage() {
   const settings = useApi(getSettings, []);
+  const profile = useApi(getBusinessProfile, []);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [requestedVertical, setRequestedVertical] = useState("general");
+  const [requestingVertical, setRequestingVertical] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (settings.data) setForm(settings.data as Record<string, string>);
+    if (settings.data) {
+      setForm({
+        ...(settings.data as Record<string, string>),
+        businessType:
+          (settings.data as Record<string, string>).businessType ?? "general",
+      });
+    }
   }, [settings.data]);
+
+  useEffect(() => {
+    if (profile.data) {
+      setRequestedVertical(
+        profile.data.requestedBusinessVertical ??
+          profile.data.verifiedBusinessVertical,
+      );
+    }
+  }, [profile.data]);
 
   function onChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -38,10 +74,28 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleRequestVertical() {
+    setRequestingVertical(true);
+    try {
+      await requestBusinessProfile(requestedVertical);
+      await profile.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setRequestingVertical(false);
+    }
+  }
+
   const FIELDS = [
     { key: "storeName", label: "Nama Toko", type: "text" },
     { key: "storeAddress", label: "Alamat", type: "text" },
     { key: "storePhone", label: "No. Telepon", type: "text" },
+    {
+      key: "businessType",
+      label: "Kategori Bisnis",
+      type: "select",
+      options: ["general", "retail", "restaurant", "cafe", "service"],
+    },
     {
       key: "defaultOrderType",
       label: "Tipe Pesanan Default",
@@ -155,6 +209,107 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      <div
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)",
+          padding: 24,
+          marginTop: 16,
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: 14,
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Settings size={15} /> Kategori & Modul Bisnis
+        </div>
+
+        {profile.error && (
+          <div className="alert alert-error" style={{ marginBottom: 16 }}>
+            {profile.error}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 16,
+            marginBottom: 16,
+          }}
+        >
+          <div>
+            <label className="form-label">Kategori Terverifikasi</label>
+            <input
+              className="form-input"
+              value={profile.data?.verifiedBusinessVertical ?? "general"}
+              readOnly
+            />
+          </div>
+          <div>
+            <label className="form-label">Status Verifikasi</label>
+            <input
+              className="form-input"
+              value={profile.data?.verificationStatus ?? "unverified"}
+              readOnly
+            />
+          </div>
+          <div>
+            <label className="form-label">Request Aktif</label>
+            <input
+              className="form-input"
+              value={profile.data?.requestedBusinessVertical ?? "-"}
+              readOnly
+            />
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 12,
+            alignItems: "end",
+          }}
+        >
+          <div>
+            <label className="form-label">Ajukan Kategori Bisnis</label>
+            <select
+              className="form-input"
+              value={requestedVertical}
+              onChange={(event) => setRequestedVertical(event.target.value)}
+            >
+              {BUSINESS_VERTICAL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleRequestVertical}
+            disabled={requestingVertical || profile.loading}
+            style={{ display: "flex", alignItems: "center", gap: 5 }}
+          >
+            {requestingVertical ? (
+              <div className="spinner" style={{ width: 14, height: 14 }} />
+            ) : (
+              <Send size={13} />
+            )}
+            Ajukan
+          </button>
+        </div>
+      </div>
     </PosAppShell>
   );
 }

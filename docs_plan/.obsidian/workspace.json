@@ -13,12 +13,26 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "07-ultimate-tasks.md",
+                "file": "16-pos-agent-execution-strategy.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "07-ultimate-tasks"
+              "title": "16-pos-agent-execution-strategy"
+            }
+          },
+          {
+            "id": "6b46141535c76544",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "16-pos-agent-execution-strategy.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "16-pos-agent-execution-strategy"
             }
           },
           {
@@ -93,8 +107,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "72933ea42f741fcd",
@@ -200,18 +213,20 @@
       "markdown-importer:Open format converter": false
     }
   },
-  "active": "7b7e32ac0bb1c541",
+  "active": "6b46141535c76544",
   "lastOpenFiles": [
-    "15-enterprise-pos-parity-plan.md",
+    "17-business-vertical-navigation-architecture-plan.md",
+    "03-file-architecture.md",
     "16-pos-agent-execution-strategy.md",
+    "01-blueprint.md",
+    "15-enterprise-pos-parity-plan.md",
+    "singgah.md",
+    "07-ultimate-tasks.md",
     "09-zed-based-plan.md",
     "10-overall-assessment.md",
     "08-fix-tasks.md",
-    "07-ultimate-tasks.md",
     "06-codebase-verification-and-migration.md",
-    "03-file-architecture.md",
     "02-roadmap.md",
-    "01-blueprint.md",
     "Untitled",
     "README.md",
     "05-security-ops.md",

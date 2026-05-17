@@ -7,8 +7,8 @@ import { useRegisterStore } from "../store/register.store";
 
 /**
  * Subscribes to realtime events relevant to the POS:
- * - order.created → refresh register session balance
- * - stock.alert → trigger product reload (handled by useProducts auto-refresh)
+ * - canonical order/payment/cashflow events → refresh register session balance
+ * - stock events are handled elsewhere by auto-refresh
  *
  * Call once at the PosPage level.
  */
@@ -18,17 +18,25 @@ export function useRealtimeSync() {
   useEffect(() => {
     const socket = getSocket();
 
-    // When a new order is created (by bot or another terminal), refresh register
-    const onOrderCreated = () => {
+    // Refresh register state when a sale/payment changes cash or order status.
+    const onActivity = () => {
       refreshRegister();
     };
 
-    socket.on("order.created", onOrderCreated);
-    socket.on("order.status_changed", onOrderCreated);
+    socket.on("order.created", onActivity);
+    socket.on("order.confirmed", onActivity);
+    socket.on("payment.confirmed", onActivity);
+    socket.on("cashflow.income.recorded", onActivity);
+    socket.on("register.opened", onActivity);
+    socket.on("register.closed", onActivity);
 
     return () => {
-      socket.off("order.created", onOrderCreated);
-      socket.off("order.status_changed", onOrderCreated);
+      socket.off("order.created", onActivity);
+      socket.off("order.confirmed", onActivity);
+      socket.off("payment.confirmed", onActivity);
+      socket.off("cashflow.income.recorded", onActivity);
+      socket.off("register.opened", onActivity);
+      socket.off("register.closed", onActivity);
     };
   }, [refreshRegister]);
 }

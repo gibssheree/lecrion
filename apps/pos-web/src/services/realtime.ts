@@ -1,14 +1,52 @@
 // apps/pos-web/src/services/realtime.ts
 // Socket.IO client for POS realtime events
 
+import { useAuthStore } from "../store/auth.store";
 import { io, Socket } from "socket.io-client";
 
 const SOCKET_URL =
   typeof window !== "undefined"
     ? window.location.origin
     : "http://localhost:3000";
+const DEFAULT_STORE_ID = "default-store";
+const API_KEY =
+  (
+    import.meta as {
+      env?: { VITE_DASHBOARD_API_KEY?: string };
+    }
+  ).env?.VITE_DASHBOARD_API_KEY ?? "";
 
 let _socket: Socket | null = null;
+
+function getStoredPosToken(): string | null {
+  const sessionToken = sessionStorage.getItem("pos_token");
+  if (sessionToken) return sessionToken;
+
+  try {
+    const persisted = JSON.parse(localStorage.getItem("pos-auth") ?? "{}");
+    return persisted?.state?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function buildSocketAuth(): Record<string, string> {
+  const auth: Record<string, string> = {
+    storeId: useAuthStore.getState().user?.storeId ?? DEFAULT_STORE_ID,
+  };
+  const token = getStoredPosToken();
+
+  if (token) {
+    if (!sessionStorage.getItem("pos_token")) {
+      sessionStorage.setItem("pos_token", token);
+    }
+    auth.token = token;
+  } else if (API_KEY) {
+    auth.apiKey = API_KEY;
+  }
+
+  return auth;
+}
 
 export function getSocket(): Socket {
   if (_socket?.connected) return _socket;
@@ -19,11 +57,13 @@ export function getSocket(): Socket {
     reconnection: true,
     reconnectionDelay: 2000,
     reconnectionAttempts: Infinity,
-    auth: { apiKey: "" },
+    auth: buildSocketAuth(),
   });
 
   _socket.on("connect", () => {
+    const storeId = useAuthStore.getState().user?.storeId ?? DEFAULT_STORE_ID;
     _socket!.emit("join", "dashboard");
+    _socket!.emit("join", `store:${storeId}`);
     console.log("[POS Realtime] Connected");
   });
 

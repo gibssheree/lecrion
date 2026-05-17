@@ -176,22 +176,126 @@ model idempotency_keys {
   @@index([expires_at], map: "idx_idempotency_expires")
 }
 
+// ── Product categories ────────────────────────────────────────────────────────
+// Hierarchical category tree. parent_id = NULL means top-level category.
+// slug must be unique per store (e.g. "makanan", "minuman", "bahan-bangunan").
+// Phase 6A — 2026-05-15
+model product_categories {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  slug        String
+  description String?
+  parent_id   Int?
+  sort_order  Int                  @default(0)
+  is_active   Boolean              @default(true)
+  store_id    String               @default("default-store")
+  created_at  String               @default("datetime('now')")
+  updated_at  String               @default("datetime('now')")
+  parent      product_categories?  @relation("CategoryTree", fields: [parent_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  children    product_categories[] @relation("CategoryTree")
+  products    menu[]
+
+  @@unique([slug, store_id], map: "uniq_category_slug_store")
+  @@index([store_id, is_active], map: "idx_category_store_active")
+  @@index([parent_id], map: "idx_category_parent")
+}
+
+// ── Product variants ──────────────────────────────────────────────────────────
+// Maps a parent product to its variant children.
+// variant_type: "size" | "color" | "material" | "grade" | "custom"
+// variant_value: the specific value (e.g. "L", "Red", "Grade A")
+// Phase 6A — 2026-05-15
+model product_variants {
+  id                 Int    @id @default(autoincrement())
+  parent_product_id  Int
+  variant_product_id Int
+  variant_type       String @default("custom")
+  variant_value      String
+  sort_order         Int    @default(0)
+  is_active          Boolean @default(true)
+  created_at         String @default("datetime('now')")
+  parent_product     menu   @relation("VariantParent", fields: [parent_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  variant_product    menu   @relation("VariantChild", fields: [variant_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([parent_product_id, variant_product_id], map: "uniq_variant_parent_child")
+  @@index([parent_product_id], map: "idx_variant_parent")
+  @@index([variant_product_id], map: "idx_variant_child")
+}
+
+// ── Product barcodes ──────────────────────────────────────────────────────────
+// Additional barcodes per product (a product can have multiple barcodes).
+// The primary barcode is still stored in menu.barcode for fast lookup.
+// barcode_type: "ean13" | "ean8" | "qr" | "code128" | "internal" | "custom"
+// Phase 6A — 2026-05-15
+model product_barcodes {
+  id           Int     @id @default(autoincrement())
+  menu_id      Int
+  barcode      String  @unique
+  barcode_type String  @default("ean13")
+  is_primary   Boolean @default(false)
+  created_at   String  @default("datetime('now')")
+  menu         menu    @relation(fields: [menu_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([menu_id], map: "idx_product_barcodes_menu")
+}
+
 // ── Product catalog (menu) ────────────────────────────────────────────────────
 // NOTE: No store_id column — catalog is currently global (single-store schema).
 // Add store_id when multi-store catalog isolation is required.
+//
+// ── Generalization columns (Phase 4 – 2026-05-15) ────────────────────────────
+// All new columns use safe defaults so existing rows need no backfill:
+//   product_type     – defaults "simple"; old menu rows are simple products
+//   is_stock_tracked – defaults true; existing rows are stock-managed
+//   is_active        – defaults true; existing rows are visible/sellable
+//   All other new columns are nullable — legacy rows leave them NULL.
+//
+// product_type values: "simple" | "variant" | "service" | "bundle" | "material"
+//   (canonical values in ProductType enum — libs/contracts/src/enums/index.ts)
+//
+// ── Phase 6A additions (2026-05-15) ──────────────────────────────────────────
+//   category_id – FK to product_categories; nullable for legacy rows
 model menu {
   id                Int                 @id @default(autoincrement())
   name              String
   price             Float
+  cost_price        Float?
   stock             Int                 @default(0)
   description       String?
   image_url         String?
+  // ── Generalization fields ─────────────────────────────────────────────────
+  sku               String?
+  barcode           String?
+  product_type      String              @default("simple")
+  unit_name         String?
+  unit_code         String?
+  brand             String?
+  supplier_name     String?
+  supplier_id       String?
+  attributes        String?
+  parent_product_id Int?
+  is_stock_tracked  Boolean             @default(true)
+  is_active         Boolean             @default(true)
+  // ── Phase 6A: category FK ─────────────────────────────────────────────────
+  category_id       Int?
+  // ─────────────────────────────────────────────────────────────────────────
   cart_items        cart_items[]
   favorites         favorites[]
   order_items       order_items[]
   stock_change_logs stock_change_logs[]
+  inventory_stock_balances inventory_stock_balances[]
+  operation_document_lines operation_document_lines[]
+  category          product_categories? @relation(fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  variant_as_parent product_variants[]  @relation("VariantParent")
+  variant_as_child  product_variants[]  @relation("VariantChild")
+  product_barcodes  product_barcodes[]
 
   @@index([stock], map: "idx_menu_stock")
+  @@index([sku], map: "idx_menu_sku")
+  @@index([barcode], map: "idx_menu_barcode")
+  @@index([product_type], map: "idx_menu_product_type")
+  @@index([is_active, is_stock_tracked], map: "idx_menu_active_tracked")
+  @@index([category_id], map: "idx_menu_category_id")
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -238,16 +342,8 @@ model order_ratings {
 // status values: "pending" | "pending_payment" | "paid" | "confirmed" |
 //                "completed" | "cancelled" | "refunded"  (OrderStatus enum)
 //
-// MIGRATION NOTE: Existing rows may contain legacy status values:
-//   "Not Ready" → "pending"
-//   "Ready"     → "confirmed"
-//   "Success"   → "paid"
-//   "Completed" → "completed"
-// Run the following SQL to normalize legacy rows:
-//   UPDATE orders SET status = 'pending'   WHERE status = 'Not Ready';
-//   UPDATE orders SET status = 'confirmed' WHERE status = 'Ready';
-//   UPDATE orders SET status = 'paid'      WHERE status = 'Success';
-//   UPDATE orders SET status = 'completed' WHERE status = 'Completed';
+// Phase 6D: table_id — FK to dining_tables (nullable, F&B only)
+// Phase 7:  customer_id — FK to customers (nullable)
 model orders {
   id                  Int            @id @default(autoincrement())
   user_id             Int
@@ -262,14 +358,24 @@ model orders {
   estimated_time      Int?           @default(15)
   cancelled_at        String?
   cancellation_reason String?
+  // ── Phase 6D: F&B table ───────────────────────────────────────────────────
+  table_id            Int?
+  // ── Phase 7: customer link ────────────────────────────────────────────────
+  customer_id         Int?
+  // ─────────────────────────────────────────────────────────────────────────
   order_items         order_items[]
   order_ratings       order_ratings?
   users               users          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments            payments[]
+  table               dining_tables? @relation(fields: [table_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  customer            customers?     @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  kitchen_tickets     kitchen_tickets[]
 
   @@index([user_id], map: "idx_orders_user")
   @@index([created_at], map: "idx_orders_created_at")
   @@index([status], map: "idx_orders_status")
+  @@index([table_id], map: "idx_orders_table")
+  @@index([customer_id], map: "idx_orders_customer")
 }
 
 // ── Payments ──────────────────────────────────────────────────────────────────
@@ -293,6 +399,128 @@ model payments {
 }
 
 // ── Read model snapshots (legacy — superseded by report_snapshots) ────────────
+// Immutable POS sale / receipt snapshot.
+// status values: "paid" | "voided" | "refunded" | "partially_refunded"
+// tax_mode values: "exclusive" | "inclusive"
+//
+// Phase 7 additions (2026-05-15):
+//   customer_id   – FK to customers (nullable)
+//   promotion_id  – FK to promotions (nullable)
+//   voucher_code  – applied voucher code (nullable)
+//   loyalty_points_earned   – points earned from this sale
+//   loyalty_points_redeemed – points redeemed on this sale
+model pos_sales {
+  id                       Int               @id @default(autoincrement())
+  receipt_number           String            @unique
+  client_sale_id           String?
+  order_id                 Int               @unique
+  register_session_id      Int
+  cashier_id               String
+  store_id                 String            @default("default-store")
+  customer_name            String?
+  customer_phone           String?
+  order_type               String
+  status                   String            @default("paid")
+  subtotal                 Float
+  discount_amount          Float             @default(0)
+  discount_reason          String?
+  tax_amount               Float             @default(0)
+  tax_mode                 String            @default("exclusive")
+  service_charge_amount    Float             @default(0)
+  total                    Float
+  paid_total               Float
+  change_amount            Float             @default(0)
+  payment_methods          String            @default("[]")
+  payment_lines            String            @default("[]")
+  // ── Phase 7: customer & promo ─────────────────────────────────────────────
+  customer_id              Int?
+  promotion_id             Int?
+  voucher_code             String?
+  loyalty_points_earned    Int               @default(0)
+  loyalty_points_redeemed  Int               @default(0)
+  // ─────────────────────────────────────────────────────────────────────────
+  created_at               String            @default("datetime('now')")
+  pos_sale_items           pos_sale_items[]
+  pos_corrections          pos_corrections[]
+  customer                 customers?        @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  promotion                promotions?       @relation(fields: [promotion_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_pos_sales_created")
+  @@index([store_id, created_at], map: "idx_pos_sales_store_created")
+  @@index([register_session_id, created_at], map: "idx_pos_sales_session_created")
+  @@index([status], map: "idx_pos_sales_status")
+  @@index([customer_id], map: "idx_pos_sales_customer")
+}
+
+model pos_sale_items {
+  id         Int       @id @default(autoincrement())
+  sale_id    Int
+  product_id Int
+  name       String
+  qty        Int
+  unit_price Float
+  line_total Float
+  created_at String    @default("datetime('now')")
+  pos_sales  pos_sales @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sale_id], map: "idx_pos_sale_items_sale")
+  @@index([product_id], map: "idx_pos_sale_items_product")
+}
+
+// Receipt sequence scope: store + register session + business date.
+model receipt_sequences {
+  id                  Int    @id @default(autoincrement())
+  store_id            String
+  register_session_id Int
+  business_date       String
+  sequence            Int    @default(0)
+  created_at          String @default("datetime('now')")
+  updated_at          String @default("datetime('now')")
+
+  @@unique([store_id, register_session_id, business_date], map: "uniq_receipt_sequence_scope")
+  @@index([business_date], map: "idx_receipt_sequences_date")
+}
+
+// Manager approval request foundation.
+// type examples: "void" | "refund" | "return" | "discount_override"
+// status values: "pending" | "approved" | "rejected" | "cancelled"
+model manager_approvals {
+  id              Int               @id @default(autoincrement())
+  approval_type   String
+  requested_by    String
+  approved_by     String?
+  reason          String
+  status          String            @default("pending")
+  created_at      String            @default("datetime('now')")
+  resolved_at     String?
+  pos_corrections pos_corrections[]
+
+  @@index([approval_type, status], map: "idx_manager_approvals_type_status")
+  @@index([created_at], map: "idx_manager_approvals_created")
+}
+
+// Immutable correction document foundation.
+// type values: "void" | "refund" | "return"
+model pos_corrections {
+  id                  Int                @id @default(autoincrement())
+  correction_number   String             @unique
+  type                String
+  reason              String
+  operator_id         String
+  manager_approval_id Int?
+  original_order_id   Int
+  sale_id             Int?
+  amount              Float              @default(0)
+  metadata            String?
+  created_at          String             @default("datetime('now')")
+  manager_approvals   manager_approvals? @relation(fields: [manager_approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pos_sales           pos_sales?         @relation(fields: [sale_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([original_order_id], map: "idx_pos_corrections_order")
+  @@index([sale_id], map: "idx_pos_corrections_sale")
+  @@index([type, created_at], map: "idx_pos_corrections_type_created")
+}
+
 model read_model_snapshots {
   name       String @id
   data       String
@@ -307,21 +535,81 @@ model report_snapshots {
 }
 
 // ── Stock change log (append-only ledger) ─────────────────────────────────────
+// Phase 3 additive columns (2026-05-15):
+//   store_id    — store scope; defaults to "default-store" for existing rows
+//   operator_id — user/cashier who triggered the change; nullable for legacy rows
+//   source_ref  — free-form reference (clientSaleId, adjustment reason, etc.)
+// Phase 6J additive columns (2026-05-15):
+//   location_id — inventory location; nullable for legacy rows (global stock)
+// Existing columns are unchanged for backward compatibility with POS sale path.
 model stock_change_logs {
-  id          Int     @id @default(autoincrement())
-  menu_id     Int
-  admin_id    Int?
-  order_id    Int?
-  change_type String
-  qty_before  Int
-  qty_change  Int
-  qty_after   Int
-  note        String?
-  created_at  String  @default("datetime('now')")
-  menu        menu    @relation(fields: [menu_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                   Int                    @id @default(autoincrement())
+  menu_id              Int
+  admin_id             Int?
+  order_id             Int?
+  change_type          String
+  qty_before           Int
+  qty_change           Int
+  qty_after            Int
+  note                 String?
+  store_id             String                 @default("default-store")
+  operator_id          String?
+  source_ref           String?
+  location_id          Int?
+  created_at           String                 @default("datetime('now')")
+  menu                 menu                   @relation(fields: [menu_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inventory_locations  inventory_locations?   @relation(fields: [location_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([created_at], map: "idx_scl_created")
   @@index([menu_id, created_at], map: "idx_scl_menu_created")
+  @@index([store_id, created_at], map: "idx_scl_store_created")
+  @@index([change_type], map: "idx_scl_change_type")
+  @@index([location_id], map: "idx_scl_location")
+}
+
+// ── Inventory locations ───────────────────────────────────────────────────────
+// Represents a physical or logical stock location within a store.
+// type values: "warehouse" | "floor" | "pos" | "transit" | "damaged" | "virtual"
+//   (canonical values in InventoryLocationType enum)
+// Every store has one default location (is_default = true).
+// The service layer creates the default location on first use.
+model inventory_locations {
+  id                       Int                        @id @default(autoincrement())
+  store_id                 String                     @default("default-store")
+  name                     String
+  type                     String                     @default("warehouse")
+  is_default               Boolean                    @default(false)
+  is_active                Boolean                    @default(true)
+  created_at               String                     @default("datetime('now')")
+  inventory_stock_balances inventory_stock_balances[]
+  stock_change_logs        stock_change_logs[]
+
+  @@index([store_id], map: "idx_inv_loc_store")
+  @@index([store_id, is_default], map: "idx_inv_loc_store_default")
+  @@index([store_id, is_active], map: "idx_inv_loc_active")
+}
+
+// ── Inventory stock balances ──────────────────────────────────────────────────
+// Per-location stock balance for each product.
+// qty_on_hand  — physical units available at this location
+// qty_reserved — units reserved for pending orders (optional, defaults 0)
+//
+// Uniqueness: one row per (menu_id, location_id) pair.
+// Fallback: if no row exists for a product+location, callers fall back to
+//           menu.stock (legacy global stock).
+model inventory_stock_balances {
+  id                  Int                 @id @default(autoincrement())
+  menu_id             Int
+  location_id         Int
+  qty_on_hand         Int                 @default(0)
+  qty_reserved        Int                 @default(0)
+  updated_at          String              @default("datetime('now')")
+  menu                menu                @relation(fields: [menu_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inventory_locations inventory_locations @relation(fields: [location_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([menu_id, location_id], map: "uniq_stock_balance_product_location")
+  @@index([location_id], map: "idx_stock_balance_location")
+  @@index([menu_id], map: "idx_stock_balance_menu")
 }
 
 // ── Store settings (key-value config per store) ───────────────────────────────
@@ -336,6 +624,73 @@ model store_settings {
 
 // ── Sync outbox (transactional event publishing) ──────────────────────────────
 // status values: "pending" | "processing" | "processed" | "failed" | "dead"
+// Business vertical catalog for capability-based navigation.
+model business_verticals {
+  key         String  @id
+  name        String
+  description String?
+  is_active   Boolean @default(true)
+  created_at  String  @default("datetime('now')")
+  updated_at  String  @default("datetime('now')")
+}
+
+// Platform module catalog. Module keys are referenced by frontend navigation
+// and backend @RequireModule guards.
+model platform_modules {
+  key         String  @id
+  name        String
+  group       String
+  description String?
+  is_core     Boolean @default(false)
+  is_active   Boolean @default(true)
+  created_at  String  @default("datetime('now')")
+  updated_at  String  @default("datetime('now')")
+
+  @@index([group, is_active], map: "idx_platform_modules_group")
+  @@index([is_core, is_active], map: "idx_platform_modules_core")
+}
+
+// Default module mapping per business vertical.
+model business_vertical_modules {
+  id           Int     @id @default(autoincrement())
+  vertical_key String
+  module_key   String
+  is_default   Boolean @default(true)
+
+  @@unique([vertical_key, module_key], map: "uniq_vertical_module")
+  @@index([vertical_key], map: "idx_bvm_vertical")
+  @@index([module_key], map: "idx_bvm_module")
+}
+
+// Store-level business profile. verified_business_vertical is the source of
+// truth for module capability resolution.
+model store_business_profiles {
+  store_id                    String  @id
+  requested_business_vertical String?
+  verified_business_vertical  String  @default("general")
+  verification_status         String  @default("unverified")
+  verified_by                 String?
+  verified_at                 String?
+  notes                       String?
+  created_at                  String  @default("datetime('now')")
+  updated_at                  String  @default("datetime('now')")
+}
+
+// Per-store module exceptions for special cases.
+model store_module_overrides {
+  id         Int     @id @default(autoincrement())
+  store_id   String
+  module_key String
+  enabled    Boolean
+  reason     String?
+  updated_by String?
+  updated_at String  @default("datetime('now')")
+
+  @@unique([store_id, module_key], map: "uniq_store_module_override")
+  @@index([store_id], map: "idx_store_module_overrides_store")
+  @@index([module_key], map: "idx_store_module_overrides_module")
+}
+
 model sync_outbox {
   id              Int     @id @default(autoincrement())
   event_type      String
@@ -363,25 +718,361 @@ model sync_inbox {
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────
-// NOTE: No role column — all users default to 'owner' role until a role
-// column is added. See auth.service.ts TODO comment.
-// NOTE: No phone column — bot users are identified by WhatsApp sender ID,
-// not by a phone column in this table. Add phone column to enable
-// bot→user_id resolution for favorites and notifications.
+// Phase 9: Added role and store_id columns.
+// role defaults to 'cashier' for new accounts (least-privilege default).
+// Existing rows get 'owner' via migration backfill.
+// store_id defaults to 'default-store' for single-store deployments.
 model users {
   id            Int             @id @default(autoincrement())
   email         String          @unique(map: "sqlite_autoindex_users_1")
   password_hash String
+  role          String          @default("cashier")
+  store_id      String          @default("default-store")
   created_at    String          @default("datetime('now')")
   updated_at    String?
   favorites     favorites[]
   notifications notifications[]
   order_ratings order_ratings[]
   orders        orders[]
+
+  @@index([role], map: "idx_users_role")
+  @@index([store_id], map: "idx_users_store")
 }
 
 // ── Webhook deduplication ─────────────────────────────────────────────────────
 model webhook_dedupes {
   dedupe_key String @id
   created_at String @default("datetime('now')")
+}
+
+// ── Operation document sequence ───────────────────────────────────────────────
+// Collision-safe per-store/type/date sequence for document numbers.
+// Format: {TYPE_PREFIX}-{YYYYMMDD}-{STORE_SHORT}-{SEQ:04d}
+// e.g. GR-20260515-DEF-0001
+model operation_document_sequences {
+  id            Int    @id @default(autoincrement())
+  store_id      String
+  document_type String
+  business_date String
+  sequence      Int    @default(0)
+  created_at    String @default("datetime('now')")
+  updated_at    String @default("datetime('now')")
+
+  @@unique([store_id, document_type, business_date], map: "uniq_op_doc_seq_scope")
+  @@index([business_date], map: "idx_op_doc_seq_date")
+}
+
+// ── Operation documents ───────────────────────────────────────────────────────
+// Enterprise document foundation for stock and purchasing workflows.
+//
+// document_type values: "purchase_order" | "goods_receipt" | "stock_transfer" | "stock_adjustment"
+// status values:        "draft" | "submitted" | "posted" | "cancelled"
+//
+// Posting rules:
+//   purchase_order  → no stock movement (intent only)
+//   goods_receipt   → RESTOCK movement per line at destination_location_id
+//   stock_transfer  → TRANSFER_OUT at source_location_id + TRANSFER_IN at destination_location_id
+//   stock_adjustment → ADJUSTMENT movement per line at destination_location_id
+//
+// source_location_id      – required for stock_transfer (origin)
+// destination_location_id – required for goods_receipt, stock_transfer, stock_adjustment
+// supplier_id / supplier_name – informational for purchase_order and goods_receipt
+// linked_document_id      – links goods_receipt back to its purchase_order
+model operation_documents {
+  id                      Int                        @id @default(autoincrement())
+  document_number         String                     @unique
+  document_type           String
+  status                  String                     @default("draft")
+  store_id                String                     @default("default-store")
+  source_location_id      Int?
+  destination_location_id Int?
+  supplier_id             String?
+  supplier_name           String?
+  linked_document_id      Int?
+  created_by              String
+  submitted_by            String?
+  posted_by               String?
+  cancelled_by            String?
+  notes                   String?
+  created_at              String                     @default("datetime('now')")
+  submitted_at            String?
+  posted_at               String?
+  cancelled_at            String?
+  lines                   operation_document_lines[]
+
+  @@index([store_id, document_type, status], map: "idx_op_doc_store_type_status")
+  @@index([document_type, status], map: "idx_op_doc_type_status")
+  @@index([created_at(sort: Desc)], map: "idx_op_doc_created")
+  @@index([linked_document_id], map: "idx_op_doc_linked")
+}
+
+// ── Operation document lines ──────────────────────────────────────────────────
+// One row per product per document.
+// unit_cost is optional — used for goods_receipt to record purchase price.
+// metadata is a JSON string for future extensibility (e.g. lot number, expiry).
+model operation_document_lines {
+  id          Int                 @id @default(autoincrement())
+  document_id Int
+  menu_id     Int
+  qty         Int
+  unit_cost   Float?
+  metadata    String?
+  created_at  String              @default("datetime('now')")
+  document    operation_documents @relation(fields: [document_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  menu        menu                @relation(fields: [menu_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([document_id], map: "idx_op_doc_line_document")
+  @@index([menu_id], map: "idx_op_doc_line_menu")
+}
+
+// Supplier master data for purchase workflows.
+model suppliers {
+  id             Int     @id @default(autoincrement())
+  store_id       String  @default("default-store")
+  name           String
+  code           String?
+  contact_person String?
+  phone          String?
+  email          String?
+  address        String?
+  tax_number     String?
+  notes          String?
+  is_active      Boolean @default(true)
+  created_at     String  @default("datetime('now')")
+  updated_at     String  @default("datetime('now')")
+
+  @@unique([store_id, code], map: "uniq_supplier_store_code")
+  @@index([store_id, is_active], map: "idx_suppliers_store_active")
+  @@index([name], map: "idx_suppliers_name")
+}
+
+// ── Phase 6D: F&B Vertical — Dining Areas ────────────────────────────────────
+// A dining area groups tables (e.g. "Indoor", "Outdoor", "VIP Room").
+// Phase 6D — 2026-05-15
+model dining_areas {
+  id          Int             @id @default(autoincrement())
+  store_id    String          @default("default-store")
+  name        String
+  description String?
+  sort_order  Int             @default(0)
+  is_active   Boolean         @default(true)
+  created_at  String          @default("datetime('now')")
+  updated_at  String          @default("datetime('now')")
+  tables      dining_tables[]
+
+  @@index([store_id, is_active], map: "idx_dining_areas_store")
+}
+
+// ── Phase 6D: F&B Vertical — Dining Tables ───────────────────────────────────
+// A physical or logical table within a dining area.
+// status: "available" | "occupied" | "reserved" | "cleaning"
+// Phase 6D — 2026-05-15
+model dining_tables {
+  id           Int             @id @default(autoincrement())
+  store_id     String          @default("default-store")
+  area_id      Int?
+  table_number String
+  capacity     Int             @default(4)
+  status       String          @default("available")
+  is_active    Boolean         @default(true)
+  created_at   String          @default("datetime('now')")
+  updated_at   String          @default("datetime('now')")
+  area         dining_areas?   @relation(fields: [area_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  orders       orders[]
+  kitchen_tickets kitchen_tickets[]
+
+  @@unique([store_id, table_number], map: "uniq_table_number_store")
+  @@index([store_id, status], map: "idx_dining_tables_store_status")
+  @@index([area_id], map: "idx_dining_tables_area")
+}
+
+// ── Phase 6D: F&B Vertical — Kitchen Tickets ─────────────────────────────────
+// A kitchen ticket is created when an order is confirmed.
+// status: "pending" | "preparing" | "ready" | "served" | "cancelled"
+// priority: "normal" | "rush" | "vip"
+// Phase 6D — 2026-05-15
+model kitchen_tickets {
+  id            Int                    @id @default(autoincrement())
+  store_id      String                 @default("default-store")
+  order_id      Int
+  table_id      Int?
+  ticket_number String
+  status        String                 @default("pending")
+  priority      String                 @default("normal")
+  notes         String?
+  created_at    String                 @default("datetime('now')")
+  updated_at    String                 @default("datetime('now')")
+  ready_at      String?
+  served_at     String?
+  order         orders                 @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  table         dining_tables?         @relation(fields: [table_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  items         kitchen_ticket_items[]
+
+  @@unique([store_id, ticket_number], map: "uniq_kitchen_ticket_number")
+  @@index([store_id, status], map: "idx_kitchen_tickets_store_status")
+  @@index([order_id], map: "idx_kitchen_tickets_order")
+}
+
+// ── Phase 6D: F&B Vertical — Kitchen Ticket Items ────────────────────────────
+// One row per order item on a kitchen ticket.
+// status: "pending" | "preparing" | "ready" | "cancelled"
+// Phase 6D — 2026-05-15
+model kitchen_ticket_items {
+  id         Int             @id @default(autoincrement())
+  ticket_id  Int
+  menu_id    Int
+  name       String
+  qty        Int             @default(1)
+  notes      String?
+  status     String          @default("pending")
+  created_at String          @default("datetime('now')")
+  updated_at String          @default("datetime('now')")
+  ticket     kitchen_tickets @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([ticket_id], map: "idx_kti_ticket")
+  @@index([menu_id], map: "idx_kti_menu")
+}
+
+// ── Phase 7: Customers ────────────────────────────────────────────────────────
+// A customer profile linked to sales and loyalty.
+// phone is the primary lookup key (WhatsApp / POS search).
+// tier: "regular" | "silver" | "gold" | "platinum"
+// Phase 7 — 2026-05-15
+model customers {
+  id              Int               @id @default(autoincrement())
+  store_id        String            @default("default-store")
+  name            String
+  phone           String?
+  email           String?
+  address         String?
+  tier            String            @default("regular")
+  notes           String?
+  is_active       Boolean           @default(true)
+  created_at      String            @default("datetime('now')")
+  updated_at      String            @default("datetime('now')")
+  orders          orders[]
+  customer_points customer_points[]
+  vouchers        vouchers[]
+  pos_sales       pos_sales[]
+
+  @@index([store_id, is_active], map: "idx_customers_store_active")
+  @@index([name], map: "idx_customers_name")
+  @@index([phone], map: "idx_customers_phone")
+}
+
+// ── Phase 7: Loyalty Programs ─────────────────────────────────────────────────
+// Defines how points are earned and redeemed.
+// earn_rate: points earned per IDR spent (e.g. 0.01 = 1 point per Rp100)
+// redeem_rate: IDR value per point (e.g. 1.0 = Rp1 per point)
+// Phase 7 — 2026-05-15
+model loyalty_programs {
+  id                  Int    @id @default(autoincrement())
+  store_id            String @default("default-store")
+  name                String
+  description         String?
+  earn_rate           Float  @default(0.01)
+  redeem_rate         Float  @default(1.0)
+  min_redeem_points   Int    @default(100)
+  points_expiry_days  Int?
+  is_active           Boolean @default(true)
+  created_at          String @default("datetime('now')")
+  updated_at          String @default("datetime('now')")
+
+  @@index([store_id, is_active], map: "idx_loyalty_programs_store_active")
+}
+
+// ── Phase 7: Customer Points Ledger ──────────────────────────────────────────
+// Append-only ledger of point transactions per customer.
+// entry_type: "earn" | "redeem" | "expire" | "adjust"
+// Phase 7 — 2026-05-15
+model customer_points {
+  id             Int       @id @default(autoincrement())
+  customer_id    Int
+  store_id       String    @default("default-store")
+  entry_type     String
+  points         Int
+  balance_after  Int       @default(0)
+  reference_type String?
+  reference_id   String?
+  note           String?
+  expires_at     String?
+  created_at     String    @default("datetime('now')")
+  customer       customers @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([customer_id, created_at], map: "idx_customer_points_customer")
+  @@index([store_id, created_at], map: "idx_customer_points_store")
+}
+
+// ── Phase 7: Promotions ───────────────────────────────────────────────────────
+// A promotion is a named discount campaign with a validity window.
+// promo_type: "order_discount" | "item_discount" | "bundle" | "buy_x_get_y" | "happy_hour"
+// discount_type: "percent" | "amount"
+// status: "draft" | "active" | "paused" | "expired"
+// Phase 7 — 2026-05-15
+model promotions {
+  id                   Int                @id @default(autoincrement())
+  store_id             String             @default("default-store")
+  name                 String
+  description          String?
+  promo_type           String             @default("order_discount")
+  discount_type        String             @default("percent")
+  discount_value       Float              @default(0)
+  min_order_amount     Float              @default(0)
+  max_discount_amount  Float?
+  status               String             @default("draft")
+  starts_at            String?
+  ends_at              String?
+  usage_limit          Int?
+  usage_count          Int                @default(0)
+  created_at           String             @default("datetime('now')")
+  updated_at           String             @default("datetime('now')")
+  rules                promotion_rules[]
+  vouchers             vouchers[]
+  pos_sales            pos_sales[]
+
+  @@index([store_id, status], map: "idx_promotions_store_status")
+  @@index([starts_at, ends_at], map: "idx_promotions_dates")
+}
+
+// ── Phase 7: Promotion Rules ──────────────────────────────────────────────────
+// Optional per-item or per-category rules for a promotion.
+// rule_type: "include_product" | "exclude_product" | "include_category" | "min_qty"
+// Phase 7 — 2026-05-15
+model promotion_rules {
+  id           Int        @id @default(autoincrement())
+  promotion_id Int
+  rule_type    String
+  rule_value   String
+  created_at   String     @default("datetime('now')")
+  promotion    promotions @relation(fields: [promotion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([promotion_id], map: "idx_promo_rules_promotion")
+}
+
+// ── Phase 7: Vouchers ─────────────────────────────────────────────────────────
+// A voucher is a single-use or limited-use code that applies a promotion.
+// status: "active" | "used" | "expired" | "cancelled"
+// Phase 7 — 2026-05-15
+model vouchers {
+  id                  Int         @id @default(autoincrement())
+  store_id            String      @default("default-store")
+  code                String
+  promotion_id        Int?
+  discount_type       String      @default("percent")
+  discount_value      Float       @default(0)
+  min_order_amount    Float       @default(0)
+  max_discount_amount Float?
+  status              String      @default("active")
+  usage_limit         Int         @default(1)
+  usage_count         Int         @default(0)
+  customer_id         Int?
+  expires_at          String?
+  created_at          String      @default("datetime('now')")
+  updated_at          String      @default("datetime('now')")
+  promotion           promotions? @relation(fields: [promotion_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  customer            customers?  @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([code, store_id], map: "uniq_voucher_code_store")
+  @@index([store_id, status], map: "idx_vouchers_store_status")
+  @@index([customer_id], map: "idx_vouchers_customer")
 }

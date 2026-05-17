@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
@@ -10,14 +10,61 @@ import {
   RefreshCw,
   ShoppingCart,
   Radio,
+  TrendingDown,
+  CreditCard,
+  Banknote,
 } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
 import { useApi } from "../hooks/useApi";
 import { useRegisterStore } from "../store/register.store";
-import { getReportSnapshots, getOrders } from "../services/api";
+import {
+  getReportSnapshots,
+  getOrders,
+  getSessionSummary,
+  SessionSummary,
+} from "../services/api";
 import CloseRegisterModal from "../features/register/CloseRegisterModal";
 import RegisterGatePage from "../features/register/RegisterGatePage";
+import SuspendResumeButton from "../features/register/SuspendResumeButton";
 import { useSocket } from "../hooks/useSocket";
+
+const DASHBOARD_EVENTS = [
+  "order.created",
+  "order.confirmed",
+  "payment.confirmed",
+  "cashflow.income.recorded",
+  "register.opened",
+  "register.closed",
+  "stock.adjusted",
+  "stock.low",
+] as const;
+const DASHBOARD_EVENT_SET = new Set<string>(DASHBOARD_EVENTS);
+
+function describeDashboardEvent(
+  eventName: string,
+  data: Record<string, unknown>,
+) {
+  switch (eventName) {
+    case "order.created":
+      return `Order #${String(data.orderId ?? "—")} dibuat`;
+    case "order.confirmed":
+      return `Order #${String(data.orderId ?? "—")} dikonfirmasi`;
+    case "payment.confirmed":
+      return `Pembayaran order #${String(data.orderId ?? "—")} dikonfirmasi`;
+    case "cashflow.income.recorded":
+      return "Pemasukan kas dicatat";
+    case "register.opened":
+      return "Register dibuka";
+    case "register.closed":
+      return "Register ditutup";
+    case "stock.adjusted":
+      return `Stok ${String(data.name ?? data.productId ?? "produk")} disesuaikan`;
+    case "stock.low":
+      return `Stok ${String(data.name ?? data.productId ?? "produk")} menipis`;
+    default:
+      return eventName;
+  }
+}
 
 function fmt(n: number | null | undefined): string {
   return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
@@ -32,6 +79,10 @@ export default function PosDashboardPage() {
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [cashTab, setCashTab] = useState<"today" | "week" | "month">("today");
 
+  // Phase 2: shift summary state
+  const [shiftSummary, setShiftSummary] = useState<SessionSummary | null>(null);
+  const [shiftSummaryLoading, setShiftSummaryLoading] = useState(false);
+
   const navigate = useNavigate();
   const session = useRegisterStore((s) => s.session);
   const status = useRegisterStore((s) => s.status);
@@ -39,11 +90,52 @@ export default function PosDashboardPage() {
 
   const snapshots = useApi2(getReportSnapshots);
   const orders = useApi2(() => getOrders("all", 20));
-  const { events, connected } = useSocket([
-    "order.created",
-    "order.status_changed",
-    "stock.alert",
-  ]);
+  const reloadSnapshots = snapshots.reload;
+  const reloadOrders = orders.reload;
+  const { events, connected } = useSocket([...DASHBOARD_EVENTS]);
+  const latestEvent = events[0] ?? null;
+
+  // Load shift summary when session changes or on sale events
+  async function loadShiftSummary(sessionId: number) {
+    setShiftSummaryLoading(true);
+    try {
+      const data = await getSessionSummary(sessionId);
+      setShiftSummary(data);
+    } catch {
+      // Non-fatal — shift summary is supplemental
+    } finally {
+      setShiftSummaryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (session?.id) {
+      void loadShiftSummary(session.id);
+    } else {
+      setShiftSummary(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id]);
+
+  useEffect(() => {
+    if (!latestEvent || !DASHBOARD_EVENT_SET.has(latestEvent.eventName)) {
+      return;
+    }
+
+    void Promise.all([
+      reloadSnapshots(),
+      reloadOrders(),
+      refresh(),
+      // Reload shift summary on sale/cashflow events
+      ...(session?.id &&
+      (latestEvent.eventName === "order.confirmed" ||
+        latestEvent.eventName === "cashflow.income.recorded" ||
+        latestEvent.eventName === "payment.confirmed")
+        ? [loadShiftSummary(session.id)]
+        : []),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestEvent, refresh, reloadOrders, reloadSnapshots]);
 
   const daily = snapshots.data?.snapshots?.daily_revenue?.data?.[0];
   const monthly = snapshots.data?.snapshots?.monthly_revenue?.data?.[0];
@@ -70,8 +162,7 @@ export default function PosDashboardPage() {
       <div className="summary-grid">
         <div className="summary-card">
           <div className="summary-card-label">
-            <TrendingUp size={13} color="var(--stock-ok)" /> Total Profit Hari
-            Ini
+            <TrendingUp size={12} color="var(--stock-ok)" /> Revenue Hari Ini
           </div>
           <div className="summary-card-value">Rp{fmt(daily?.revenue)}</div>
           <div className="summary-card-sub">
@@ -81,8 +172,7 @@ export default function PosDashboardPage() {
 
         <div className="summary-card">
           <div className="summary-card-label">
-            <ShoppingBag size={13} color="var(--primary)" /> Total Penjualan
-            Bulan Ini
+            <ShoppingBag size={12} color="var(--primary)" /> Penjualan Bulan Ini
           </div>
           <div className="summary-card-value">Rp{fmt(monthly?.revenue)}</div>
           <div className="summary-card-sub">
@@ -92,7 +182,7 @@ export default function PosDashboardPage() {
 
         <div className="summary-card">
           <div className="summary-card-label">
-            <Package size={13} color="var(--stock-low)" /> Pesanan Aktif
+            <Package size={12} color="var(--stock-low)" /> Pesanan Aktif
           </div>
           <div className="summary-card-value">{openOrd.length}</div>
           <div className="summary-card-sub">belum selesai</div>
@@ -100,21 +190,21 @@ export default function PosDashboardPage() {
 
         <div className="summary-card">
           <div className="summary-card-label">
-            <DollarSign size={13} color="var(--stock-ok)" /> Status Register
+            <DollarSign size={12} color="var(--stock-ok)" /> Status Register
           </div>
           <div
             className="summary-card-value"
             style={{
-              fontSize: 18,
+              fontSize: 16,
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 7,
             }}
           >
             <span
               style={{
-                width: 10,
-                height: 10,
+                width: 9,
+                height: 9,
                 borderRadius: "50%",
                 display: "inline-block",
                 background:
@@ -125,6 +215,7 @@ export default function PosDashboardPage() {
                       : "var(--text-muted)",
                 boxShadow:
                   status === "open" ? "0 0 8px var(--stock-ok)" : "none",
+                flexShrink: 0,
               }}
             />
             {status === "open"
@@ -149,7 +240,10 @@ export default function PosDashboardPage() {
             </span>
             <button
               className="btn btn-ghost btn-sm"
-              onClick={refresh}
+              onClick={() => {
+                void refresh();
+                if (session?.id) void loadShiftSummary(session.id);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -158,7 +252,14 @@ export default function PosDashboardPage() {
                 minHeight: 28,
               }}
             >
-              <RefreshCw size={12} />
+              <RefreshCw
+                size={12}
+                style={{
+                  animation: shiftSummaryLoading
+                    ? "spin 1s linear infinite"
+                    : "none",
+                }}
+              />
             </button>
           </div>
           <div className="dashboard-card-body">
@@ -187,6 +288,7 @@ export default function PosDashboardPage() {
                   >
                     <ShoppingCart size={14} /> Kasir
                   </button>
+                  <SuspendResumeButton />
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={() => setShowCloseModal(true)}
@@ -197,36 +299,198 @@ export default function PosDashboardPage() {
                 </div>
               )}
               {status === "suspended" && (
-                <button
-                  className="btn btn-primary btn-full"
-                  onClick={() => navigate("/kasir")}
-                  style={{ display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <ShoppingCart size={14} /> Lanjutkan Sesi
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                    onClick={() => navigate("/kasir")}
+                  >
+                    <ShoppingCart size={14} /> Lanjutkan Sesi
+                  </button>
+                  <SuspendResumeButton />
+                </div>
               )}
             </div>
 
-            {/* Shift summary */}
-            <div className="shift-row">
-              <span className="shift-row-label">Penjualan Hari Ini</span>
-              <span className="shift-row-value">Rp{fmt(daily?.revenue)}</span>
-            </div>
-            <div className="shift-row">
-              <span className="shift-row-label">Jumlah Transaksi</span>
-              <span className="shift-row-value">{daily?.order_count ?? 0}</span>
-            </div>
-            <div className="shift-row">
-              <span className="shift-row-label">Pesanan Aktif</span>
-              <span className="shift-row-value">{openOrd.length}</span>
-            </div>
-            {session && (
-              <div className="shift-row">
-                <span className="shift-row-label">Modal Awal</span>
-                <span className="shift-row-value">
-                  Rp{fmt(session.opening_cash)}
-                </span>
-              </div>
+            {/* ── Phase 2: Shift summary panel ─────────────────── */}
+            {shiftSummary ? (
+              <>
+                {/* Expected cash — primary figure */}
+                <div
+                  style={{
+                    background: "var(--surface-2, #f0fdf4)",
+                    border: "1px solid var(--border, #bbf7d0)",
+                    borderRadius: 6,
+                    padding: "8px 10px",
+                    marginBottom: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      marginBottom: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <Banknote size={11} /> Kas Diharapkan (Sistem)
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 700,
+                      color: "var(--stock-ok)",
+                    }}
+                  >
+                    Rp{fmt(shiftSummary.expectedCash)}
+                  </div>
+                </div>
+
+                {/* Cash sales */}
+                <div className="shift-row">
+                  <span
+                    className="shift-row-label"
+                    style={{ display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Banknote size={11} /> Penjualan Tunai
+                  </span>
+                  <span className="shift-row-value">
+                    Rp{fmt(shiftSummary.cashSales)}
+                  </span>
+                </div>
+
+                {/* Non-cash sales */}
+                {shiftSummary.nonCashSales.map((nc) => (
+                  <div key={nc.method} className="shift-row">
+                    <span
+                      className="shift-row-label"
+                      style={{ display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                      <CreditCard size={11} /> {nc.method}
+                    </span>
+                    <span className="shift-row-value">Rp{fmt(nc.total)}</span>
+                  </div>
+                ))}
+
+                {/* Cash in/out */}
+                {shiftSummary.cashIn > 0 && (
+                  <div className="shift-row">
+                    <span
+                      className="shift-row-label"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        color: "var(--stock-ok)",
+                      }}
+                    >
+                      <TrendingUp size={11} /> Kas Masuk
+                    </span>
+                    <span
+                      className="shift-row-value"
+                      style={{ color: "var(--stock-ok)" }}
+                    >
+                      +Rp{fmt(shiftSummary.cashIn)}
+                    </span>
+                  </div>
+                )}
+                {shiftSummary.cashOut > 0 && (
+                  <div className="shift-row">
+                    <span
+                      className="shift-row-label"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        color: "var(--danger, #ef4444)",
+                      }}
+                    >
+                      <TrendingDown size={11} /> Kas Keluar
+                    </span>
+                    <span
+                      className="shift-row-value"
+                      style={{ color: "var(--danger, #ef4444)" }}
+                    >
+                      -Rp{fmt(shiftSummary.cashOut)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Transaction count */}
+                <div className="shift-row">
+                  <span className="shift-row-label">Jumlah Transaksi</span>
+                  <span className="shift-row-value">
+                    {shiftSummary.transactionCount}
+                  </span>
+                </div>
+
+                {/* Opening cash */}
+                <div className="shift-row">
+                  <span className="shift-row-label">Modal Awal</span>
+                  <span className="shift-row-value">
+                    Rp{fmt(shiftSummary.openingCash)}
+                  </span>
+                </div>
+
+                {/* First/last sale time */}
+                {shiftSummary.firstSaleTime && (
+                  <div className="shift-row">
+                    <span className="shift-row-label">Transaksi Pertama</span>
+                    <span className="shift-row-value" style={{ fontSize: 11 }}>
+                      {new Date(shiftSummary.firstSaleTime).toLocaleTimeString(
+                        "id-ID",
+                        { hour: "2-digit", minute: "2-digit" },
+                      )}
+                    </span>
+                  </div>
+                )}
+                {shiftSummary.lastSaleTime && (
+                  <div className="shift-row">
+                    <span className="shift-row-label">Transaksi Terakhir</span>
+                    <span className="shift-row-value" style={{ fontSize: 11 }}>
+                      {new Date(shiftSummary.lastSaleTime).toLocaleTimeString(
+                        "id-ID",
+                        { hour: "2-digit", minute: "2-digit" },
+                      )}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Fallback to snapshot data when summary not loaded */
+              <>
+                <div className="shift-row">
+                  <span className="shift-row-label">Penjualan Hari Ini</span>
+                  <span className="shift-row-value">
+                    Rp{fmt(daily?.revenue)}
+                  </span>
+                </div>
+                <div className="shift-row">
+                  <span className="shift-row-label">Jumlah Transaksi</span>
+                  <span className="shift-row-value">
+                    {daily?.order_count ?? 0}
+                  </span>
+                </div>
+                <div className="shift-row">
+                  <span className="shift-row-label">Pesanan Aktif</span>
+                  <span className="shift-row-value">{openOrd.length}</span>
+                </div>
+                {session && (
+                  <div className="shift-row">
+                    <span className="shift-row-label">Modal Awal</span>
+                    <span className="shift-row-value">
+                      Rp{fmt(session.opening_cash)}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
 
             {status === "open" && session && (
@@ -291,17 +555,7 @@ export default function PosDashboardPage() {
             {events.slice(0, 6).map((e, i) => (
               <div key={i} className="feed-item">
                 <span className="feed-item-text">
-                  {e.eventName === "order.created" &&
-                    `Order #${(e.data as any).orderId} dibuat`}
-                  {e.eventName === "order.status_changed" &&
-                    `Order #${(e.data as any).orderId}: ${(e.data as any).newStatus}`}
-                  {e.eventName === "stock.alert" &&
-                    `Stok ${(e.data as any).name} menipis`}
-                  {![
-                    "order.created",
-                    "order.status_changed",
-                    "stock.alert",
-                  ].includes(e.eventName) && e.eventName}
+                  {describeDashboardEvent(e.eventName, e.data)}
                 </span>
                 <span className="feed-item-time">
                   {new Date(e.receivedAt).toLocaleTimeString("id-ID", {
@@ -348,7 +602,7 @@ export default function PosDashboardPage() {
                   {t === "today"
                     ? "Hari Ini"
                     : t === "week"
-                      ? "Minggu"
+                      ? "Minggu (est.)"
                       : "Bulan"}
                 </button>
               ))}
@@ -362,7 +616,9 @@ export default function PosDashboardPage() {
                   cashTab === "today"
                     ? daily?.revenue
                     : cashTab === "week"
-                      ? Number(daily?.revenue ?? 0) * 7
+                      ? monthly?.revenue != null
+                        ? Math.round(Number(monthly.revenue) / 4)
+                        : 0
                       : monthly?.revenue,
                 )}
               </span>
@@ -373,8 +629,21 @@ export default function PosDashboardPage() {
                 {cashTab === "today"
                   ? (daily?.order_count ?? 0)
                   : cashTab === "week"
-                    ? Number(daily?.order_count ?? 0) * 7
+                    ? monthly?.order_count != null
+                      ? Math.round(Number(monthly.order_count) / 4)
+                      : 0
                     : (monthly?.order_count ?? 0)}
+                {cashTab === "week" && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "var(--text-muted)",
+                      marginLeft: 4,
+                    }}
+                  >
+                    (est.)
+                  </span>
+                )}
               </span>
             </div>
             <div className="cash-row">

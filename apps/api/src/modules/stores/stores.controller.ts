@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Patch,
   Post,
   Delete,
   Body,
@@ -14,6 +15,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { StoreId } from '../../common/decorators/store-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
 
 @Controller('stores')
 @UseGuards(JwtAuthGuard, RolesGuard, TenantGuard)
@@ -23,6 +26,32 @@ export class StoresController {
   @Get('info')
   getStoreInfo(@StoreId() storeId: string) {
     return this.storesService.getStoreInfo(storeId);
+  }
+
+  @Get('capabilities')
+  getCapabilities(@StoreId() storeId: string) {
+    return this.storesService.getCapabilities(storeId);
+  }
+
+  @Get('business-profile')
+  @Roles('owner', 'manager')
+  getBusinessProfile(@StoreId() storeId: string) {
+    return this.storesService.getBusinessProfile(storeId);
+  }
+
+  @Post('business-profile/request')
+  @Roles('owner', 'manager')
+  requestBusinessProfile(
+    @Body() body: { businessVertical: string; notes?: string },
+    @StoreId() storeId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.storesService.requestBusinessVertical({
+      storeId,
+      requestedBusinessVertical: body.businessVertical,
+      actor: user.actor,
+      notes: body.notes,
+    });
   }
 
   @Get('settings')
@@ -72,5 +101,67 @@ export class StoresController {
     return this.storesService
       .deleteSetting(key, storeId)
       .then(() => ({ ok: true, key, storeId }));
+  }
+
+  /**
+   * GET /api/stores/calc-policy
+   *
+   * Returns the store's calculation policy for the POS frontend.
+   * Cashiers (and above) can read this — no owner/manager restriction.
+   * Values are parsed and safe (no raw strings).
+   */
+  @Get('calc-policy')
+  getCalcPolicy(@StoreId() storeId: string) {
+    return this.storesService.getCalcPolicy(storeId);
+  }
+}
+
+@Controller('admin/stores')
+@UseGuards(JwtAuthGuard, RolesGuard, TenantGuard)
+export class AdminStoresController {
+  constructor(private readonly storesService: StoresService) {}
+
+  @Get(':storeId/capabilities')
+  @Roles('support')
+  getAdminCapabilities(@Param('storeId') storeId: string) {
+    return this.storesService.getCapabilities(storeId);
+  }
+
+  @Get(':storeId/business-profile')
+  @Roles('support')
+  getAdminBusinessProfile(@Param('storeId') storeId: string) {
+    return this.storesService.getBusinessProfile(storeId);
+  }
+
+  @Patch(':storeId/business-profile/verify')
+  @Roles('support')
+  verifyBusinessProfile(
+    @Param('storeId') storeId: string,
+    @Body() body: { businessVertical: string; notes?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.storesService.verifyBusinessProfile({
+      storeId,
+      businessVertical: body.businessVertical,
+      verifiedBy: user.actor,
+      notes: body.notes,
+    });
+  }
+
+  @Patch(':storeId/modules/:moduleKey')
+  @Roles('support')
+  setModuleOverride(
+    @Param('storeId') storeId: string,
+    @Param('moduleKey') moduleKey: string,
+    @Body() body: { enabled: boolean; reason?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.storesService.setModuleOverride({
+      storeId,
+      moduleKey,
+      enabled: Boolean(body.enabled),
+      reason: body.reason,
+      updatedBy: user.actor,
+    });
   }
 }

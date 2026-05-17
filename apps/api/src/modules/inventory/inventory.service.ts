@@ -49,10 +49,13 @@ export class InventoryService {
 
   async getAllIngredientStocks(limit = 100) {
     return this.prisma.menu.findMany({
+      where: { is_stock_tracked: true },
       select: {
-        id: true,
-        name: true,
-        stock: true,
+        id:               true,
+        name:             true,
+        stock:            true,
+        is_stock_tracked: true,
+        is_active:        true,
       },
       orderBy: {
         name: 'asc',
@@ -78,17 +81,20 @@ export class InventoryService {
   }
 
   async getLowStockIngredients(threshold = 5) {
+    // Only alert on products that are stock-tracked; service items are excluded.
     return this.prisma.menu.findMany({
       where: {
+        is_stock_tracked: true,
         stock: {
-          gt: 0,
+          gt:  0,
           lte: threshold,
         },
       },
       select: {
-        id: true,
-        name: true,
-        stock: true,
+        id:               true,
+        name:             true,
+        stock:            true,
+        is_stock_tracked: true,
       },
       orderBy: {
         stock: 'asc',
@@ -97,16 +103,19 @@ export class InventoryService {
   }
 
   async getOutOfStockIngredients(limit = 100) {
+    // Only report stock-tracked products as out-of-stock.
     return this.prisma.menu.findMany({
       where: {
+        is_stock_tracked: true,
         stock: {
           lte: 0,
         },
       },
       select: {
-        id: true,
-        name: true,
-        stock: true,
+        id:               true,
+        name:             true,
+        stock:            true,
+        is_stock_tracked: true,
       },
       orderBy: {
         name: 'asc',

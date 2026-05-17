@@ -20,6 +20,15 @@ interface RegisterState {
   setSession: (session: RegisterSession | null) => void;
 }
 
+function isValidSession(value: unknown): value is RegisterSession {
+  if (!value || typeof value !== "object") return false;
+  const session = value as Partial<RegisterSession>;
+  return (
+    typeof session.id === "number" &&
+    ["open", "suspended", "closed"].includes(String(session.status))
+  );
+}
+
 export const useRegisterStore = create<RegisterState>((set) => ({
   session: null,
   status: "none",
@@ -31,7 +40,9 @@ export const useRegisterStore = create<RegisterState>((set) => ({
     try {
       // getActiveRegister wraps response as { session: ... | null }
       const res = await getActiveRegister();
-      const session: RegisterSession | null = res?.session ?? null;
+      const session: RegisterSession | null = isValidSession(res?.session)
+        ? res.session
+        : null;
       set({
         session,
         status: session
@@ -51,10 +62,11 @@ export const useRegisterStore = create<RegisterState>((set) => ({
   },
 
   setSession: (session) => {
+    const validSession = isValidSession(session) ? session : null;
     set({
-      session,
-      status: session
-        ? (session.status as "open" | "suspended" | "closed")
+      session: validSession,
+      status: validSession
+        ? (validSession.status as "open" | "suspended" | "closed")
         : "none",
     });
   },

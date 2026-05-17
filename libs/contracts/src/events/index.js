@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EVENT_TYPES = exports.AUDIT_EVENTS = exports.CONFIG_EVENTS = exports.LLM_EVENTS = exports.CHATBOT_EVENTS = exports.REGISTER_EVENTS = exports.CASHFLOW_EVENTS = exports.STOCK_EVENTS = exports.PAYMENT_EVENTS = exports.ORDER_EVENTS = void 0;
+exports.EVENT_TYPES = exports.AUDIT_EVENTS = exports.CONFIG_EVENTS = exports.LLM_EVENTS = exports.CHATBOT_EVENTS = exports.REGISTER_EVENTS = exports.CASHFLOW_EVENTS = exports.STOCK_EVENTS = exports.MANAGER_APPROVAL_EVENTS = exports.POS_CORRECTION_EVENTS = exports.POS_SALE_EVENTS = exports.PAYMENT_EVENTS = exports.ORDER_EVENTS = void 0;
 exports.createEvent = createEvent;
 function createEvent(eventType, aggregateId, payload, meta = {}) {
     return {
@@ -30,6 +30,19 @@ exports.PAYMENT_EVENTS = {
     CONFIRMED: "payment.confirmed",
     FAILED: "payment.failed",
     REFUNDED: "payment.refunded",
+};
+exports.POS_SALE_EVENTS = {
+    RECEIPT_ISSUED: "pos.sale.receipt_issued",
+    VOIDED: "pos.sale.voided",
+    REFUNDED: "pos.sale.refunded",
+};
+exports.POS_CORRECTION_EVENTS = {
+    CREATED: "pos.correction.created",
+};
+exports.MANAGER_APPROVAL_EVENTS = {
+    REQUESTED: "manager_approval.requested",
+    APPROVED: "manager_approval.approved",
+    REJECTED: "manager_approval.rejected",
 };
 exports.STOCK_EVENTS = {
     RESERVED: "stock.reserved",
@@ -65,6 +78,9 @@ exports.AUDIT_EVENTS = {
 exports.EVENT_TYPES = {
     ...exports.ORDER_EVENTS,
     ...exports.PAYMENT_EVENTS,
+    ...exports.POS_SALE_EVENTS,
+    ...exports.POS_CORRECTION_EVENTS,
+    ...exports.MANAGER_APPROVAL_EVENTS,
     ...exports.STOCK_EVENTS,
     ...exports.CASHFLOW_EVENTS,
     ...exports.REGISTER_EVENTS,

@@ -1,17 +1,57 @@
+import { ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import AuthGuard from "../app/guards/AuthGuard";
 import RegisterGuard from "../app/guards/RegisterGuard";
+import ModuleGuard from "../app/guards/ModuleGuard";
+import PermissionGuard from "../app/guards/PermissionGuard";
+import type { PermissionKey } from "../hooks/usePermissions";
 import LoginPage from "../pages/LoginPage";
 import PosDashboardPage from "../pages/PosDashboardPage";
 import PosPage from "../pages/PosPage";
 import OrdersPage from "../pages/OrdersPage";
 import InventoryPage from "../pages/InventoryPage";
+import ProductsPage from "../pages/ProductsPage";
+import CategoriesPage from "../pages/CategoriesPage";
+import SuppliersPage from "../pages/SuppliersPage";
+import OperationsPage from "../pages/OperationsPage";
+import UsersPage from "../pages/UsersPage";
 import CashflowPage from "../pages/CashflowPage";
 import ReportsPage from "../pages/ReportsPage";
 import SettingsPage from "../pages/SettingsPage";
+import KdsPage from "../pages/KdsPage";
+import ChatbotOverviewPage from "../pages/chatbot/ChatbotOverviewPage";
+import ChatbotChatPage from "../pages/chatbot/ChatbotChatPage";
+import ChatbotLiveFeedPage from "../pages/chatbot/ChatbotLiveFeedPage";
+import ChatbotLlmConsolePage from "../pages/chatbot/ChatbotLlmConsolePage";
+import ChatbotSettingsPage from "../pages/chatbot/ChatbotSettingsPage";
+import SupportStoresPage from "../pages/SupportStoresPage";
 
-const Auth = ({ children }: { children: React.ReactNode }) => (
+const Auth = ({ children }: { children: ReactNode }) => (
   <AuthGuard>{children}</AuthGuard>
+);
+
+interface ProtectedRouteProps {
+  requiredModule: string;
+  requiredPermission?: PermissionKey;
+  children: ReactNode;
+}
+
+const ProtectedRoute = ({
+  requiredModule,
+  requiredPermission,
+  children,
+}: ProtectedRouteProps) => (
+  <Auth>
+    <ModuleGuard requiredModule={requiredModule}>
+      {requiredPermission ? (
+        <PermissionGuard permission={requiredPermission}>
+          {children}
+        </PermissionGuard>
+      ) : (
+        children
+      )}
+    </ModuleGuard>
+  </Auth>
 );
 
 export const router = createBrowserRouter([
@@ -19,49 +59,172 @@ export const router = createBrowserRouter([
   {
     path: "/dashboard",
     element: (
-      <Auth>
+      <ProtectedRoute requiredModule="core.dashboard">
         <PosDashboardPage />
-      </Auth>
+      </ProtectedRoute>
     ),
   },
   {
     path: "/orders",
     element: (
-      <Auth>
+      <ProtectedRoute requiredModule="core.sales">
         <OrdersPage />
-      </Auth>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/products",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.inventory"
+        requiredPermission="canManageProducts"
+      >
+        <ProductsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/categories",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.inventory"
+        requiredPermission="canManageProducts"
+      >
+        <CategoriesPage />
+      </ProtectedRoute>
     ),
   },
   {
     path: "/inventory",
     element: (
-      <Auth>
+      <ProtectedRoute
+        requiredModule="core.inventory"
+        requiredPermission="canManageInventory"
+      >
         <InventoryPage />
-      </Auth>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/operations",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.inventory"
+        requiredPermission="canManageInventory"
+      >
+        <OperationsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/suppliers",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.suppliers"
+        requiredPermission="canManageInventory"
+      >
+        <SuppliersPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/users",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.users"
+        requiredPermission="canManageUsers"
+      >
+        <UsersPage />
+      </ProtectedRoute>
     ),
   },
   {
     path: "/cashflow",
     element: (
-      <Auth>
+      <ProtectedRoute
+        requiredModule="core.payments"
+        requiredPermission="canViewCashflow"
+      >
         <CashflowPage />
-      </Auth>
+      </ProtectedRoute>
     ),
   },
   {
     path: "/reports",
     element: (
-      <Auth>
+      <ProtectedRoute
+        requiredModule="core.reports"
+        requiredPermission="canViewAllReports"
+      >
         <ReportsPage />
-      </Auth>
+      </ProtectedRoute>
     ),
   },
   {
     path: "/settings",
     element: (
-      <Auth>
+      <ProtectedRoute
+        requiredModule="core.settings"
+        requiredPermission="canChangeSettings"
+      >
         <SettingsPage />
-      </Auth>
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/chatbot",
+    element: (
+      <ProtectedRoute requiredModule="core.dashboard">
+        <ChatbotOverviewPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/chatbot/dashboard",
+    element: <Navigate to="/chatbot" replace />,
+  },
+  {
+    path: "/chatbot/chats",
+    element: (
+      <ProtectedRoute requiredModule="core.dashboard">
+        <ChatbotChatPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/chatbot/live",
+    element: (
+      <ProtectedRoute requiredModule="core.dashboard">
+        <ChatbotLiveFeedPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/chatbot/llm",
+    element: (
+      <ProtectedRoute requiredModule="core.dashboard">
+        <ChatbotLlmConsolePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/chatbot/settings",
+    element: (
+      <ProtectedRoute requiredModule="core.dashboard">
+        <ChatbotSettingsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/support/stores",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.settings"
+        requiredPermission="canVerifyStores"
+      >
+        <SupportStoresPage />
+      </ProtectedRoute>
     ),
   },
 
@@ -69,11 +232,21 @@ export const router = createBrowserRouter([
   {
     path: "/kasir",
     element: (
-      <Auth>
+      <ProtectedRoute requiredModule="core.pos">
         <RegisterGuard>
           <PosPage />
         </RegisterGuard>
-      </Auth>
+      </ProtectedRoute>
+    ),
+  },
+
+  // KDS — Kitchen Display System (F&B)
+  {
+    path: "/kds",
+    element: (
+      <ProtectedRoute requiredModule="fnb.kds">
+        <KdsPage />
+      </ProtectedRoute>
     ),
   },
 

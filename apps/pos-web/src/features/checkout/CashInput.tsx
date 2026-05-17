@@ -22,7 +22,8 @@ function getPresets(total: number): number[] {
 
 export default function CashInput({ total, received, onChange }: Props) {
   const receivedNum = Number(received) || 0;
-  const change = receivedNum - total;
+  const effectiveReceived = received === "" ? total : receivedNum;
+  const change = effectiveReceived - total;
   const presets = getPresets(total);
 
   return (
@@ -40,6 +41,25 @@ export default function CashInput({ total, received, onChange }: Props) {
           NOMINAL CEPAT
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            style={{
+              padding: "5px 10px",
+              borderRadius: "var(--radius-sm)",
+              border: `1px solid ${received === "" ? "var(--primary)" : "var(--border)"}`,
+              background:
+                received === "" ? "var(--primary-light)" : "var(--bg-elevated)",
+              color:
+                received === "" ? "var(--primary)" : "var(--text-secondary)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.1s",
+            }}
+          >
+            Cash Pas
+          </button>
           {presets.map((p) => (
             <button
               key={p}
@@ -85,9 +105,9 @@ export default function CashInput({ total, received, onChange }: Props) {
         <input
           className="form-input"
           type="number"
-          min={total}
+          min={0}
           step="1000"
-          placeholder={String(total)}
+          placeholder={`Kosong = cash pas Rp${fmt(total)}`}
           value={received}
           onChange={(e) => onChange(e.target.value)}
           style={{ fontSize: 18, fontWeight: 700, textAlign: "right" }}
@@ -96,7 +116,7 @@ export default function CashInput({ total, received, onChange }: Props) {
       </div>
 
       {/* Change display */}
-      {receivedNum > 0 && (
+      {(received === "" || receivedNum > 0) && (
         <div
           style={{
             padding: "12px 16px",
@@ -124,6 +144,13 @@ export default function CashInput({ total, received, onChange }: Props) {
           >
             Rp{fmt(Math.max(0, change))}
           </div>
+          {received === "" && (
+            <div
+              style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}
+            >
+              Cash pas: Rp{fmt(total)}
+            </div>
+          )}
           {change < 0 && (
             <div
               style={{ fontSize: 12, color: "var(--stock-out)", marginTop: 2 }}

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PaymentStatus = exports.PaymentMethod = exports.StockMovementType = exports.CashflowEntryType = exports.REGISTER_SESSION_STATUS_VALUES = exports.RegisterSessionStatus = exports.ORDER_STATUS_VALUES = exports.OrderStatus = void 0;
+exports.ManagerApprovalStatus = exports.PosCorrectionType = exports.PosTaxMode = exports.PosSaleStatus = exports.PaymentStatus = exports.PaymentMethod = exports.StockMovementType = exports.CashflowEntryType = exports.REGISTER_SESSION_STATUS_VALUES = exports.RegisterSessionStatus = exports.ORDER_STATUS_VALUES = exports.OrderStatus = void 0;
 exports.OrderStatus = {
     PENDING: "pending",
     PENDING_PAYMENT: "pending_payment",
@@ -40,5 +40,26 @@ exports.PaymentStatus = {
     PAID: "paid",
     FAILED: "failed",
     REFUNDED: "refunded",
+};
+exports.PosSaleStatus = {
+    PAID: "paid",
+    VOIDED: "voided",
+    REFUNDED: "refunded",
+    PARTIALLY_REFUNDED: "partially_refunded",
+};
+exports.PosTaxMode = {
+    EXCLUSIVE: "exclusive",
+    INCLUSIVE: "inclusive",
+};
+exports.PosCorrectionType = {
+    VOID: "void",
+    REFUND: "refund",
+    RETURN: "return",
+};
+exports.ManagerApprovalStatus = {
+    PENDING: "pending",
+    APPROVED: "approved",
+    REJECTED: "rejected",
+    CANCELLED: "cancelled",
 };
 //# sourceMappingURL=index.js.map

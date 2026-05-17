@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { useRegisterStore } from "../store/register.store";
+import { OnlineStatusProvider } from "./OnlineStatusProvider";
+import { getStoredPosToken } from "../services/api";
 
 /**
  * AppProviders — bootstraps auth + register state before rendering anything.
  *
- * Sequence:
- *   1. restore() — rehydrate token from localStorage, validate with /api/auth/me
- *   2. if token valid → refresh() — fetch active register session
- *   3. only then render children
- *
- * This prevents RegisterGuard from seeing stale "none" status.
+ * Phase 8: wraps with OnlineStatusProvider for offline mode support.
  */
 export default function AppProviders({
   children,
@@ -23,19 +20,13 @@ export default function AppProviders({
 
   useEffect(() => {
     async function boot() {
-      // 1. restore auth (validates token with /api/auth/me)
       await restore();
-
-      // 2. check if we now have a valid token
-      const token = sessionStorage.getItem("pos_token");
+      const token = getStoredPosToken();
       if (token) {
-        // 3. fetch active register session before rendering
         await refresh();
       }
-
       setReady(true);
     }
-
     boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -56,5 +47,5 @@ export default function AppProviders({
     );
   }
 
-  return <>{children}</>;
+  return <OnlineStatusProvider>{children}</OnlineStatusProvider>;
 }
