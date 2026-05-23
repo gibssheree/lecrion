@@ -1076,3 +1076,62 @@ model vouchers {
   @@index([store_id, status], map: "idx_vouchers_store_status")
   @@index([customer_id], map: "idx_vouchers_customer")
 }
+
+// ── Invoices (Sales Invoice / Faktur Penjualan) ───────────────────────────────
+// Formal billing document for B2B customers or credit-term transactions.
+// status: "draft" | "issued" | "paid" | "overdue" | "cancelled"
+// payment_terms: "cod" | "net_7" | "net_14" | "net_30" | "net_60"
+model invoices {
+  id               Int             @id @default(autoincrement())
+  invoice_number   String          @unique
+  store_id         String          @default("default-store")
+  order_id         Int?
+  customer_name    String
+  customer_phone   String?
+  customer_email   String?
+  customer_address String?
+  status           String          @default("draft")
+  payment_terms    String          @default("cod")
+  issue_date       String
+  due_date         String?
+  paid_date        String?
+  subtotal         Float           @default(0)
+  discount         Float           @default(0)
+  tax              Float           @default(0)
+  total            Float           @default(0)
+  notes            String?
+  created_by       String?
+  created_at       String          @default("datetime('now')")
+  updated_at       String          @default("datetime('now')")
+  lines            invoice_lines[]
+
+  @@index([store_id, status], map: "idx_invoices_store_status")
+  @@index([created_at(sort: Desc)], map: "idx_invoices_created")
+  @@index([order_id], map: "idx_invoices_order")
+}
+
+// ── Invoice line items ────────────────────────────────────────────────────────
+model invoice_lines {
+  id          Int      @id @default(autoincrement())
+  invoice_id  Int
+  description String
+  qty         Int      @default(1)
+  unit_price  Float    @default(0)
+  total       Float    @default(0)
+  invoice     invoices @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([invoice_id], map: "idx_invoice_lines_invoice")
+}
+
+// ── Invoice number sequences ──────────────────────────────────────────────────
+model invoice_sequences {
+  id            Int    @id @default(autoincrement())
+  store_id      String
+  business_date String
+  sequence      Int    @default(0)
+  created_at    String @default("datetime('now')")
+  updated_at    String @default("datetime('now')")
+
+  @@unique([store_id, business_date], map: "uniq_invoice_seq_scope")
+  @@index([business_date], map: "idx_invoice_seq_date")
+}

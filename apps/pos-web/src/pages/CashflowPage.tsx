@@ -252,126 +252,52 @@ export default function CashflowPage() {
                 <div className="spinner" />
               </div>
             ) : (
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                }}
-              >
+              <table className="pos-data-table">
                 <thead>
-                  <tr
-                    style={{
-                      borderBottom: "1px solid var(--border)",
-                      background: "var(--bg-elevated)",
-                    }}
-                  >
-                    {[
-                      "Waktu",
-                      "Tipe",
-                      "Jumlah",
-                      "Metode",
-                      "Catatan",
-                      "Operator",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        style={{
-                          padding: "10px 14px",
-                          textAlign: "left",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "var(--text-muted)",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
+                  <tr>
+                    {["Waktu", "Tipe", "Jumlah", "Metode", "Catatan", "Operator"].map(
+                      (h) => <th key={h}>{h}</th>,
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {((entries.data?.entries ?? []) as any[]).map((e: any) => (
-                    <tr
-                      key={e.id}
-                      style={{ borderBottom: "1px solid var(--border)" }}
-                    >
-                      <td
-                        style={{
-                          padding: "11px 14px",
-                          fontSize: 12,
-                          color: "var(--text-muted)",
-                        }}
-                      >
+                    <tr key={e.id}>
+                      <td style={{ fontSize: 12, color: "var(--text-muted)" }}>
                         {new Date(e.created_at).toLocaleString("id-ID")}
                       </td>
-                      <td style={{ padding: "11px 14px" }}>
+                      <td>
                         <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: 10,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            background:
-                              e.entry_type === "income"
-                                ? "var(--stock-ok-bg)"
-                                : "var(--stock-out-bg)",
-                            color:
-                              e.entry_type === "income"
-                                ? "var(--stock-ok)"
-                                : "var(--stock-out)",
-                          }}
+                          className={`stock-badge ${
+                            e.entry_type === "income"
+                              ? "stock-badge--ok"
+                              : "stock-badge--out"
+                          }`}
                         >
                           {e.entry_type}
                         </span>
                       </td>
                       <td
                         style={{
-                          padding: "11px 14px",
                           fontWeight: 600,
                           color:
                             e.entry_type === "income"
-                              ? "var(--stock-ok)"
-                              : "var(--stock-out)",
+                              ? "var(--success)"
+                              : "var(--danger)",
                         }}
                       >
                         {e.entry_type === "income" ? "+" : "-"}Rp{fmt(e.amount)}
                       </td>
-                      <td
-                        style={{
-                          padding: "11px 14px",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        {e.payment_method}
-                      </td>
-                      <td
-                        style={{
-                          padding: "11px 14px",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        {e.note}
-                      </td>
-                      <td
-                        style={{
-                          padding: "11px 14px",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        {e.operator_id}
-                      </td>
+                      <td style={{ color: "var(--text-muted)" }}>{e.payment_method}</td>
+                      <td style={{ color: "var(--text-muted)" }}>{e.note}</td>
+                      <td style={{ color: "var(--text-muted)" }}>{e.operator_id}</td>
                     </tr>
                   ))}
                   {!((entries.data?.entries ?? []) as any[]).length && (
                     <tr>
                       <td
                         colSpan={6}
-                        style={{
-                          padding: 24,
-                          textAlign: "center",
-                          color: "var(--text-muted)",
-                        }}
+                        style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}
                       >
                         Belum ada transaksi
                       </td>

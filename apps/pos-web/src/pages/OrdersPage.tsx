@@ -11,11 +11,19 @@ function fmt(n: number): string {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  "Not Ready": "#f59e0b",
-  completed: "#22c55e",
-  cancelled: "#ef4444",
-  confirmed: "#3b82f6",
-  pending_payment: "#3b82f6",
+  "Not Ready": "var(--warning)",
+  completed: "var(--success)",
+  cancelled: "var(--danger)",
+  confirmed: "var(--primary)",
+  pending_payment: "var(--primary)",
+};
+
+const STATUS_BG: Record<string, string> = {
+  "Not Ready": "var(--stock-low-bg)",
+  completed: "var(--stock-ok-bg)",
+  cancelled: "var(--stock-out-bg)",
+  confirmed: "var(--primary-light)",
+  pending_payment: "var(--primary-light)",
 };
 
 export default function OrdersPage() {
@@ -88,110 +96,50 @@ export default function OrdersPage() {
             </span>
           </div>
         ) : (
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
-          >
+          <table className="pos-data-table">
             <thead>
-              <tr
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                  background: "var(--bg-elevated)",
-                }}
-              >
-                {[
-                  "#",
-                  "Nama",
-                  "Tipe",
-                  "Pembayaran",
-                  "Status",
-                  "Waktu",
-                  "Aksi",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "10px 14px",
-                      textAlign: "left",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
+              <tr>
+                {["#", "Nama", "Tipe", "Pembayaran", "Status", "Waktu", "Aksi"].map(
+                  (h) => <th key={h}>{h}</th>,
+                )}
               </tr>
             </thead>
             <tbody>
               {rows.map((o: any) => (
-                <tr
-                  key={o.id}
-                  style={{ borderBottom: "1px solid var(--border)" }}
-                >
-                  <td
-                    style={{
-                      padding: "11px 14px",
-                      color: "var(--primary)",
-                      fontWeight: 700,
-                    }}
-                  >
+                <tr key={o.id}>
+                  <td style={{ color: "var(--primary)", fontWeight: 700 }}>
                     #{o.id}
                   </td>
-                  <td style={{ padding: "11px 14px" }}>{o.name}</td>
-                  <td
-                    style={{ padding: "11px 14px", color: "var(--text-muted)" }}
-                  >
-                    {o.type}
-                  </td>
-                  <td
-                    style={{ padding: "11px 14px", color: "var(--text-muted)" }}
-                  >
-                    {o.payment_method}
-                  </td>
-                  <td style={{ padding: "11px 14px" }}>
+                  <td>{o.name}</td>
+                  <td style={{ color: "var(--text-muted)" }}>{o.type}</td>
+                  <td style={{ color: "var(--text-muted)" }}>{o.payment_method}</td>
+                  <td>
                     <span
                       style={{
                         padding: "3px 9px",
                         borderRadius: 10,
                         fontSize: 11,
                         fontWeight: 600,
-                        background: `${STATUS_COLOR[o.status] ?? "#94a3b8"}20`,
-                        color: STATUS_COLOR[o.status] ?? "#94a3b8",
+                        background: STATUS_BG[o.status] ?? "var(--bg-elevated)",
+                        color: STATUS_COLOR[o.status] ?? "var(--text-muted)",
                       }}
                     >
                       {o.status}
                     </span>
                   </td>
-                  <td
-                    style={{
-                      padding: "11px 14px",
-                      fontSize: 12,
-                      color: "var(--text-muted)",
-                    }}
-                  >
+                  <td style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {new Date(o.created_at).toLocaleString("id-ID")}
                   </td>
-                  <td style={{ padding: "11px 14px" }}>
+                  <td>
                     <select
-                      style={{
-                        padding: "4px 8px",
-                        fontSize: 12,
-                        border: "1px solid var(--border)",
-                        borderRadius: 6,
-                        background: "var(--bg-surface)",
-                        cursor: "pointer",
-                      }}
+                      className="form-select"
+                      style={{ width: "auto", padding: "4px 8px", fontSize: 12 }}
                       value={o.status}
                       disabled={updating === o.id}
                       onChange={(e) => handleStatus(o.id, e.target.value)}
                     >
                       {["Not Ready", "confirmed", "completed", "cancelled"].map(
-                        (s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ),
+                        (s) => <option key={s} value={s}>{s}</option>,
                       )}
                     </select>
                   </td>

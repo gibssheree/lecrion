@@ -10,16 +10,11 @@ import {
 } from "../services/api";
 
 const BUSINESS_VERTICAL_OPTIONS = [
-  { value: "general", label: "General / Mixed Business" },
-  { value: "retail", label: "Retail Store" },
-  { value: "grocery_minimarket", label: "Grocery / Minimarket" },
-  { value: "restaurant_cafe", label: "Restaurant / Cafe" },
-  { value: "wholesale_distribution", label: "Wholesale / Distribution" },
-  { value: "warehouse_logistics", label: "Warehouse / Logistics" },
-  { value: "manufacturing", label: "Manufacturing / Production" },
-  { value: "construction_materials", label: "Building Materials" },
-  { value: "service_repair", label: "Services / Repair Shop" },
-  { value: "health_wellness", label: "Health / Wellness" },
+  { value: "restaurant_cafe", label: "Restaurant" },
+  { value: "cafe", label: "Cafe" },
+  { value: "retail_store", label: "Retail Store" },
+  { value: "accommodation", label: "Akomodasi / Hotel" },
+  { value: "building_materials", label: "Toko Bangunan" },
 ];
 
 export default function SettingsPage() {

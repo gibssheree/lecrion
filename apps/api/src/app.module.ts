@@ -31,6 +31,7 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { FnbModule } from './modules/fnb/fnb.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
     FnbModule,
     CustomersModule,
     SuppliersModule,
+    InvoicesModule,
   ],
   controllers: [],
   providers: [],

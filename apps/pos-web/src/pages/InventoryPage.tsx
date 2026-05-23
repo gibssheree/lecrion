@@ -114,51 +114,21 @@ export default function InventoryPage() {
             <div className="spinner" />
           </div>
         ) : (
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
-          >
+          <table className="pos-data-table">
             <thead>
-              <tr
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                  background: "var(--bg-elevated)",
-                }}
-              >
+              <tr>
                 {["Produk", "Kategori", "Harga", "Stok", "Status", "Aksi"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: "10px 14px",
-                        textAlign: "left",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--text-muted)",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ),
+                  (h) => <th key={h}>{h}</th>,
                 )}
               </tr>
             </thead>
             <tbody>
               {rows.map((p: any) => (
-                <tr
-                  key={p.id}
-                  style={{ borderBottom: "1px solid var(--border)" }}
-                >
-                  <td style={{ padding: "11px 14px", fontWeight: 500 }}>
-                    {p.name}
-                  </td>
-                  <td
-                    style={{ padding: "11px 14px", color: "var(--text-muted)" }}
-                  >
-                    {p.category}
-                  </td>
-                  <td style={{ padding: "11px 14px" }}>Rp{fmt(p.price)}</td>
-                  <td style={{ padding: "11px 14px" }}>
+                <tr key={p.id}>
+                  <td style={{ fontWeight: 500 }}>{p.name}</td>
+                  <td style={{ color: "var(--text-muted)" }}>{p.category}</td>
+                  <td>Rp{fmt(p.price)}</td>
+                  <td>
                     {editId === p.id ? (
                       <input
                         className="form-input"
@@ -185,31 +155,20 @@ export default function InventoryPage() {
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: "11px 14px" }}>
+                  <td>
                     <span
-                      style={{
-                        padding: "3px 9px",
-                        borderRadius: 10,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background:
-                          p.stock <= 0
-                            ? "var(--stock-out-bg)"
-                            : p.stock <= 5
-                              ? "var(--stock-low-bg)"
-                              : "var(--stock-ok-bg)",
-                        color:
-                          p.stock <= 0
-                            ? "var(--stock-out)"
-                            : p.stock <= 5
-                              ? "var(--stock-low)"
-                              : "var(--stock-ok)",
-                      }}
+                      className={`stock-badge ${
+                        p.stock <= 0
+                          ? "stock-badge--out"
+                          : p.stock <= 5
+                            ? "stock-badge--low"
+                            : "stock-badge--ok"
+                      }`}
                     >
                       {p.stock <= 0 ? "Habis" : p.stock <= 5 ? "Menipis" : "OK"}
                     </span>
                   </td>
-                  <td style={{ padding: "11px 14px" }}>
+                  <td>
                     {editId === p.id ? (
                       <div style={{ display: "flex", gap: 6 }}>
                         <button

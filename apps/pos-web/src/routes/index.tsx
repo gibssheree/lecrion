@@ -6,6 +6,7 @@ import ModuleGuard from "../app/guards/ModuleGuard";
 import PermissionGuard from "../app/guards/PermissionGuard";
 import type { PermissionKey } from "../hooks/usePermissions";
 import LoginPage from "../pages/LoginPage";
+import RegisterPage from "../pages/RegisterPage";
 import PosDashboardPage from "../pages/PosDashboardPage";
 import PosPage from "../pages/PosPage";
 import OrdersPage from "../pages/OrdersPage";
@@ -17,6 +18,7 @@ import OperationsPage from "../pages/OperationsPage";
 import UsersPage from "../pages/UsersPage";
 import CashflowPage from "../pages/CashflowPage";
 import ReportsPage from "../pages/ReportsPage";
+import InvoicesPage from "../pages/InvoicesPage";
 import SettingsPage from "../pages/SettingsPage";
 import KdsPage from "../pages/KdsPage";
 import ChatbotOverviewPage from "../pages/chatbot/ChatbotOverviewPage";
@@ -56,6 +58,7 @@ const ProtectedRoute = ({
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/register", element: <RegisterPage /> },
   {
     path: "/dashboard",
     element: (
@@ -135,6 +138,17 @@ export const router = createBrowserRouter([
         requiredPermission="canManageUsers"
       >
         <UsersPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/invoices",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.payments"
+        requiredPermission="canViewCashflow"
+      >
+        <InvoicesPage />
       </ProtectedRoute>
     ),
   },

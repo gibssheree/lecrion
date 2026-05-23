@@ -162,6 +162,121 @@ export class AuthService {
     return bcrypt.hash(plain, 10);
   }
 
+  // ─── Self-registration ───────────────────────────────────────────────────────
+
+  /**
+   * Owner self-registration — creates account + store in one atomic flow.
+   * Returns access + refresh tokens so the user is immediately logged in.
+   */
+  async register(params: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    storeName: string;
+    businessVertical: string;
+    city?: string;
+    taxEnabled?: boolean;
+    taxRate?: number;
+    taxMode?: 'inclusive' | 'exclusive';
+    serviceChargeEnabled?: boolean;
+    serviceChargeRate?: number;
+  }): Promise<LoginResult> {
+    const existing = await this.prisma.users.findUnique({
+      where: { email: params.email },
+    });
+    if (existing) {
+      throw new Error(`Email '${params.email}' sudah terdaftar.`);
+    }
+
+    const passwordHash = await bcrypt.hash(params.password, 10);
+    const now = new Date().toISOString();
+    const storeId = `store-${Date.now()}`;
+
+    await this.prisma.$transaction(async (tx: any) => {
+      // 1. Create owner user
+      await tx.users.create({
+        data: {
+          email: params.email,
+          password_hash: passwordHash,
+          role: 'owner',
+          store_id: storeId,
+          created_at: now,
+          updated_at: now,
+        },
+      });
+
+      // 2. Store settings
+      const settings: Array<{ key: string; value: string }> = [
+        { key: `${storeId}:storeName`, value: params.storeName },
+        { key: `${storeId}:businessVertical`, value: params.businessVertical },
+        { key: `${storeId}:ownerName`, value: params.name },
+        { key: `${storeId}:ownerPhone`, value: params.phone },
+      ];
+      if (params.city) {
+        settings.push({ key: `${storeId}:city`, value: params.city });
+      }
+      if (params.taxEnabled) {
+        settings.push(
+          { key: `${storeId}:calc.tax_rate`, value: String(params.taxRate ?? 11) },
+          { key: `${storeId}:calc.tax_mode`, value: params.taxMode ?? 'inclusive' },
+        );
+      }
+      if (params.serviceChargeEnabled) {
+        settings.push({
+          key: `${storeId}:calc.service_charge_rate`,
+          value: String(params.serviceChargeRate ?? 5),
+        });
+      }
+
+      await tx.store_settings.createMany({
+        data: settings.map((s) => ({ key: s.key, value: s.value, updated_at: now })),
+        skipDuplicates: true,
+      });
+
+      // 3. Store business profile
+      await tx.store_business_profiles.create({
+        data: {
+          store_id: storeId,
+          requested_business_vertical: params.businessVertical,
+          verified_business_vertical: params.businessVertical,
+          verification_status: 'auto_approved',
+          verified_at: now,
+          notes: 'Auto-approved on self-registration',
+        } as any,
+      });
+    });
+
+    this.logger.log(`Self-register: email=${params.email} store=${storeId} vertical=${params.businessVertical}`);
+
+    // Issue tokens immediately — user is logged in right after register
+    const authUser: AuthUser = {
+      actor: params.email,
+      email: params.email,
+      role: 'owner',
+      storeId,
+      tenantId: this.config.defaultTenantId,
+      channel: 'api',
+    };
+
+    // Re-fetch the actual user id for the token sub
+    const created = await this.prisma.users.findUnique({ where: { email: params.email } });
+    if (created) authUser.actor = String(created.id);
+
+    const tokens = await this.issueTokens(authUser);
+
+    return {
+      ...tokens,
+      user: {
+        id: authUser.actor,
+        email: authUser.email!,
+        role: 'owner',
+        storeId,
+        tenantId: authUser.tenantId,
+      },
+    };
+  }
+
   // ─── Phase 9: User management ────────────────────────────────────────────────
 
   /**

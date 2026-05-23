@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -7,18 +7,20 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
   Store,
 } from "lucide-react";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useStoreCapabilities } from "../../hooks/useStoreCapabilities";
+import { useApi } from "../../hooks/useApi";
+import { getStoreInfo } from "../../services/api";
 import {
   CHATBOT_NAV,
   MAIN_NAV,
   NavigationItem,
 } from "../../navigation/navigation.registry";
-import { requestBusinessProfile } from "../../services/api";
 import { useAuthStore } from "../../store/auth.store";
-import lecrionLogo from "../../public/Lecrion.png";
+const lecrionLogo = "/Lecrion.png";
 
 interface Props {
   children: ReactNode;
@@ -33,24 +35,24 @@ const ROLE_LABELS: Record<string, string> = {
   support: "Support",
 };
 
-const BUSINESS_VERTICAL_OPTIONS = [
-  { value: "general", label: "General" },
-  { value: "retail_store", label: "Retail Store" },
-  { value: "grocery_minimarket", label: "Grocery / Minimarket" },
-  { value: "restaurant_cafe", label: "Restaurant / Cafe" },
-  { value: "wholesale_distribution", label: "Wholesale / Distribution" },
-  { value: "warehouse_logistics", label: "Warehouse / Logistics" },
-  { value: "manufacturing_production", label: "Manufacturing / Production" },
-  { value: "building_materials", label: "Building Materials" },
-  { value: "services_repair_shop", label: "Services / Repair Shop" },
-  { value: "health_wellness", label: "Health / Wellness" },
-];
+const VERTICAL_LABELS: Record<string, string> = {
+  restaurant_cafe: "Restoran",
+  cafe: "Cafe",
+  retail_store: "Retail Store",
+  accommodation: "Akomodasi / Hotel",
+  building_materials: "Toko Bangunan",
+  general: "General",
+};
 
-function businessVerticalLabel(value?: string | null) {
-  return (
-    BUSINESS_VERTICAL_OPTIONS.find((o) => o.value === value)?.label ?? "General"
-  );
+function verticalLabel(value?: string | null) {
+  return VERTICAL_LABELS[value ?? ""] ?? value ?? "General";
 }
+
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  verified: { label: "Terverifikasi", color: "#22c55e" },
+  pending: { label: "Menunggu Verifikasi", color: "#f59e0b" },
+  unverified: { label: "Belum Diverifikasi", color: "#94a3b8" },
+};
 
 function canShowItem(
   item: NavigationItem,
@@ -70,20 +72,17 @@ export default function PosAppShell({ children, title }: Props) {
   const {
     data: capabilities,
     businessVertical,
+    verificationStatus,
     hasModule,
-    reload: reloadCapabilities,
   } = useStoreCapabilities();
+  const storeInfo = useApi(getStoreInfo, []);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [requestedVertical, setRequestedVertical] = useState(businessVertical);
-  const [categorySaving, setCategorySaving] = useState(false);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [bizInfoOpen, setBizInfoOpen] = useState(false);
+  const bizInfoRef = useRef<HTMLDivElement>(null);
 
-  const canRequestCategory = ["owner", "manager"].includes(user?.role ?? "");
   const pendingVertical = capabilities?.requestedBusinessVertical ?? null;
-  const hasPendingCategory =
-    Boolean(pendingVertical) && pendingVertical !== businessVertical;
+  const hasPending = Boolean(pendingVertical) && pendingVertical !== businessVertical;
 
   const visibleMainNav = useMemo(
     () => MAIN_NAV.filter((item) => canShowItem(item, hasModule, permissions)),
@@ -91,47 +90,27 @@ export default function PosAppShell({ children, title }: Props) {
   );
 
   const visibleChatbotNav = useMemo(
-    () =>
-      CHATBOT_NAV.filter((item) => canShowItem(item, hasModule, permissions)),
+    () => CHATBOT_NAV.filter((item) => canShowItem(item, hasModule, permissions)),
     [hasModule, permissions],
   );
 
   useEffect(() => {
-    setRequestedVertical(pendingVertical ?? businessVertical);
-  }, [businessVertical, pendingVertical]);
+    if (sidebarCollapsed) setBizInfoOpen(false);
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
-    if (sidebarCollapsed) setCategoryOpen(false);
-  }, [sidebarCollapsed]);
+    function handleClickOutside(e: MouseEvent) {
+      if (bizInfoRef.current && !bizInfoRef.current.contains(e.target as Node)) {
+        setBizInfoOpen(false);
+      }
+    }
+    if (bizInfoOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [bizInfoOpen]);
 
   function handleLogout() {
     logout();
     navigate("/login", { replace: true });
-  }
-
-  async function handleSelectCategory(nextVertical: string) {
-    setCategoryError(null);
-    setRequestedVertical(nextVertical);
-    if (!canRequestCategory) {
-      setCategoryError("Hanya owner atau manager yang bisa ajukan kategori.");
-      return;
-    }
-    if (nextVertical === requestedVertical && hasPendingCategory) {
-      setCategoryOpen(false);
-      return;
-    }
-    setCategorySaving(true);
-    try {
-      await requestBusinessProfile(nextVertical);
-      await reloadCapabilities();
-      setCategoryOpen(false);
-    } catch (err) {
-      setCategoryError(
-        err instanceof Error ? err.message : "Gagal mengirim request kategori.",
-      );
-    } finally {
-      setCategorySaving(false);
-    }
   }
 
   function renderNavItem(item: NavigationItem) {
@@ -199,7 +178,7 @@ export default function PosAppShell({ children, title }: Props) {
       <div className="pos-body">
         <aside className="pos-sidebar">
           {/* Store switcher */}
-          <div className="pos-store-switcher">
+          <div className="pos-store-switcher" ref={bizInfoRef}>
             {!sidebarCollapsed ? (
               <>
                 <div className="pos-store-icon-box">
@@ -207,21 +186,18 @@ export default function PosAppShell({ children, title }: Props) {
                 </div>
 
                 <div className="pos-store-info">
-                  <span className="pos-store-name">Canteen</span>
+                  <span className="pos-store-name">
+                    {storeInfo.data?.name ?? "Store"}
+                  </span>
                   <button
                     type="button"
-                    className={`pos-store-category-trigger${categoryOpen ? " open" : ""}`}
-                    onClick={() => setCategoryOpen((v) => !v)}
-                    aria-expanded={categoryOpen}
+                    className={`pos-store-category-trigger${bizInfoOpen ? " open" : ""}`}
+                    onClick={() => setBizInfoOpen((v) => !v)}
+                    aria-expanded={bizInfoOpen}
                   >
-                    <span>{businessVerticalLabel(businessVertical)}</span>
+                    <span>{verticalLabel(businessVertical)}</span>
                     <ChevronDown size={11} />
                   </button>
-                  {hasPendingCategory && (
-                    <div className="pos-store-category-pending-inline">
-                      Pending: {businessVerticalLabel(pendingVertical)}
-                    </div>
-                  )}
                 </div>
 
                 <button
@@ -244,29 +220,52 @@ export default function PosAppShell({ children, title }: Props) {
               </button>
             )}
 
-            {categoryOpen && !sidebarCollapsed && (
-              <div className="pos-store-category-menu">
-                <div className="pos-store-category-menu-label">
-                  Kategori Bisnis
+            {/* Business info panel */}
+            {bizInfoOpen && !sidebarCollapsed && (
+              <div className="pos-biz-panel">
+                {/* Vertical + status */}
+                <div className="pos-biz-panel-row">
+                  <span className="pos-biz-panel-label">Jenis Bisnis</span>
+                  <span className="pos-biz-panel-value">
+                    {verticalLabel(businessVertical)}
+                  </span>
                 </div>
-                <div className="pos-store-category-options">
-                  {BUSINESS_VERTICAL_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`pos-store-category-option${requestedVertical === option.value ? " selected" : ""}`}
-                      onClick={() => handleSelectCategory(option.value)}
-                      disabled={categorySaving}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+
+                <div className="pos-biz-panel-row">
+                  <span className="pos-biz-panel-label">Status</span>
+                  <span
+                    className="pos-biz-panel-status"
+                    style={{
+                      color: STATUS_CONFIG[verificationStatus]?.color ?? "#94a3b8",
+                    }}
+                  >
+                    <span
+                      className="pos-biz-status-dot"
+                      style={{
+                        background: STATUS_CONFIG[verificationStatus]?.color ?? "#94a3b8",
+                      }}
+                    />
+                    {STATUS_CONFIG[verificationStatus]?.label ?? verificationStatus}
+                  </span>
                 </div>
-                {categoryError && (
-                  <div className="pos-store-category-error">
-                    {categoryError}
+
+                {hasPending && (
+                  <div className="pos-biz-panel-pending">
+                    Pending: {verticalLabel(pendingVertical)}
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  className="pos-biz-panel-manage-btn"
+                  onClick={() => {
+                    setBizInfoOpen(false);
+                    navigate("/settings");
+                  }}
+                >
+                  <Settings size={13} />
+                  Kelola Bisnis
+                </button>
               </div>
             )}
           </div>

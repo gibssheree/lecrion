@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   AlertCircle,
   BarChart3,
@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useRegisterStore } from "../../store/register.store";
-import lecrionLogo from "../../public/Lecrion.png";
-import storeIllustration from "../../public/lecrion_3d.png";
+const lecrionLogo = "/Lecrion.png";
+const storeIllustration = "/lecrion_3d.png";
 
 type LoginMode = "operator" | "manager" | "owner";
 
@@ -277,15 +277,9 @@ export default function LoginPage() {
 
             <div className="auth-register-row">
               <span>Belum punya akun?</span>
-              <button
-                type="button"
-                className="auth-register-link"
-                onClick={() => {
-                  /* register flow — coming soon */
-                }}
-              >
+              <Link to="/register" className="auth-register-link">
                 Daftar sekarang
-              </button>
+              </Link>
             </div>
           </form>
 

@@ -863,6 +863,128 @@ export class PosReportsService {
     return lines.join('\n');
   }
 
+  // ─── 12. Revenue & Profit Forecasting ────────────────────────────────────────
+
+  /**
+   * GET /api/reports/pos/forecast
+   *
+   * 6-month revenue/profit forecast using linear regression on last 6 months.
+   *
+   * Sources:
+   *   revenue  → pos_sales.total (status IN paid/partially_refunded)
+   *   cogs     → pos_sale_items × menu.cost_price (NULL cost_price = 0)
+   *   expenses → cashflow_entries.amount (entry_type = 'expense')
+   *
+   * Algorithm: Ordinary Least Squares (OLS) linear regression on x = month index.
+   * Forecasted values are clamped to >= 0.
+   */
+  async getForecast(params: { storeId?: string }) {
+    const storeId = params.storeId ?? 'default-store';
+    const storeFilter = `AND ps.store_id = '${storeId}'`;
+
+    // Revenue per month (last 6 months + current)
+    const revenueRows = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT
+        strftime('%Y-%m', ps.created_at) AS month,
+        COALESCE(SUM(ps.total), 0) AS revenue
+      FROM pos_sales ps
+      WHERE ps.status IN (${ACTIVE_STATUSES})
+        ${storeFilter}
+        AND ps.created_at >= date('now', '-6 months')
+      GROUP BY strftime('%Y-%m', ps.created_at)
+      ORDER BY month ASC
+    `);
+
+    // COGS per month (cost_price × qty from sale items)
+    const cogsRows = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT
+        strftime('%Y-%m', ps.created_at) AS month,
+        COALESCE(SUM(COALESCE(m.cost_price, 0) * psi.qty), 0) AS cogs
+      FROM pos_sales ps
+      JOIN pos_sale_items psi ON psi.sale_id = ps.id
+      JOIN menu m ON m.id = psi.product_id
+      WHERE ps.status IN (${ACTIVE_STATUSES})
+        ${storeFilter}
+        AND ps.created_at >= date('now', '-6 months')
+      GROUP BY strftime('%Y-%m', ps.created_at)
+      ORDER BY month ASC
+    `);
+
+    // Expenses per month from cashflow entries
+    const expenseRows = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT
+        strftime('%Y-%m', ce.created_at) AS month,
+        COALESCE(SUM(ce.amount), 0) AS expenses
+      FROM cashflow_entries ce
+      WHERE ce.entry_type = 'expense'
+        AND ce.store_id = '${storeId}'
+        AND ce.created_at >= date('now', '-6 months')
+      GROUP BY strftime('%Y-%m', ce.created_at)
+      ORDER BY month ASC
+    `);
+
+    // Build month keys for the last 6 months
+    const monthKeys: string[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthKeys.push(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      );
+    }
+
+    const revenueMap = new Map(revenueRows.map((r) => [r.month, n(r.revenue)]));
+    const cogsMap = new Map(cogsRows.map((r) => [r.month, n(r.cogs)]));
+    const expenseMap = new Map(expenseRows.map((r) => [r.month, n(r.expenses)]));
+
+    const historical = monthKeys.map((month, idx) => {
+      const revenue = revenueMap.get(month) ?? 0;
+      const cogs = cogsMap.get(month) ?? 0;
+      const expenses = expenseMap.get(month) ?? 0;
+      const grossProfit = revenue - cogs;
+      const netProfit = grossProfit - expenses;
+      return { month, idx, revenue, cogs, expenses, grossProfit, netProfit };
+    });
+
+    const revFit = olsRegression(historical.map((h) => ({ x: h.idx, y: h.revenue })));
+    const cogsFit = olsRegression(historical.map((h) => ({ x: h.idx, y: h.cogs })));
+    const expFit = olsRegression(historical.map((h) => ({ x: h.idx, y: h.expenses })));
+
+    // Forecast next 6 months
+    const forecast = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + 1 + i, 1);
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const x = 6 + i;
+      const revenue = Math.max(0, revFit.intercept + revFit.slope * x);
+      const cogs = Math.max(0, cogsFit.intercept + cogsFit.slope * x);
+      const expenses = Math.max(0, expFit.intercept + expFit.slope * x);
+      const grossProfit = revenue - cogs;
+      const netProfit = grossProfit - expenses;
+      return { month, revenue, cogs, expenses, grossProfit, netProfit };
+    });
+
+    // Trend metadata
+    const avgRevenue = historical.reduce((a, h) => a + h.revenue, 0) / 6 || 1;
+    const avgNetProfit = historical.reduce((a, h) => a + h.netProfit, 0) / 6;
+    const profitMarginAvg = avgNetProfit / avgRevenue;
+    const revenueGrowthPerMonth = revFit.slope / avgRevenue;
+
+    const toTrend = (slope: number) =>
+      slope > 0 ? 'up' : slope < 0 ? 'down' : 'flat';
+
+    return {
+      historical: historical.map(({ idx: _i, ...rest }) => rest),
+      forecast,
+      trend: {
+        revenueGrowthPerMonth: Math.round(revenueGrowthPerMonth * 10000) / 100,
+        profitMarginAvgPct: Math.round(profitMarginAvg * 10000) / 100,
+        revenueTrend: toTrend(revFit.slope),
+        profitTrend: toTrend(revFit.slope - cogsFit.slope - expFit.slope),
+        expenseTrend: toTrend(expFit.slope),
+      },
+    };
+  }
+
   /**
    * Format a low stock alert for WhatsApp.
    */
@@ -884,4 +1006,22 @@ export class PosReportsService {
     }
     return lines.join('\n');
   }
+}
+
+// ── Linear regression helper (OLS) ────────────────────────────────────────────
+function olsRegression(points: { x: number; y: number }[]): {
+  slope: number;
+  intercept: number;
+} {
+  const len = points.length;
+  if (len === 0) return { slope: 0, intercept: 0 };
+  const sumX = points.reduce((a, p) => a + p.x, 0);
+  const sumY = points.reduce((a, p) => a + p.y, 0);
+  const sumXY = points.reduce((a, p) => a + p.x * p.y, 0);
+  const sumX2 = points.reduce((a, p) => a + p.x * p.x, 0);
+  const denom = len * sumX2 - sumX * sumX;
+  if (denom === 0) return { slope: 0, intercept: sumY / len };
+  const slope = (len * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / len;
+  return { slope, intercept };
 }

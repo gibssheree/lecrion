@@ -19,7 +19,56 @@ import { AuthUser } from './auth.types';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { IsEmail, IsString, IsOptional, IsIn } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsIn, IsBoolean, IsNumber, Min, Max, MinLength } from 'class-validator';
+
+class RegisterDto {
+  @IsString()
+  name!: string;
+
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  phone!: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @IsString()
+  storeName!: string;
+
+  @IsString()
+  businessVertical!: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  taxEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  taxRate?: number;
+
+  @IsOptional()
+  @IsIn(['inclusive', 'exclusive'])
+  taxMode?: 'inclusive' | 'exclusive';
+
+  @IsOptional()
+  @IsBoolean()
+  serviceChargeEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  serviceChargeRate?: number;
+}
 
 const VALID_ROLES: UserRole[] = [
   'owner',
@@ -57,6 +106,21 @@ class UpdateUserRoleDto {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  /**
+   * POST /api/auth/register
+   * Owner self-registration — creates user + store, returns tokens.
+   */
+  @Post('register')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  async register(@Body() dto: RegisterDto) {
+    try {
+      return await this.authService.register(dto);
+    } catch (err: any) {
+      throw new ForbiddenException(err?.message ?? 'Pendaftaran gagal');
+    }
+  }
 
   /**
    * POST /api/auth/login

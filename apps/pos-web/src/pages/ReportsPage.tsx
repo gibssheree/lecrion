@@ -1,8 +1,7 @@
 // apps/pos-web/src/pages/ReportsPage.tsx
 //
 // Phase 10: Owner Analytics — upgraded to use POS-specific endpoints.
-// Shows: POS summary, daily breakdown, hourly chart, top products,
-// payment mix, cashier performance, promo performance.
+// Phase 11: Forecasting sub-tab added (6-month revenue/profit projection).
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -15,9 +14,10 @@ import {
   Tag,
   CreditCard,
   AlertCircle,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
-import { getReportSnapshots } from "../services/api";
 
 const BASE = "";
 function getToken() {
@@ -84,24 +84,15 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div
-      style={{
-        background: "var(--bg-elevated, #f9fafb)",
-        borderRadius: 10,
-        padding: "12px 14px",
-      }}
-    >
-      <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: color ?? "inherit" }}>
+    <div className="summary-card">
+      <div className="summary-card-label">{label}</div>
+      <div
+        className="summary-card-value"
+        style={color ? { color } : undefined}
+      >
         {value}
       </div>
-      {sub && (
-        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
+      {sub && <div className="summary-card-sub">{sub}</div>}
     </div>
   );
 }
@@ -111,7 +102,7 @@ function SummaryCard({
 function HourlyChart({ data }: { data: any[] }) {
   if (!data.length)
     return (
-      <div style={{ color: "#9ca3af", fontSize: 13 }}>
+      <div style={{ color: "var(--text-muted)", fontSize: 13 }}>
         Belum ada data hari ini
       </div>
     );
@@ -144,13 +135,14 @@ function HourlyChart({ data }: { data: any[] }) {
             style={{
               width: 20,
               height: Math.max(4, Math.round((h.grossSales / max) * 70)),
-              background:
-                h.saleCount > 0 ? "var(--color-primary, #2563eb)" : "#e5e7eb",
+              background: h.saleCount > 0 ? "var(--primary)" : "var(--border)",
               borderRadius: "3px 3px 0 0",
               cursor: "pointer",
             }}
           />
-          <span style={{ fontSize: 9, color: "#9ca3af" }}>{h.hour}</span>
+          <span style={{ fontSize: 9, color: "var(--text-muted)" }}>
+            {h.hour}
+          </span>
         </div>
       ))}
     </div>
@@ -163,7 +155,7 @@ export default function ReportsPage() {
   const [preset, setPreset] = useState(0);
   const [dateFrom, setDateFrom] = useState(todayStr());
   const [dateTo, setDateTo] = useState(todayStr());
-  const [tab, setTab] = useState<"overview" | "daily" | "cashier" | "promo">(
+  const [tab, setTab] = useState<"overview" | "daily" | "cashier" | "promo" | "forecast">(
     "overview",
   );
 
@@ -174,6 +166,7 @@ export default function ReportsPage() {
   const [paymentMix, setPaymentMix] = useState<any[]>([]);
   const [cashierPerf, setCashierPerf] = useState<any[]>([]);
   const [promoPerf, setPromoPerf] = useState<any[]>([]);
+  const [forecast, setForecast] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -182,7 +175,7 @@ export default function ReportsPage() {
     setError(null);
     try {
       const qs = `?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-      const [s, d, h, tp, pm, cp, pp] = await Promise.all([
+      const [s, d, h, tp, pm, cp, pp, fc] = await Promise.all([
         api<any>(`/api/reports/pos/summary${qs}`),
         api<any[]>(`/api/reports/pos/daily?limit=30`),
         api<any[]>(`/api/reports/pos/hourly`),
@@ -190,6 +183,7 @@ export default function ReportsPage() {
         api<any[]>(`/api/reports/pos/payment-mix${qs}`),
         api<any[]>(`/api/reports/pos/cashier-performance${qs}`),
         api<any[]>(`/api/reports/pos/promo-performance${qs}`),
+        api<any>(`/api/reports/pos/forecast`),
       ]);
       setSummary(s);
       setDaily(Array.isArray(d) ? d : []);
@@ -198,6 +192,7 @@ export default function ReportsPage() {
       setPaymentMix(Array.isArray(pm) ? pm : []);
       setCashierPerf(Array.isArray(cp) ? cp : []);
       setPromoPerf(Array.isArray(pp) ? pp : []);
+      setForecast(fc ?? null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -220,6 +215,7 @@ export default function ReportsPage() {
     { key: "daily", label: "Harian", icon: <TrendingUp size={13} /> },
     { key: "cashier", label: "Kasir", icon: <Users size={13} /> },
     { key: "promo", label: "Promo", icon: <Tag size={13} /> },
+    { key: "forecast", label: "Forecasting", icon: <TrendingUp size={13} /> },
   ] as const;
 
   return (
@@ -239,16 +235,7 @@ export default function ReportsPage() {
             <button
               key={i}
               onClick={() => applyPreset(i)}
-              style={{
-                padding: "5px 10px",
-                borderRadius: 6,
-                border: "1px solid var(--border, #e5e7eb)",
-                background:
-                  preset === i ? "var(--color-primary, #2563eb)" : "none",
-                color: preset === i ? "#fff" : "inherit",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
+              className={`chip ${preset === i ? "chip--active" : ""}`}
             >
               {p.label}
             </button>
@@ -262,14 +249,10 @@ export default function ReportsPage() {
               setDateFrom(e.target.value);
               setPreset(-1);
             }}
-            style={{
-              padding: "5px 8px",
-              border: "1px solid var(--border, #e5e7eb)",
-              borderRadius: 6,
-              fontSize: 12,
-            }}
+            className="form-input"
+            style={{ width: "auto", padding: "5px 8px" }}
           />
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>—</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>
           <input
             type="date"
             value={dateTo}
@@ -277,81 +260,33 @@ export default function ReportsPage() {
               setDateTo(e.target.value);
               setPreset(-1);
             }}
-            style={{
-              padding: "5px 8px",
-              border: "1px solid var(--border, #e5e7eb)",
-              borderRadius: 6,
-              fontSize: 12,
-            }}
+            className="form-input"
+            style={{ width: "auto", padding: "5px 8px" }}
           />
         </div>
         <button
           onClick={load}
-          style={{
-            padding: "5px 10px",
-            border: "1px solid var(--border, #e5e7eb)",
-            borderRadius: 6,
-            background: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 12,
-          }}
+          className="btn btn-ghost btn-sm"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
         >
           <RefreshCw size={12} /> Refresh
         </button>
       </div>
 
       {error && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 12px",
-            background: "#fee2e2",
-            borderRadius: 8,
-            marginBottom: 12,
-            fontSize: 13,
-            color: "#dc2626",
-          }}
-        >
+        <div className="alert alert-error" style={{ marginBottom: 12 }}>
           <AlertCircle size={14} /> {error}
         </div>
       )}
 
       {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 16,
-          borderBottom: "1px solid var(--border, #e5e7eb)",
-        }}
-      >
+      <div className="cash-tab-bar" style={{ marginBottom: 16 }}>
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "7px 14px",
-              border: "none",
-              background: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              borderBottom:
-                tab === t.key
-                  ? "2px solid var(--color-primary, #2563eb)"
-                  : "2px solid transparent",
-              color:
-                tab === t.key ? "var(--color-primary, #2563eb)" : "#6b7280",
-              fontWeight: tab === t.key ? 600 : 400,
-              marginBottom: -1,
-            }}
+            className={`cash-tab ${tab === t.key ? "active" : ""}`}
+            style={{ display: "flex", alignItems: "center", gap: 5 }}
           >
             {t.icon} {t.label}
           </button>
@@ -359,8 +294,9 @@ export default function ReportsPage() {
       </div>
 
       {loading && (
-        <div style={{ textAlign: "center", padding: 32, color: "#9ca3af" }}>
-          Memuat data…
+        <div className="loading-center">
+          <div className="spinner" />
+          <span>Memuat data…</span>
         </div>
       )}
 
@@ -369,49 +305,46 @@ export default function ReportsPage() {
           {/* Summary cards */}
           {summary && (
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-                gap: 10,
-              }}
+              className="summary-grid"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}
             >
               <SummaryCard
                 label="Gross Sales"
                 value={`Rp${fmt(summary.grossSales)}`}
-                color="var(--color-primary, #2563eb)"
+                color="var(--primary)"
               />
               <SummaryCard
                 label="Net Sales"
                 value={`Rp${fmt(summary.netSales)}`}
-                color="#16a34a"
+                color="var(--success)"
               />
               <SummaryCard
                 label="Diskon"
                 value={`Rp${fmt(summary.discountTotal)}`}
-                color="#d97706"
+                color="var(--warning)"
               />
               <SummaryCard label="Pajak" value={`Rp${fmt(summary.taxTotal)}`} />
               <SummaryCard
                 label="Refund"
                 value={`Rp${fmt(summary.refundTotal)}`}
                 sub={`${summary.refundCount} transaksi`}
-                color="#dc2626"
+                color="var(--danger)"
               />
               <SummaryCard
                 label="Void"
                 value={`${summary.voidCount}`}
                 sub="transaksi"
-                color="#dc2626"
+                color="var(--danger)"
               />
               <SummaryCard
                 label="Transaksi"
                 value={`${summary.saleCount}`}
-                color="var(--color-primary, #2563eb)"
+                color="var(--primary)"
               />
               <SummaryCard
                 label="Net Revenue"
                 value={`Rp${fmt(summary.netRevenue)}`}
-                color="#16a34a"
+                color="var(--success)"
               />
             </div>
           )}
@@ -469,8 +402,7 @@ export default function ReportsPage() {
                   <div key={i} className="shift-row">
                     <span className="shift-row-label">{p.method}</span>
                     <span className="shift-row-value">
-                      {p.saleCount} · Rp{fmt(p.totalAmount)} (
-                      {fmtPct(p.percentage)})
+                      {p.saleCount} · Rp{fmt(p.totalAmount)} ({fmtPct(p.percentage)})
                     </span>
                   </div>
                 ))}
@@ -499,12 +431,12 @@ export default function ReportsPage() {
                 <span className="shift-row-value">
                   {d.saleCount} transaksi · Rp{fmt(d.grossSales)}
                   {d.refundTotal > 0 && (
-                    <span style={{ color: "#dc2626", marginLeft: 6 }}>
+                    <span style={{ color: "var(--danger)", marginLeft: 6 }}>
                       ↩ Rp{fmt(d.refundTotal)}
                     </span>
                   )}
                   {d.voidCount > 0 && (
-                    <span style={{ color: "#d97706", marginLeft: 6 }}>
+                    <span style={{ color: "var(--warning)", marginLeft: 6 }}>
                       ✗ {d.voidCount}
                     </span>
                   )}
@@ -533,7 +465,7 @@ export default function ReportsPage() {
                 key={i}
                 style={{
                   padding: "10px 0",
-                  borderBottom: "1px solid var(--border, #e5e7eb)",
+                  borderBottom: "1px solid var(--border)",
                 }}
               >
                 <div
@@ -547,7 +479,7 @@ export default function ReportsPage() {
                     {c.cashierId}
                   </span>
                   <span
-                    style={{ fontSize: 13, color: "#16a34a", fontWeight: 600 }}
+                    style={{ fontSize: 13, color: "var(--success)", fontWeight: 600 }}
                   >
                     Rp{fmt(c.grossSales)}
                   </span>
@@ -557,14 +489,14 @@ export default function ReportsPage() {
                     display: "flex",
                     gap: 12,
                     fontSize: 12,
-                    color: "#6b7280",
+                    color: "var(--text-secondary)",
                   }}
                 >
                   <span>{c.saleCount} transaksi</span>
                   <span>Avg Rp{fmt(c.avgSaleValue)}</span>
                   <span>Diskon Rp{fmt(c.discountTotal)}</span>
                   {c.voidCount > 0 && (
-                    <span style={{ color: "#dc2626" }}>
+                    <span style={{ color: "var(--danger)" }}>
                       Void: {c.voidCount}
                     </span>
                   )}
@@ -596,9 +528,12 @@ export default function ReportsPage() {
                     <span
                       style={{
                         fontSize: 11,
-                        color: "#7c3aed",
+                        color: "var(--primary)",
                         marginLeft: 6,
                         fontFamily: "monospace",
+                        background: "var(--primary-light)",
+                        padding: "1px 5px",
+                        borderRadius: 4,
                       }}
                     >
                       {p.voucherCode}
@@ -618,6 +553,191 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
+      {!loading && tab === "forecast" && (
+        <ForecastTab data={forecast} />
+      )}
     </PosAppShell>
+  );
+}
+
+// ── Forecasting Tab ───────────────────────────────────────────────────────────
+
+function ForecastTab({ data }: { data: any }) {
+  if (!data) {
+    return (
+      <div style={{ color: "var(--text-muted)", fontSize: 13, padding: 24, textAlign: "center" }}>
+        Belum ada data historis untuk forecasting.
+      </div>
+    );
+  }
+
+  const { historical = [], forecast = [], trend = {} } = data;
+  const allMonths = [...historical, ...forecast];
+  const maxRevenue = Math.max(...allMonths.map((m: any) => m.revenue), 1);
+
+  const trendIcon = (t: string) =>
+    t === "up" ? <TrendingUp size={13} style={{ color: "var(--success)" }} /> :
+    t === "down" ? <TrendingDown size={13} style={{ color: "var(--danger)" }} /> :
+    <Minus size={13} style={{ color: "var(--text-muted)" }} />;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Trend summary cards */}
+      <div className="summary-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+        <div className="summary-card">
+          <div className="summary-card-label">Tren Pendapatan</div>
+          <div className="summary-card-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {trendIcon(trend.revenueTrend)}
+            <span style={{ color: trend.revenueTrend === "up" ? "var(--success)" : "var(--danger)", fontSize: 14 }}>
+              {trend.revenueTrend === "up" ? "Naik" : trend.revenueTrend === "down" ? "Turun" : "Stabil"}
+            </span>
+          </div>
+          <div className="summary-card-sub">
+            {trend.revenueGrowthPerMonth > 0 ? "+" : ""}{trend.revenueGrowthPerMonth?.toFixed(1)}% / bulan
+          </div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-card-label">Tren Profit</div>
+          <div className="summary-card-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {trendIcon(trend.profitTrend)}
+            <span style={{ color: trend.profitTrend === "up" ? "var(--success)" : "var(--danger)", fontSize: 14 }}>
+              {trend.profitTrend === "up" ? "Naik" : trend.profitTrend === "down" ? "Turun" : "Stabil"}
+            </span>
+          </div>
+          <div className="summary-card-sub">berdasarkan 6 bln lalu</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-card-label">Margin Profit Rata-rata</div>
+          <div className="summary-card-value" style={{ color: (trend.profitMarginAvgPct ?? 0) >= 0 ? "var(--success)" : "var(--danger)" }}>
+            {trend.profitMarginAvgPct?.toFixed(1)}%
+          </div>
+          <div className="summary-card-sub">net profit / revenue</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-card-label">Tren Pengeluaran</div>
+          <div className="summary-card-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {trendIcon(trend.expenseTrend)}
+            <span style={{ color: trend.expenseTrend === "up" ? "var(--danger)" : "var(--success)", fontSize: 14 }}>
+              {trend.expenseTrend === "up" ? "Naik" : trend.expenseTrend === "down" ? "Turun" : "Stabil"}
+            </span>
+          </div>
+          <div className="summary-card-sub">pengeluaran operasional</div>
+        </div>
+      </div>
+
+      {/* Bar chart: historical + forecast */}
+      <div className="dashboard-card">
+        <div className="dashboard-card-header">
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <TrendingUp size={14} /> Revenue 6 Bulan Lalu + Proyeksi 6 Bulan Ke Depan
+          </span>
+          <div style={{ display: "flex", gap: 10, fontSize: 11 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} /> Historis
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--warning)", display: "inline-block" }} /> Proyeksi
+            </span>
+          </div>
+        </div>
+        <div className="dashboard-card-body">
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 120, overflowX: "auto", paddingBottom: 4 }}>
+            {historical.map((m: any) => (
+              <div key={m.month} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 48 }}>
+                <div style={{
+                  width: 36,
+                  height: Math.max(4, Math.round((m.revenue / maxRevenue) * 100)),
+                  background: "var(--primary)",
+                  borderRadius: "3px 3px 0 0",
+                  cursor: "default",
+                }} title={`${m.month}\nRevenue: Rp${fmt(m.revenue)}\nProfit: Rp${fmt(m.netProfit)}`} />
+                <span style={{ fontSize: 9, color: "var(--text-muted)", textAlign: "center" }}>{m.month.slice(5)}</span>
+              </div>
+            ))}
+            <div style={{ width: 1, background: "var(--border)", height: 110, alignSelf: "flex-end", marginBottom: 16 }} />
+            {forecast.map((m: any) => (
+              <div key={m.month} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 48 }}>
+                <div style={{
+                  width: 36,
+                  height: Math.max(4, Math.round((m.revenue / maxRevenue) * 100)),
+                  background: "var(--warning)",
+                  borderRadius: "3px 3px 0 0",
+                  opacity: 0.85,
+                  cursor: "default",
+                }} title={`${m.month} (Proyeksi)\nRevenue: Rp${fmt(m.revenue)}\nProfit: Rp${fmt(m.netProfit)}`} />
+                <span style={{ fontSize: 9, color: "var(--warning)", textAlign: "center", fontWeight: 600 }}>{m.month.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detail table */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="dashboard-card">
+          <div className="dashboard-card-header">
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <BarChart2 size={14} /> Data Historis (6 Bulan Lalu)
+            </span>
+          </div>
+          <div className="dashboard-card-body">
+            {historical.map((m: any) => (
+              <div key={m.month} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{m.month}</span>
+                  <span style={{ fontSize: 13, color: "var(--primary)", fontWeight: 600 }}>
+                    Rp{fmt(m.revenue)}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--text-secondary)" }}>
+                  <span>COGS: Rp{fmt(m.cogs)}</span>
+                  <span>Biaya: Rp{fmt(m.expenses)}</span>
+                  <span style={{ color: m.netProfit >= 0 ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
+                    Profit: Rp{fmt(m.netProfit)}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {!historical.length && (
+              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Belum ada data historis</div>
+            )}
+          </div>
+        </div>
+
+        <div className="dashboard-card">
+          <div className="dashboard-card-header">
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <TrendingUp size={14} /> Proyeksi 6 Bulan Ke Depan
+            </span>
+          </div>
+          <div className="dashboard-card-body">
+            {forecast.map((m: any) => (
+              <div key={m.month} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{m.month}</span>
+                  <span style={{ fontSize: 13, color: "var(--warning)", fontWeight: 600 }}>
+                    Rp{fmt(m.revenue)}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--text-secondary)" }}>
+                  <span>COGS: Rp{fmt(m.cogs)}</span>
+                  <span>Biaya: Rp{fmt(m.expenses)}</span>
+                  <span style={{ color: m.netProfit >= 0 ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
+                    Profit: Rp{fmt(m.netProfit)}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {!forecast.length && (
+              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Belum ada proyeksi</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "8px 0" }}>
+        * Proyeksi menggunakan linear regression berdasarkan data 6 bulan terakhir. Angka ini adalah estimasi, bukan jaminan.
+      </div>
+    </div>
   );
 }

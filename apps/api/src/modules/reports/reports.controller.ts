@@ -245,4 +245,12 @@ export class ReportsController {
       .formatLowStockAlert(storeId)
       .then((text) => ({ text }));
   }
+
+  // ─── Phase 11: Forecasting ──────────────────────────────────────────────────
+
+  @Get('pos/forecast')
+  @Roles('owner', 'manager')
+  getForecast(@Query('storeId') storeId?: string) {
+    return this.posReports.getForecast({ storeId });
+  }
 }

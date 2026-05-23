@@ -123,7 +123,7 @@ export default function CloseRegisterModal({ onClose }: Props) {
         notes,
       });
       await refresh();
-      navigate("/register", { replace: true });
+      navigate("/kasir", { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Gagal menutup sesi");
     } finally {

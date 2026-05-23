@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Package,
   Radio,
+  Receipt,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -100,6 +101,15 @@ export const MAIN_NAV: NavigationItem[] = [
     label: "Supplier",
     requiredModule: "core.suppliers",
     requirePermission: "canManageInventory",
+    section: "operations",
+  },
+  {
+    id: "invoices",
+    to: "/invoices",
+    icon: <Receipt size={15} />,
+    label: "Invoices",
+    requiredModule: "core.payments",
+    requirePermission: "canViewCashflow",
     section: "operations",
   },
   {
