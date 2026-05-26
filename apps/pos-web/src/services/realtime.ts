@@ -49,7 +49,11 @@ function buildSocketAuth(): Record<string, string> {
 }
 
 export function getSocket(): Socket {
-  if (_socket?.connected) return _socket;
+  // Return the existing socket even when disconnected — Socket.IO's built-in
+  // reconnection will bring it back. Creating a NEW socket on every call when
+  // disconnected was the bug: each caller (useSocket, PosAppShell, etc.) would
+  // spawn its own socket, all failing in parallel → perpetual "connecting" loop.
+  if (_socket) return _socket;
 
   _socket = io(SOCKET_URL, {
     path: "/ws/realtime",

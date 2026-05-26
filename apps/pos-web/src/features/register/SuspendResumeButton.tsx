@@ -2,9 +2,11 @@ import { useState } from "react";
 import { PauseCircle, PlayCircle } from "lucide-react";
 import { useRegisterStore } from "../../store/register.store";
 import { suspendRegister, resumeRegister } from "../../services/api";
+import { useToast } from "../../store/toast.store";
 
 export default function SuspendResumeButton() {
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const session = useRegisterStore((s) => s.session);
   const status = useRegisterStore((s) => s.status);
   const refresh = useRegisterStore((s) => s.refresh);
@@ -22,7 +24,7 @@ export default function SuspendResumeButton() {
       }
       await refresh();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Gagal");
+      toast.error(err instanceof Error ? err.message : "Operasi register gagal");
     } finally {
       setLoading(false);
     }

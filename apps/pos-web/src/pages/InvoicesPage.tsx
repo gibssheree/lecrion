@@ -16,8 +16,11 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
+  Printer,
 } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
+import { useToast } from "../store/toast.store";
+import { fmt } from "../utils/fmt";
 
 const BASE = "";
 function getToken() {
@@ -45,10 +48,6 @@ async function api<T>(path: string, opts?: RequestInit): Promise<T> {
   return data as T;
 }
 
-function fmt(n: number) {
-  return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
-}
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: JSX.Element }> = {
   draft: { label: "Draft", color: "var(--text-muted)", icon: <Clock size={12} /> },
   issued: { label: "Diterbitkan", color: "var(--primary)", icon: <FileText size={12} /> },
@@ -66,6 +65,86 @@ const PAYMENT_TERMS_LABELS: Record<string, string> = {
 };
 
 const EMPTY_LINE = { description: "", qty: 1, unitPrice: 0 };
+
+function printInvoice(inv: any) {
+  const lines: any[] = inv.lines ?? [];
+  const terms = PAYMENT_TERMS_LABELS[inv.paymentTerms] ?? inv.paymentTerms ?? "";
+  const rows = lines.map((l: any) => `
+    <tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0">${l.description}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${l.qty}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:right">Rp${fmt(l.unitPrice)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600">Rp${fmt(l.total ?? l.qty * l.unitPrice)}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Faktur ${inv.invoiceNumber}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; margin: 0; padding: 32px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .meta { color: #64748b; font-size: 12px; margin-bottom: 24px; }
+    .section { margin-bottom: 20px; }
+    .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #f8fafc; padding: 8px; text-align: left; font-size: 12px; border-bottom: 2px solid #e2e8f0; }
+    thead th:last-child, thead th:nth-child(2), thead th:nth-child(3) { text-align: right; }
+    thead th:nth-child(2) { text-align: center; }
+    .totals { margin-top: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .total-row { display: flex; gap: 32px; font-size: 13px; }
+    .grand-total { font-size: 16px; font-weight: 700; border-top: 2px solid #1e293b; padding-top: 6px; margin-top: 4px; }
+    .footer { margin-top: 40px; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+    @media print { body { padding: 16px; } }
+  </style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+    <div>
+      <h1>FAKTUR PENJUALAN</h1>
+      <div class="meta">${inv.invoiceNumber}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="label">Tanggal Terbit</div>
+      <div>${inv.issueDate ?? "—"}</div>
+      ${inv.dueDate ? `<div class="label" style="margin-top:8px">Jatuh Tempo</div><div>${inv.dueDate}</div>` : ""}
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
+    <div class="section">
+      <div class="label">Kepada</div>
+      <div style="font-weight:600">${inv.customerName}</div>
+      ${inv.customerPhone ? `<div>${inv.customerPhone}</div>` : ""}
+      ${inv.customerEmail ? `<div>${inv.customerEmail}</div>` : ""}
+      ${inv.customerAddress ? `<div style="color:#64748b">${inv.customerAddress}</div>` : ""}
+    </div>
+    <div class="section">
+      <div class="label">Termin Pembayaran</div>
+      <div>${terms}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Deskripsi</th>
+      <th style="text-align:center">Qty</th>
+      <th style="text-align:right">Harga Satuan</th>
+      <th style="text-align:right">Total</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="totals">
+    ${inv.discount > 0 ? `<div class="total-row"><span>Diskon</span><span style="color:#f59e0b">-Rp${fmt(inv.discount)}</span></div>` : ""}
+    ${inv.tax > 0 ? `<div class="total-row"><span>Pajak</span><span>+Rp${fmt(inv.tax)}</span></div>` : ""}
+    <div class="total-row grand-total"><span>Total</span><span>Rp${fmt(inv.total)}</span></div>
+  </div>
+
+  ${inv.notes ? `<div class="section" style="margin-top:20px"><div class="label">Catatan</div><div>${inv.notes}</div></div>` : ""}
+  <div class="footer">Dokumen ini diterbitkan secara elektronik oleh sistem Lecrion POS.</div>
+  <script>window.onload=function(){window.print();}</script>
+  </body></html>`;
+
+  const w = window.open("", "_blank", "width=800,height=900");
+  if (w) { w.document.write(html); w.document.close(); }
+}
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
@@ -91,6 +170,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function InvoicesPage() {
+  const toast = useToast();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState("");
@@ -174,7 +254,7 @@ export default function InvoicesPage() {
       });
       load();
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message ?? "Gagal memperbarui status faktur");
     }
   }
 
@@ -501,45 +581,54 @@ export default function InvoicesPage() {
                   )}
 
                   {/* Action buttons */}
-                  {!["paid", "cancelled"].includes(inv.status) && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {inv.status === "draft" && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                    {/* Print always available */}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ display: "flex", alignItems: "center", gap: 5 }}
+                      onClick={() => printInvoice(inv)}
+                    >
+                      <Printer size={13} /> Cetak
+                    </button>
+
+                    {!["paid", "cancelled"].includes(inv.status) && (
+                      <>
+                        {inv.status === "draft" && (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleStatusChange(inv.id, "issued")}
+                          >
+                            Terbitkan
+                          </button>
+                        )}
+                        {inv.status === "issued" && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: "var(--success)", color: "#fff" }}
+                            onClick={() => handleStatusChange(inv.id, "paid")}
+                          >
+                            Tandai Lunas
+                          </button>
+                        )}
+                        {["draft", "issued"].includes(inv.status) && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: "var(--warning)", color: "#fff" }}
+                            onClick={() => handleStatusChange(inv.id, "overdue")}
+                          >
+                            Tandai Jatuh Tempo
+                          </button>
+                        )}
                         <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleStatusChange(inv.id, "issued")}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: "var(--danger)" }}
+                          onClick={() => handleStatusChange(inv.id, "cancelled")}
                         >
-                          Terbitkan
+                          Batalkan
                         </button>
-                      )}
-                      {inv.status === "issued" && (
-                        <button
-                          className="btn btn-sm"
-                          style={{ background: "var(--success)", color: "#fff" }}
-                          onClick={() => handleStatusChange(inv.id, "paid")}
-                        >
-                          Tandai Lunas
-                        </button>
-                      )}
-                      {["draft", "issued"].includes(inv.status) && (
-                        <button
-                          className="btn btn-sm"
-                          style={{ background: "var(--warning)", color: "#fff" }}
-                          onClick={() => handleStatusChange(inv.id, "overdue")}
-                        >
-                          Tandai Jatuh Tempo
-                        </button>
-                      )}
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ color: "var(--danger)" }}
-                        onClick={() => {
-                          if (confirm("Batalkan invoice ini?")) handleStatusChange(inv.id, "cancelled");
-                        }}
-                      >
-                        Batalkan
-                      </button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                   {inv.paidDate && (
                     <div style={{ fontSize: 11, color: "var(--success)", marginTop: 6 }}>
                       Lunas pada: {inv.paidDate}

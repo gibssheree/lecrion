@@ -16,8 +16,10 @@ import {
   AlertCircle,
   TrendingDown,
   Minus,
+  Download,
 } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
+import { fmt, fmtPct } from "../utils/fmt";
 
 const BASE = "";
 function getToken() {
@@ -40,12 +42,19 @@ async function api<T>(path: string): Promise<T> {
   return data as T;
 }
 
-function fmt(n: number | null | undefined): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
-}
+// ── CSV export helper ─────────────────────────────────────────────────────────
 
-function fmtPct(n: number): string {
-  return `${n.toFixed(1)}%`;
+function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]): void {
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob(["﻿" + csv, ""], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Date range helpers ────────────────────────────────────────────────────────
@@ -210,6 +219,45 @@ export default function ReportsPage() {
     setDateTo(PRESETS[idx].to);
   }
 
+  function handleExportCsv() {
+    const range = `${dateFrom}_${dateTo}`;
+    if (tab === "daily") {
+      downloadCsv(`laporan-harian-${range}.csv`, [
+        ["Tanggal", "Transaksi", "Gross Sales (Rp)", "Refund (Rp)", "Void"],
+        ...daily.map((d: any) => [d.salesDate, d.saleCount, d.grossSales, d.refundTotal ?? 0, d.voidCount ?? 0]),
+      ]);
+    } else if (tab === "cashier") {
+      downloadCsv(`performa-kasir-${range}.csv`, [
+        ["Kasir", "Transaksi", "Gross Sales (Rp)", "Avg Nilai (Rp)", "Diskon (Rp)", "Void"],
+        ...cashierPerf.map((c: any) => [c.cashierId, c.saleCount, c.grossSales, c.avgSaleValue, c.discountTotal, c.voidCount ?? 0]),
+      ]);
+    } else if (tab === "promo") {
+      downloadCsv(`performa-promo-${range}.csv`, [
+        ["Nama Promo", "Kode Voucher", "Penggunaan", "Total Diskon (Rp)"],
+        ...promoPerf.map((p: any) => [p.promoName, p.voucherCode ?? "", p.usageCount, p.totalDiscount]),
+      ]);
+    } else if (tab === "overview") {
+      const rows: (string | number)[][] = [
+        ["Metrik", "Nilai (Rp)"],
+        ["Gross Sales", summary?.grossSales ?? 0],
+        ["Net Sales", summary?.netSales ?? 0],
+        ["Diskon", summary?.discountTotal ?? 0],
+        ["Pajak", summary?.taxTotal ?? 0],
+        ["Refund", summary?.refundTotal ?? 0],
+        ["Void", summary?.voidCount ?? 0],
+        ["Transaksi", summary?.saleCount ?? 0],
+        ["Net Revenue", summary?.netRevenue ?? 0],
+      ];
+      downloadCsv(`ringkasan-${range}.csv`, rows);
+    } else if (tab === "forecast") {
+      downloadCsv(`forecast-${range}.csv`, [
+        ["Bulan", "Tipe", "Revenue (Rp)", "COGS (Rp)", "Biaya (Rp)", "Net Profit (Rp)"],
+        ...(forecast?.historical ?? []).map((m: any) => [m.month, "Historis", m.revenue, m.cogs, m.expenses, m.netProfit]),
+        ...(forecast?.forecast ?? []).map((m: any) => [m.month, "Proyeksi", m.revenue, m.cogs, m.expenses, m.netProfit]),
+      ]);
+    }
+  }
+
   const TABS = [
     { key: "overview", label: "Ringkasan", icon: <BarChart2 size={13} /> },
     { key: "daily", label: "Harian", icon: <TrendingUp size={13} /> },
@@ -270,6 +318,14 @@ export default function ReportsPage() {
           style={{ display: "flex", alignItems: "center", gap: 4 }}
         >
           <RefreshCw size={12} /> Refresh
+        </button>
+        <button
+          onClick={handleExportCsv}
+          className="btn btn-ghost btn-sm"
+          disabled={loading}
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
+        >
+          <Download size={12} /> Export CSV
         </button>
       </div>
 

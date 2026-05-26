@@ -16,7 +16,12 @@ export default defineConfig({
         // Cache the app shell and static assets
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         // Large login illustration is loaded normally, not precached by the SW.
-        globIgnores: ["**/assets/lecrion_3d-*.png"],
+        globIgnores: [
+          "**/assets/lecrion_3d-*.png",
+          "**/assets/lecrion-hero-*.png",
+          "**/lecrion_3d.png",
+          "**/lecrion3D.png",
+        ],
         // Runtime caching for API calls
         runtimeCaching: [
           {

@@ -37,12 +37,15 @@ export default function AppProviders({
         style={{
           height: "100vh",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "var(--bg-base, #0f172a)",
+          gap: 20,
+          background: "#f8fafc",
         }}
       >
-        <div className="spinner" style={{ width: 28, height: 28 }} />
+        <img src="/Lecrion.png" alt="Lecrion" style={{ height: 30, width: "auto", opacity: 0.9 }} />
+        <div className="spinner" style={{ width: 20, height: 20 }} />
       </div>
     );
   }

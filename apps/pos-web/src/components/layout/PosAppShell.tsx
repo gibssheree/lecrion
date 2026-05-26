@@ -1,5 +1,8 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useToast } from "../../store/toast.store";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import Breadcrumb from "../ui/Breadcrumb";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
   ChevronDown,
@@ -7,12 +10,17 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   Settings,
   Store,
+  WifiOff,
 } from "lucide-react";
+import { useOnlineContext } from "../../app/OnlineStatusProvider";
+import CommandPalette from "../ui/CommandPalette";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useStoreCapabilities } from "../../hooks/useStoreCapabilities";
 import { useApi } from "../../hooks/useApi";
+import { useSocket } from "../../hooks/useSocket";
 import { getStoreInfo } from "../../services/api";
 import {
   CHATBOT_NAV,
@@ -66,6 +74,7 @@ function canShowItem(
 
 export default function PosAppShell({ children, title }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const permissions = usePermissions();
@@ -77,9 +86,49 @@ export default function PosAppShell({ children, title }: Props) {
   } = useStoreCapabilities();
   const storeInfo = useApi(getStoreInfo, []);
 
+  const { connected } = useSocket([]);
+  const { isOnline, isBrowserOffline } = useOnlineContext();
+  const toast = useToast();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [bizInfoOpen, setBizInfoOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const bizInfoRef = useRef<HTMLDivElement>(null);
+
+  // Track socket reconnect state for toast notifications
+  const disconnectToastRef = useRef<string | null>(null);
+  const wasConnectedRef    = useRef(false);
+
+  useEffect(() => {
+    if (connected) {
+      wasConnectedRef.current = true;
+      // Dismiss the "reconnecting…" persistent toast if present
+      if (disconnectToastRef.current) {
+        toast.dismiss(disconnectToastRef.current);
+        disconnectToastRef.current = null;
+        toast.success("Terhubung kembali ke server");
+      }
+    } else if (wasConnectedRef.current) {
+      // Only notify on *loss* of an established connection, not on cold start
+      disconnectToastRef.current = toast.persistent(
+        "warning",
+        "Koneksi terputus — mencoba menghubungkan ulang…",
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected]);
+
+  // Ctrl+K / Cmd+K → open command palette
+  const handleGlobalKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      e.preventDefault();
+      setCmdOpen((v) => !v);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [handleGlobalKeyDown]);
 
   const pendingVertical = capabilities?.requestedBusinessVertical ?? null;
   const hasPending = Boolean(pendingVertical) && pendingVertical !== businessVertical;
@@ -139,6 +188,17 @@ export default function PosAppShell({ children, title }: Props) {
         <img src={lecrionLogo} alt="Lecrion" className="pos-navbar-logo" />
 
         <div className="pos-navbar-actions">
+          {/* Command palette trigger */}
+          <button
+            type="button"
+            className="pos-navbar-icon-btn"
+            aria-label="Cari menu (Ctrl+K)"
+            title="Cari menu (Ctrl+K)"
+            onClick={() => setCmdOpen(true)}
+          >
+            <Search size={18} />
+          </button>
+
           <button
             type="button"
             className="pos-navbar-icon-btn"
@@ -173,6 +233,24 @@ export default function PosAppShell({ children, title }: Props) {
           </button>
         </div>
       </header>
+
+      {/* ── Offline / limited connectivity banner ── */}
+      <AnimatePresence>
+        {(isBrowserOffline || !isOnline) && (
+          <motion.div
+            className={`pos-offline-banner${isBrowserOffline ? " pos-offline-banner--critical" : ""}`}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          >
+            <WifiOff size={12} />
+            {isBrowserOffline
+              ? "Tidak ada koneksi internet — transaksi akan disimpan offline"
+              : "Koneksi terbatas — beberapa fitur mungkin tidak tersedia"}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Body: sidebar + content ── */}
       <div className="pos-body">
@@ -290,14 +368,35 @@ export default function PosAppShell({ children, title }: Props) {
 
         {/* Content */}
         <main className="pos-content">
+          {/* #10 Breadcrumb — auto-shows only for nested routes (/orders/:id, etc.) */}
+          <Breadcrumb />
+
           {title && (
             <div className="pos-page-header">
               <h2 className="pos-page-heading">{title}</h2>
             </div>
           )}
-          <div className="pos-page-body">{children}</div>
+
+          {/* #11 Route transition — fade + subtle lift on each navigation */}
+          <div className="pos-page-body">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.14, ease: [0.4, 0, 0.2, 1] }}
+                style={{ height: "100%" }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
+
+      {/* Command palette — Ctrl+K */}
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
   );
 }

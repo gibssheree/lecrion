@@ -8,6 +8,7 @@ import {
   requestBusinessProfile,
   saveSettings,
 } from "../services/api";
+import { useToast } from "../store/toast.store";
 
 const BUSINESS_VERTICAL_OPTIONS = [
   { value: "restaurant_cafe", label: "Restaurant" },
@@ -17,14 +18,18 @@ const BUSINESS_VERTICAL_OPTIONS = [
   { value: "building_materials", label: "Toko Bangunan" },
 ];
 
+const BUSINESS_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  BUSINESS_VERTICAL_OPTIONS.map((v) => [v.value, v.label]),
+);
+
 export default function SettingsPage() {
   const settings = useApi(getSettings, []);
   const profile = useApi(getBusinessProfile, []);
+  const toast = useToast();
   const [form, setForm] = useState<Record<string, string>>({});
   const [requestedVertical, setRequestedVertical] = useState("general");
   const [requestingVertical, setRequestingVertical] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (settings.data) {
@@ -60,10 +65,9 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await saveSettings(form);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      toast.success("Konfigurasi berhasil disimpan");
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? "Gagal menyimpan konfigurasi");
     } finally {
       setSaving(false);
     }
@@ -74,8 +78,9 @@ export default function SettingsPage() {
     try {
       await requestBusinessProfile(requestedVertical);
       await profile.reload();
+      toast.success("Permintaan kategori bisnis berhasil dikirim");
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? "Gagal mengajukan kategori bisnis");
     } finally {
       setRequestingVertical(false);
     }
@@ -89,7 +94,7 @@ export default function SettingsPage() {
       key: "businessType",
       label: "Kategori Bisnis",
       type: "select",
-      options: ["general", "retail", "restaurant", "cafe", "service"],
+      options: BUSINESS_VERTICAL_OPTIONS.map((v) => v.value),
     },
     {
       key: "defaultOrderType",
@@ -112,12 +117,6 @@ export default function SettingsPage() {
 
   return (
     <PosAppShell title="Pengaturan">
-      {saved && (
-        <div className="alert alert-success" style={{ marginBottom: 16 }}>
-          Konfigurasi berhasil disimpan
-        </div>
-      )}
-
       <form onSubmit={handleSave}>
         <div
           style={{
@@ -156,7 +155,7 @@ export default function SettingsPage() {
                   >
                     {options?.map((o) => (
                       <option key={o} value={o}>
-                        {o}
+                        {BUSINESS_TYPE_LABELS[o] ?? o}
                       </option>
                     ))}
                   </select>

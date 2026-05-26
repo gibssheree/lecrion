@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "dev": "npm run dev:pos",
-    "dev:all": "npm run dev:pos",
+    "dev:all": "npm run dev",
     "dev:api": "npm --prefix apps/api run start:dev",
     "dev:pos": "npm --prefix apps/pos-web run dev",
     "start:api": "npm --prefix apps/api run start",

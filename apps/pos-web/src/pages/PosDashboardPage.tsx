@@ -27,6 +27,9 @@ import CloseRegisterModal from "../features/register/CloseRegisterModal";
 import RegisterGatePage from "../features/register/RegisterGatePage";
 import SuspendResumeButton from "../features/register/SuspendResumeButton";
 import { useSocket } from "../hooks/useSocket";
+import { useUserMap } from "../hooks/useUserMap";
+import { useToast } from "../store/toast.store";
+import { fmt } from "../utils/fmt";
 
 const DASHBOARD_EVENTS = [
   "order.created",
@@ -38,7 +41,30 @@ const DASHBOARD_EVENTS = [
   "stock.adjusted",
   "stock.low",
 ] as const;
-const DASHBOARD_EVENT_SET = new Set<string>(DASHBOARD_EVENTS);
+type ReloadTarget = "snapshots" | "orders" | "session" | "shift";
+
+/**
+ * Maps each socket event to the specific data targets that need refreshing.
+ * Events with an empty array only appear in the Live Feed — no API calls fired.
+ *
+ * Before (all events triggered all 3 reloads indiscriminately):
+ *   stock.low → reloadSnapshots() + reloadOrders() + refresh()  ← 3 wasted calls
+ *
+ * After (each event reloads only what changed):
+ *   stock.low       → []               (live feed + toast only)
+ *   register.opened → ["session"]      (1 call instead of 3)
+ *   order.created   → ["snapshots", "orders"]  (2 calls, no session reload)
+ */
+const EVENT_RELOAD_MAP: Readonly<Record<string, readonly ReloadTarget[]>> = {
+  "order.created":            ["snapshots", "orders"],
+  "order.confirmed":          ["snapshots", "orders", "shift"],
+  "payment.confirmed":        ["snapshots", "shift"],
+  "cashflow.income.recorded": ["snapshots", "shift"],
+  "register.opened":          ["session"],
+  "register.closed":          ["session"],
+  "stock.adjusted":           [],  // live feed only — no reload needed
+  "stock.low":                [],  // live feed only — toast shown separately
+} as const;
 
 function describeDashboardEvent(
   eventName: string,
@@ -66,10 +92,6 @@ function describeDashboardEvent(
   }
 }
 
-function fmt(n: number | null | undefined): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
-}
-
 function useApi2<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   return useApi(fn, deps, { autoRefreshMs: 30_000 });
 }
@@ -83,6 +105,7 @@ export default function PosDashboardPage() {
   const [shiftSummary, setShiftSummary] = useState<SessionSummary | null>(null);
   const [shiftSummaryLoading, setShiftSummaryLoading] = useState(false);
 
+  const toast = useToast();
   const navigate = useNavigate();
   const session = useRegisterStore((s) => s.session);
   const status = useRegisterStore((s) => s.status);
@@ -93,6 +116,7 @@ export default function PosDashboardPage() {
   const reloadSnapshots = snapshots.reload;
   const reloadOrders = orders.reload;
   const { events, connected } = useSocket([...DASHBOARD_EVENTS]);
+  const { resolveName } = useUserMap();
   const latestEvent = events[0] ?? null;
 
   // Load shift summary when session changes or on sale events
@@ -118,24 +142,30 @@ export default function PosDashboardPage() {
   }, [session?.id]);
 
   useEffect(() => {
-    if (!latestEvent || !DASHBOARD_EVENT_SET.has(latestEvent.eventName)) {
-      return;
+    if (!latestEvent) return;
+
+    // Stock-alert events: show a warning toast — no API reload needed.
+    if (latestEvent.eventName === "stock.low") {
+      toast.warning(
+        `Stok ${String(latestEvent.data.name ?? latestEvent.data.productId ?? "produk")} menipis`,
+      );
     }
 
-    void Promise.all([
-      reloadSnapshots(),
-      reloadOrders(),
-      refresh(),
-      // Reload shift summary on sale/cashflow events
-      ...(session?.id &&
-      (latestEvent.eventName === "order.confirmed" ||
-        latestEvent.eventName === "cashflow.income.recorded" ||
-        latestEvent.eventName === "payment.confirmed")
-        ? [loadShiftSummary(session.id)]
-        : []),
-    ]);
+    // Determine which data targets this event requires.
+    const targets = EVENT_RELOAD_MAP[latestEvent.eventName] ?? [];
+    if (targets.length === 0) return;
+
+    const ops: Promise<unknown>[] = [];
+    if (targets.includes("snapshots")) ops.push(reloadSnapshots());
+    if (targets.includes("orders"))    ops.push(reloadOrders());
+    if (targets.includes("session"))   ops.push(refresh());
+    if (targets.includes("shift") && session?.id) {
+      ops.push(loadShiftSummary(session.id));
+    }
+
+    void Promise.all(ops);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestEvent, refresh, reloadOrders, reloadSnapshots]);
+  }, [latestEvent]);
 
   const daily = snapshots.data?.snapshots?.daily_revenue?.data?.[0];
   const monthly = snapshots.data?.snapshots?.monthly_revenue?.data?.[0];
@@ -152,6 +182,7 @@ export default function PosDashboardPage() {
           setShowOpenForm(false);
           refresh();
         }}
+        onCancel={() => setShowOpenForm(false)}
       />
     );
   }
@@ -225,7 +256,7 @@ export default function PosDashboardPage() {
                 : "TUTUP"}
           </div>
           <div className="summary-card-sub">
-            {session ? `Kasir: ${session.cashier_id}` : "Tidak ada sesi"}
+            {session ? `Kasir: ${resolveName(session.cashier_id)}` : "Tidak ada sesi"}
           </div>
         </div>
       </div>

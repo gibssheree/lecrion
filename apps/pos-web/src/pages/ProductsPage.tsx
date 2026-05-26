@@ -1,19 +1,23 @@
 import { useMemo, useState } from "react";
-import { Edit3, Package, Plus, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Edit3, ExternalLink, Package, PackageSearch, Plus, RefreshCw } from "lucide-react";
+import EmptyState from "../components/ui/EmptyState";
 import PosAppShell from "../components/layout/PosAppShell";
 import QuickProductModal from "../features/catalog/QuickProductModal";
 import { useCategories, useProducts } from "../hooks/useProducts";
-
-function fmt(n: number | null | undefined): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
-}
+import { fmt } from "../utils/fmt";
+import { usePagination } from "../hooks/usePagination";
+import Pagination from "../components/ui/Pagination";
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Semua");
   const [showModal, setShowModal] = useState(false);
   const products = useProducts(search, category);
   const { categories } = useCategories();
+
+  const pagination = usePagination(products.products, 25);
 
   const stats = useMemo(
     () => ({
@@ -84,6 +88,22 @@ export default function ProductsPage() {
         <div className="dashboard-card-body" style={{ padding: 0 }}>
           {products.loading ? (
             <div className="loading-center"><div className="spinner" /></div>
+          ) : !products.products.length ? (
+            <EmptyState
+              icon={<PackageSearch size={44} />}
+              title={search ? "Produk tidak ditemukan" : "Belum ada produk"}
+              description={
+                search
+                  ? `Tidak ada produk yang cocok dengan "${search}". Coba kata kunci lain.`
+                  : "Tambahkan produk pertama untuk mulai berjualan."
+              }
+              action={
+                !search
+                  ? { label: "Tambah Produk", onClick: () => setShowModal(true), icon: <Plus size={13} /> }
+                  : undefined
+              }
+              compact
+            />
           ) : (
             <table className="pos-data-table">
               <thead>
@@ -98,10 +118,13 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {products.products.map((product) => (
-                  <tr key={product.id}>
+                {pagination.slice.map((product) => (
+                  <tr key={product.id} style={{ cursor: "pointer" }} onClick={() => navigate(`/products/${product.id}`)}>
                     <td>
-                      <strong>{product.name}</strong>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <strong>{product.name}</strong>
+                        <ExternalLink size={10} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                      </span>
                       <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
                         {product.barcode || "Tanpa barcode"}
                       </div>
@@ -126,12 +149,10 @@ export default function ProductsPage() {
                     </td>
                   </tr>
                 ))}
-                {!products.products.length && (
-                  <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-muted)" }}>Belum ada produk</td></tr>
-                )}
               </tbody>
             </table>
           )}
+          <Pagination {...pagination} />
         </div>
       </div>
 

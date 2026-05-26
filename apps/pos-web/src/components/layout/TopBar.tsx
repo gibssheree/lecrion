@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  ShoppingBag,
   User,
   Clock,
   Wifi,
@@ -13,12 +12,15 @@ import {
   RefreshCw,
   Store,
 } from "lucide-react";
+
 import { useAuthStore } from "../../store/auth.store";
 import { useRegisterStore } from "../../store/register.store";
 import SuspendResumeButton from "../../features/register/SuspendResumeButton";
 import CloseRegisterModal from "../../features/register/CloseRegisterModal";
 import { getOrders } from "../../services/api";
 import { useOnlineContext } from "../../app/OnlineStatusProvider";
+
+const lecrionLogo = "/Lecrion.png";
 
 interface Props {
   onOpenOrders: () => void;
@@ -92,8 +94,7 @@ export default function TopBar({ onOpenOrders }: Props) {
       <div className="topbar">
         {/* Brand */}
         <div className="topbar-brand">
-          <ShoppingBag size={16} strokeWidth={2.5} />
-          Lecrion POS
+          <img src={lecrionLogo} alt="Lecrion" className="topbar-logo" />
         </div>
 
         <div className="topbar-divider" />

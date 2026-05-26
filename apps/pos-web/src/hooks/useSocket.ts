@@ -5,20 +5,69 @@ export interface SocketEvent {
   eventName: string;
   data: Record<string, unknown>;
   receivedAt: number;
+  /** Stable key used to detect duplicate events (e.g. replayed on reconnect). */
+  dedupeKey: string;
+}
+
+/**
+ * Build a stable dedup key from the most specific identifier in a payload.
+ *
+ * Priority:
+ *  1. `eventId`  — backend-generated UUID/ULID, globally unique (preferred)
+ *  2. `<eventName>:<entityId>` — composed from the business entity ID present
+ *  3. `<eventName>:<JSON>`     — last-resort for events without any ID field
+ */
+function makeDedupeKey(eventName: string, data: Record<string, unknown>): string {
+  if (data.eventId) return String(data.eventId);
+
+  const entityId =
+    data.orderId ??
+    data.saleId ??
+    data.productId ??
+    data.sessionId ??
+    data.id;
+
+  if (entityId !== undefined && entityId !== null) {
+    return `${eventName}:${String(entityId)}`;
+  }
+
+  return `${eventName}:${JSON.stringify(data)}`;
 }
 
 export function useSocket(eventNames: string[] = []) {
   const [connected, setConnected] = useState(false);
   const [events, setEvents] = useState<SocketEvent[]>([]);
   const mountedRef = useRef(true);
+  /**
+   * Sliding window of recently seen dedup keys.
+   * Capped at 100 entries to prevent unbounded memory growth.
+   * When the cap is hit the window is cleared — we only need short-term dedup
+   * (covering the reconnect window, not the full session).
+   */
+  const seenKeysRef = useRef(new Set<string>());
 
   const addEvent = useCallback((eventName: string, data: unknown) => {
     if (!mountedRef.current) return;
+
+    const payload = data as Record<string, unknown>;
+    const dedupeKey = makeDedupeKey(eventName, payload);
+
+    // Reset window before it grows unbounded.
+    if (seenKeysRef.current.size >= 100) {
+      seenKeysRef.current.clear();
+    }
+
+    // Drop duplicate — same event replayed on reconnect.
+    if (seenKeysRef.current.has(dedupeKey)) return;
+    seenKeysRef.current.add(dedupeKey);
+
     const entry: SocketEvent = {
       eventName,
-      data: data as Record<string, unknown>,
+      data: payload,
       receivedAt: Date.now(),
+      dedupeKey,
     };
+
     setEvents((prev) => [entry, ...prev].slice(0, 50));
   }, []);
 

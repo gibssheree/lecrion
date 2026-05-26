@@ -6,6 +6,7 @@
 //   • Smooth hover/active transitions
 //   • Accessible keyboard navigation
 
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useCartStore } from "../../store/cart.store";
 
@@ -52,6 +53,7 @@ export default function ProductCard({ product }: Props) {
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
   const inCart = cartItems.find((i) => i.productId === product.id);
+  const [justAdded, setJustAdded] = useState(false);
 
   const isStockTracked = product.isStockTracked ?? true;
   const isOut = isStockTracked && product.stock <= 0;
@@ -67,6 +69,9 @@ export default function ProductCard({ product }: Props) {
       stock: product.stock,
       isStockTracked,
     });
+    // Briefly flash the card to confirm the tap
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 600);
   }
 
   const cardClass = [
@@ -74,6 +79,7 @@ export default function ProductCard({ product }: Props) {
     isOut ? "product-card--disabled" : "",
     isLow ? "product-card--low-stock" : "",
     inCart && !isOut ? "product-card--in-cart" : "",
+    justAdded ? "product-card--added" : "",
   ]
     .filter(Boolean)
     .join(" ");

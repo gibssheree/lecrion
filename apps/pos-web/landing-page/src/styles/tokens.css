@@ -1,0 +1,15 @@
+.landing-page {
+  --lp-ink: #101827;
+  --lp-text: #3f4b5f;
+  --lp-muted: #6b7688;
+  --lp-line: #dce4ee;
+  --lp-paper: #ffffff;
+  --lp-soft: #f4f7fb;
+  --lp-brand: #2457c5;
+  --lp-brand-dark: #1e4da8;
+  --lp-green: #11835b;
+  --lp-orange: #c66a16;
+  --lp-radius: 8px;
+  --lp-shadow: 0 22px 70px rgba(16, 24, 39, 0.16);
+  --lp-header-height: 68px;
+}

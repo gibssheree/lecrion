@@ -28,6 +28,7 @@ import {
 import OrderStatusBadge from "./OrderStatusBadge";
 import ManagerApprovalModal from "./ManagerApprovalModal";
 import { useAuthStore } from "../../store/auth.store";
+import { useToast } from "../../store/toast.store";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
@@ -80,6 +81,7 @@ interface Props {
 }
 
 export default function RecentOrdersDrawer({ onClose }: Props) {
+  const toast = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -146,7 +148,7 @@ export default function RecentOrdersDrawer({ onClose }: Props) {
   function handleReprint(orderId: number) {
     const receipt = receiptDetails[orderId];
     if (!receipt) {
-      alert("Struk tidak tersedia untuk dicetak ulang.");
+      toast.warning("Struk tidak tersedia untuk dicetak ulang");
       return;
     }
     printReceipt(receipt);
@@ -214,151 +216,156 @@ export default function RecentOrdersDrawer({ onClose }: Props) {
 
   return (
     <>
-      <div className="drawer-overlay" onClick={onClose} />
-      <div className="drawer" style={{ width: 440 }}>
-        {/* Header */}
-        <div className="drawer-header">
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ClipboardList size={16} /> Riwayat Transaksi
-          </span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={load}
-              style={{ padding: "4px 8px" }}
-              title="Refresh"
-            >
-              <RefreshCw size={13} />
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={onClose}
-              style={{ padding: "4px 8px" }}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Daily summary bar */}
-        {todayOrders.length > 0 && (
-          <div
-            style={{
-              padding: "10px 16px",
-              background: "var(--primary-light)",
-              borderBottom: "1px solid var(--border)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: 13,
-            }}
-          >
-            <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>
-              Hari Ini — {todayOrders.length} transaksi
+      <div className="modal-overlay" onClick={onClose}>
+        <div
+          className="modal orders-modal"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="orders-modal-header">
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <ClipboardList size={16} /> Riwayat Transaksi
             </span>
-            <span
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={load}
+                style={{ padding: "4px 8px" }}
+                title="Refresh"
+              >
+                <RefreshCw size={13} />
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={onClose}
+                style={{ padding: "4px 8px" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Daily summary bar */}
+          {todayOrders.length > 0 && (
+            <div
               style={{
-                fontWeight: 800,
-                color: "var(--primary-dark)",
-                fontSize: 15,
+                padding: "10px 16px",
+                background: "var(--primary-light)",
+                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 13,
+                flexShrink: 0,
               }}
             >
-              Rp{fmt(dailyTotal)}
-            </span>
-          </div>
-        )}
-
-        <div className="drawer-body">
-          {loading ? (
-            <div className="loading-center">
-              <div className="spinner" />
-            </div>
-          ) : !orders.length ? (
-            <div className="loading-center">
-              <ClipboardList size={32} color="var(--text-muted)" />
-              <span style={{ color: "var(--text-muted)" }}>
-                Belum ada transaksi
+              <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>
+                Hari Ini — {todayOrders.length} transaksi
+              </span>
+              <span
+                style={{
+                  fontWeight: 800,
+                  color: "var(--primary-dark)",
+                  fontSize: 15,
+                }}
+              >
+                Rp{fmt(dailyTotal)}
               </span>
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {todayOrders.length > 0 && (
-                <>
-                  <SectionLabel>Hari Ini</SectionLabel>
-                  {todayOrders.map((o) => (
-                    <OrderCard
-                      key={o.id}
-                      order={o}
-                      expanded={expandedId === o.id}
-                      receipt={receiptDetails[o.id]}
-                      detail={orderDetails[o.id]}
-                      loadingDetail={loadingDetail === o.id}
-                      onToggle={() => toggleExpand(o.id)}
-                      onReprint={() => handleReprint(o.id)}
-                      onVoid={() =>
-                        openCorrectionModal(o.id, "void", orderDetails[o.id], o)
-                      }
-                      onRefund={() =>
-                        openCorrectionModal(
-                          o.id,
-                          "refund",
-                          orderDetails[o.id],
-                          o,
-                        )
-                      }
-                      onReturn={() =>
-                        openCorrectionModal(
-                          o.id,
-                          "return",
-                          orderDetails[o.id],
-                          o,
-                        )
-                      }
-                    />
-                  ))}
-                </>
-              )}
-
-              {earlierOrders.length > 0 && (
-                <>
-                  <SectionLabel style={{ paddingTop: 8 }}>
-                    Sebelumnya
-                  </SectionLabel>
-                  {earlierOrders.map((o) => (
-                    <OrderCard
-                      key={o.id}
-                      order={o}
-                      expanded={expandedId === o.id}
-                      receipt={receiptDetails[o.id]}
-                      detail={orderDetails[o.id]}
-                      loadingDetail={loadingDetail === o.id}
-                      onToggle={() => toggleExpand(o.id)}
-                      onReprint={() => handleReprint(o.id)}
-                      onVoid={() =>
-                        openCorrectionModal(o.id, "void", orderDetails[o.id], o)
-                      }
-                      onRefund={() =>
-                        openCorrectionModal(
-                          o.id,
-                          "refund",
-                          orderDetails[o.id],
-                          o,
-                        )
-                      }
-                      onReturn={() =>
-                        openCorrectionModal(
-                          o.id,
-                          "return",
-                          orderDetails[o.id],
-                          o,
-                        )
-                      }
-                    />
-                  ))}
-                </>
-              )}
-            </div>
           )}
+
+          <div className="orders-modal-body">
+            {loading ? (
+              <div className="loading-center">
+                <div className="spinner" />
+              </div>
+            ) : !orders.length ? (
+              <div className="loading-center">
+                <ClipboardList size={32} color="var(--text-muted)" />
+                <span style={{ color: "var(--text-muted)" }}>
+                  Belum ada transaksi
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {todayOrders.length > 0 && (
+                  <>
+                    <SectionLabel>Hari Ini</SectionLabel>
+                    {todayOrders.map((o) => (
+                      <OrderCard
+                        key={o.id}
+                        order={o}
+                        expanded={expandedId === o.id}
+                        receipt={receiptDetails[o.id]}
+                        detail={orderDetails[o.id]}
+                        loadingDetail={loadingDetail === o.id}
+                        onToggle={() => toggleExpand(o.id)}
+                        onReprint={() => handleReprint(o.id)}
+                        onVoid={() =>
+                          openCorrectionModal(o.id, "void", orderDetails[o.id], o)
+                        }
+                        onRefund={() =>
+                          openCorrectionModal(
+                            o.id,
+                            "refund",
+                            orderDetails[o.id],
+                            o,
+                          )
+                        }
+                        onReturn={() =>
+                          openCorrectionModal(
+                            o.id,
+                            "return",
+                            orderDetails[o.id],
+                            o,
+                          )
+                        }
+                      />
+                    ))}
+                  </>
+                )}
+
+                {earlierOrders.length > 0 && (
+                  <>
+                    <SectionLabel style={{ paddingTop: 8 }}>
+                      Sebelumnya
+                    </SectionLabel>
+                    {earlierOrders.map((o) => (
+                      <OrderCard
+                        key={o.id}
+                        order={o}
+                        expanded={expandedId === o.id}
+                        receipt={receiptDetails[o.id]}
+                        detail={orderDetails[o.id]}
+                        loadingDetail={loadingDetail === o.id}
+                        onToggle={() => toggleExpand(o.id)}
+                        onReprint={() => handleReprint(o.id)}
+                        onVoid={() =>
+                          openCorrectionModal(o.id, "void", orderDetails[o.id], o)
+                        }
+                        onRefund={() =>
+                          openCorrectionModal(
+                            o.id,
+                            "refund",
+                            orderDetails[o.id],
+                            o,
+                          )
+                        }
+                        onReturn={() =>
+                          openCorrectionModal(
+                            o.id,
+                            "return",
+                            orderDetails[o.id],
+                            o,
+                          )
+                        }
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

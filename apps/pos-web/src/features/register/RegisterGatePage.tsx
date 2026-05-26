@@ -5,18 +5,20 @@ import {
   DollarSign,
   FileText,
   AlertCircle,
-  LogOut,
+  ArrowLeft,
 } from "lucide-react";
 import { useRegisterStore } from "../../store/register.store";
 import { useAuthStore } from "../../store/auth.store";
 import { openRegister } from "../../services/api";
 
 interface Props {
-  /** Called after register is successfully opened. If not provided, navigates to '/' */
+  /** Called after register is successfully opened. If not provided, navigates to '/kasir' */
   onSuccess?: () => void;
+  /** Called when user clicks back/cancel. If not provided, navigates back to '/dashboard' */
+  onCancel?: () => void;
 }
 
-export default function RegisterGatePage({ onSuccess }: Props = {}) {
+export default function RegisterGatePage({ onSuccess, onCancel }: Props = {}) {
   const [cashierId, setCashierId] = useState("");
   const [openingCash, setOpeningCash] = useState("0");
   const [notes, setNotes] = useState("");
@@ -24,10 +26,8 @@ export default function RegisterGatePage({ onSuccess }: Props = {}) {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
-  const setSession = useRegisterStore((s) => s.setSession);
   const refresh = useRegisterStore((s) => s.refresh);
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
 
   // Pre-fill cashier ID from logged-in user
   const defaultCashierId = user?.actor ?? "";
@@ -68,9 +68,12 @@ export default function RegisterGatePage({ onSuccess }: Props = {}) {
     setLoading(false);
   }
 
-  function handleLogout() {
-    logout();
-    navigate("/login", { replace: true });
+  function handleCancel() {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   }
 
   return (
@@ -193,9 +196,9 @@ export default function RegisterGatePage({ onSuccess }: Props = {}) {
         <button
           className="btn btn-ghost btn-full btn-sm"
           style={{ marginTop: 12 }}
-          onClick={handleLogout}
+          onClick={handleCancel}
         >
-          <LogOut size={13} /> Keluar
+          <ArrowLeft size={13} /> Kembali ke Dashboard
         </button>
       </div>
     </div>

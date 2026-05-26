@@ -1,30 +1,34 @@
 import { useState } from "react";
-import { RefreshCw, Warehouse, AlertTriangle } from "lucide-react";
+import { RefreshCw, Warehouse, AlertTriangle, PackageSearch } from "lucide-react";
+import EmptyState from "../components/ui/EmptyState";
 import PosAppShell from "../components/layout/PosAppShell";
 import { useApi } from "../hooks/useApi";
 import { getProducts, updateProductStock } from "../services/api";
-
-function fmt(n: number): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
-}
+import { useToast } from "../store/toast.store";
+import { fmt } from "../utils/fmt";
+import { usePagination } from "../hooks/usePagination";
+import Pagination from "../components/ui/Pagination";
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editVal, setEditVal] = useState("");
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const products = useApi(getProducts, [], { autoRefreshMs: 30_000 });
 
-  const rows = ((products.data?.products ?? []) as any[]).filter(
+  const allRows = ((products.data?.products ?? []) as any[]).filter(
     (p) => !search || p.name?.toLowerCase().includes(search.toLowerCase()),
   );
-  const lowStock = rows.filter((p: any) => p.stock > 0 && p.stock <= 5).length;
-  const outOfStock = rows.filter((p: any) => p.stock <= 0).length;
+  const lowStock = allRows.filter((p: any) => p.stock > 0 && p.stock <= 5).length;
+  const outOfStock = allRows.filter((p: any) => p.stock <= 0).length;
+  const pagination = usePagination(allRows, 25);
+  const rows = pagination.slice;
 
   async function handleSave(id: number) {
     const n = Number(editVal);
     if (isNaN(n) || n < 0) {
-      alert("Stok harus >= 0");
+      toast.warning("Stok tidak boleh kurang dari 0");
       return;
     }
     setSaving(true);
@@ -32,8 +36,9 @@ export default function InventoryPage() {
       await updateProductStock(id, n);
       products.reload();
       setEditId(null);
+      toast.success("Stok berhasil diperbarui");
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message ?? "Gagal memperbarui stok");
     } finally {
       setSaving(false);
     }
@@ -113,6 +118,17 @@ export default function InventoryPage() {
           <div className="loading-center">
             <div className="spinner" />
           </div>
+        ) : !rows.length ? (
+          <EmptyState
+            icon={<PackageSearch size={44} />}
+            title={search ? "Produk tidak ditemukan" : "Belum ada produk"}
+            description={
+              search
+                ? `Tidak ada produk yang cocok dengan "${search}".`
+                : "Tambahkan produk pertama dari halaman Manajemen Produk."
+            }
+            compact
+          />
         ) : (
           <table className="pos-data-table">
             <thead>
@@ -202,6 +218,7 @@ export default function InventoryPage() {
             </tbody>
           </table>
         )}
+        <Pagination {...pagination} />
       </div>
     </PosAppShell>
   );

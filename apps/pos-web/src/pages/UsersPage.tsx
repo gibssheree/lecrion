@@ -4,6 +4,8 @@ import PosAppShell from "../components/layout/PosAppShell";
 import { PosUser, createUser, listUsers, updateUserRole } from "../services/api";
 import { useApi } from "../hooks/useApi";
 import { useAuthStore } from "../store/auth.store";
+import { usePagination } from "../hooks/usePagination";
+import Pagination from "../components/ui/Pagination";
 
 const VALID_ROLES = [
   "owner",
@@ -34,6 +36,7 @@ export default function UsersPage() {
   const currentUser = useAuthStore((state) => state.user);
   const users = useApi(listUsers, []);
   const rows = users.data ?? [];
+  const pagination = usePagination(rows, 20);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
     email: "",
@@ -187,7 +190,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((user) => (
+                {pagination.slice.map((user) => (
                   <tr key={user.id}>
                     <td>#{user.id}</td>
                     <td><strong>{user.email}</strong></td>
@@ -228,6 +231,7 @@ export default function UsersPage() {
               </tbody>
             </table>
           )}
+          <Pagination {...pagination} />
         </div>
       </div>
     </PosAppShell>

@@ -1,27 +1,40 @@
 import { useState } from "react";
-import { LockOpen, Lock, RefreshCw, DollarSign } from "lucide-react";
+import { LockOpen, Lock, RefreshCw, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
 import { useApi } from "../hooks/useApi";
 import { useRegisterStore } from "../store/register.store";
 import {
-  getActiveSession,
   getSessionEntries,
-  openSession,
-  closeSession,
+  recordCashAdjustment,
+  CashAdjustmentType,
 } from "../services/api";
 import CloseRegisterModal from "../features/register/CloseRegisterModal";
 import RegisterGatePage from "../features/register/RegisterGatePage";
+import { useUserMap } from "../hooks/useUserMap";
+import { useToast } from "../store/toast.store";
+import { fmt } from "../utils/fmt";
+import { usePagination } from "../hooks/usePagination";
+import Pagination from "../components/ui/Pagination";
 
-function fmt(n: number): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(Number(n ?? 0)));
-}
+const ADJUSTMENT_OPTIONS: { value: CashAdjustmentType; label: string }[] = [
+  { value: "cash_in", label: "Kas Masuk" },
+  { value: "cash_out", label: "Kas Keluar" },
+  { value: "expense", label: "Pengeluaran Operasional" },
+];
 
 export default function CashflowPage() {
   const [showClose, setShowClose] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
+  const [showEntryForm, setShowEntryForm] = useState(false);
+  const [entryType, setEntryType] = useState<CashAdjustmentType>("cash_in");
+  const [entryAmount, setEntryAmount] = useState("");
+  const [entryNote, setEntryNote] = useState("");
+  const [submittingEntry, setSubmittingEntry] = useState(false);
   const session = useRegisterStore((s) => s.session);
   const status = useRegisterStore((s) => s.status);
   const refresh = useRegisterStore((s) => s.refresh);
+  const { resolveName } = useUserMap();
+  const toast = useToast();
 
   const entries = useApi(
     () =>
@@ -31,10 +44,39 @@ export default function CashflowPage() {
     [session?.id],
   );
 
-  const incomeTotal = ((entries.data?.entries ?? []) as any[])
+  async function handleCashEntry(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(entryAmount);
+    if (!session || isNaN(amount) || amount <= 0) {
+      toast.warning("Jumlah harus lebih dari 0");
+      return;
+    }
+    setSubmittingEntry(true);
+    try {
+      await recordCashAdjustment(session.id, {
+        adjustmentType: entryType,
+        amount,
+        note: entryNote.trim() || undefined,
+      });
+      setEntryAmount("");
+      setEntryNote("");
+      setShowEntryForm(false);
+      await entries.reload();
+      toast.success("Entri kas berhasil dicatat");
+    } catch (err: any) {
+      toast.error(err.message ?? "Gagal mencatat entri kas");
+    } finally {
+      setSubmittingEntry(false);
+    }
+  }
+
+  const allEntries = (entries.data?.entries ?? []) as any[];
+  const pagination = usePagination(allEntries, 20);
+
+  const incomeTotal = allEntries
     .filter((e) => e.entry_type === "income")
     .reduce((s: number, e: any) => s + e.amount, 0);
-  const expenseTotal = ((entries.data?.entries ?? []) as any[])
+  const expenseTotal = allEntries
     .filter((e) => e.entry_type !== "income")
     .reduce((s: number, e: any) => s + e.amount, 0);
 
@@ -45,6 +87,7 @@ export default function CashflowPage() {
           setShowOpen(false);
           refresh();
         }}
+        onCancel={() => setShowOpen(false)}
       />
     );
   }
@@ -122,7 +165,7 @@ export default function CashflowPage() {
             }}
           >
             {[
-              ["Kasir", session.cashier_id],
+              ["Kasir", resolveName(session.cashier_id)],
               [
                 "Dibuka",
                 new Date(session.opened_at).toLocaleTimeString("id-ID", {
@@ -240,13 +283,93 @@ export default function CashflowPage() {
             <div
               style={{
                 padding: "12px 16px",
-                borderBottom: "1px solid var(--border)",
-                fontWeight: 600,
-                fontSize: 13,
+                borderBottom: showEntryForm ? "none" : "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              Transaksi Sesi #{session.id}
+              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                Transaksi Sesi — {new Date(session.opened_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+              </span>
+              {status === "open" && (
+                <button
+                  className={`btn btn-sm ${showEntryForm ? "btn-ghost" : "btn-primary"}`}
+                  style={{ display: "flex", alignItems: "center", gap: 5 }}
+                  onClick={() => setShowEntryForm((v) => !v)}
+                >
+                  <Plus size={13} />
+                  {showEntryForm ? "Batal" : "Catat Kas"}
+                </button>
+              )}
             </div>
+
+            {/* Manual cash entry form */}
+            {showEntryForm && (
+              <form
+                onSubmit={handleCashEntry}
+                style={{
+                  padding: "12px 16px",
+                  borderBottom: "1px solid var(--border)",
+                  background: "var(--bg-elevated)",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 2fr auto",
+                  gap: 8,
+                  alignItems: "flex-end",
+                }}
+              >
+                <div>
+                  <label className="form-label" style={{ fontSize: 11 }}>Tipe</label>
+                  <select
+                    className="form-select"
+                    value={entryType}
+                    onChange={(e) => setEntryType(e.target.value as CashAdjustmentType)}
+                  >
+                    {ADJUSTMENT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: 11 }}>Jumlah (Rp)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min="1"
+                    placeholder="0"
+                    value={entryAmount}
+                    onChange={(e) => setEntryAmount(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: 11 }}>Catatan</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="Keterangan transaksi..."
+                    value={entryNote}
+                    onChange={(e) => setEntryNote(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={submittingEntry}
+                  style={{ display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  {submittingEntry ? (
+                    <div className="spinner" style={{ width: 13, height: 13 }} />
+                  ) : entryType === "cash_in" ? (
+                    <TrendingUp size={13} />
+                  ) : (
+                    <TrendingDown size={13} />
+                  )}
+                  Simpan
+                </button>
+              </form>
+            )}
             {entries.loading ? (
               <div className="loading-center">
                 <div className="spinner" />
@@ -261,7 +384,7 @@ export default function CashflowPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {((entries.data?.entries ?? []) as any[]).map((e: any) => (
+                  {pagination.slice.map((e: any) => (
                     <tr key={e.id}>
                       <td style={{ fontSize: 12, color: "var(--text-muted)" }}>
                         {new Date(e.created_at).toLocaleString("id-ID")}
@@ -274,7 +397,7 @@ export default function CashflowPage() {
                               : "stock-badge--out"
                           }`}
                         >
-                          {e.entry_type}
+                          {e.entry_type === "income" ? "Masuk" : "Keluar"}
                         </span>
                       </td>
                       <td
@@ -290,10 +413,10 @@ export default function CashflowPage() {
                       </td>
                       <td style={{ color: "var(--text-muted)" }}>{e.payment_method}</td>
                       <td style={{ color: "var(--text-muted)" }}>{e.note}</td>
-                      <td style={{ color: "var(--text-muted)" }}>{e.operator_id}</td>
+                      <td style={{ color: "var(--text-muted)" }}>{resolveName(e.operator_id)}</td>
                     </tr>
                   ))}
-                  {!((entries.data?.entries ?? []) as any[]).length && (
+                  {!allEntries.length && (
                     <tr>
                       <td
                         colSpan={6}
@@ -306,6 +429,7 @@ export default function CashflowPage() {
                 </tbody>
               </table>
             )}
+            <Pagination {...pagination} />
           </div>
         </>
       )}

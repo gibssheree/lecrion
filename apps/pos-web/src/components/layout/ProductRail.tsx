@@ -7,11 +7,9 @@
 //   • Bubble stock counts up to PosShell correctly (was using useState instead of useEffect).
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
 import SearchBar from "../../features/catalog/SearchBar";
 import CategoryChips from "../../features/catalog/CategoryChips";
 import ProductGrid from "../../features/catalog/ProductGrid";
-import QuickProductModal from "../../features/catalog/QuickProductModal";
 import { useCategories, useProducts } from "../../hooks/useProducts";
 import { useCartStore } from "../../store/cart.store";
 
@@ -22,7 +20,6 @@ interface Props {
 export default function ProductRail({ onStockCounts }: Props) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Semua");
-  const [showQuickProduct, setShowQuickProduct] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
   const {
@@ -67,15 +64,6 @@ export default function ProductRail({ onStockCounts }: Props) {
         onChange={setSearch}
         onBarcodeSubmit={handleBarcodeSubmit}
       />
-      <div style={{ padding: "0 12px 8px", display: "flex", justifyContent: "flex-end" }}>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setShowQuickProduct(true)}
-          title="Tambah atau edit produk cepat"
-        >
-          <Plus size={12} /> Produk Cepat
-        </button>
-      </div>
       <CategoryChips
         active={category}
         onChange={setCategory}
@@ -96,14 +84,6 @@ export default function ProductRail({ onStockCounts }: Props) {
           isBarcodeMode={isBarcodeMode}
         />
       </div>
-      {showQuickProduct && (
-        <QuickProductModal
-          products={allProducts}
-          categories={categories.categories}
-          onClose={() => setShowQuickProduct(false)}
-          onSaved={reload}
-        />
-      )}
     </div>
   );
 }

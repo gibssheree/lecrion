@@ -10,6 +10,7 @@ import {
   Mail,
   MessageSquareText,
   Store,
+  UserCog,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useRegisterStore } from "../../store/register.store";
@@ -121,8 +122,8 @@ export default function LoginPage() {
             </AnimatePresence>
           </div>
           <p>
-            POS, inventory, chatbot, dan dashboard terhubung dalam satu sistem
-            yang sama.
+            POS, inventory, AI customer service, dan AI owner assistant
+            terhubung dalam satu sistem yang sama.
           </p>
 
           <div className="auth-pills" aria-label="Modul operasional">
@@ -157,7 +158,18 @@ export default function LoginPage() {
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 420, damping: 24 }}
             >
-              <MessageSquareText size={14} /> Chatbot
+              <MessageSquareText size={14} /> AI Customer Service
+            </motion.span>
+            <motion.span
+              whileHover={{
+                scale: 1.08,
+                y: -2,
+                boxShadow: "0 18px 36px rgba(15, 23, 42, 0.14)",
+              }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 420, damping: 24 }}
+            >
+              <UserCog size={14} /> AI Owner Assistant
             </motion.span>
           </div>
         </div>

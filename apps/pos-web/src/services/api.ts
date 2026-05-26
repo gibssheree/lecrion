@@ -118,6 +118,9 @@ export const getProducts = (q?: string, categoryId?: number) => {
   return request<{ products: any[] }>(`/api/products${qs ? `?${qs}` : ""}`);
 };
 
+export const getProductById = (id: number) =>
+  request<{ product: any }>(`/api/products/${id}`);
+
 export const getProductByBarcode = (barcode: string) =>
   request<{ product: any }>(
     `/api/products/barcode/${encodeURIComponent(barcode)}`,

@@ -1,32 +1,62 @@
-import { ReactNode } from "react";
+import { lazy, ReactNode, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import AuthGuard from "../app/guards/AuthGuard";
 import RegisterGuard from "../app/guards/RegisterGuard";
 import ModuleGuard from "../app/guards/ModuleGuard";
 import PermissionGuard from "../app/guards/PermissionGuard";
 import type { PermissionKey } from "../hooks/usePermissions";
+
+// Auth pages — eager: loaded immediately so login isn't behind a waterfall
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
-import PosDashboardPage from "../pages/PosDashboardPage";
-import PosPage from "../pages/PosPage";
-import OrdersPage from "../pages/OrdersPage";
-import InventoryPage from "../pages/InventoryPage";
-import ProductsPage from "../pages/ProductsPage";
-import CategoriesPage from "../pages/CategoriesPage";
-import SuppliersPage from "../pages/SuppliersPage";
-import OperationsPage from "../pages/OperationsPage";
-import UsersPage from "../pages/UsersPage";
-import CashflowPage from "../pages/CashflowPage";
-import ReportsPage from "../pages/ReportsPage";
-import InvoicesPage from "../pages/InvoicesPage";
-import SettingsPage from "../pages/SettingsPage";
-import KdsPage from "../pages/KdsPage";
-import ChatbotOverviewPage from "../pages/chatbot/ChatbotOverviewPage";
-import ChatbotChatPage from "../pages/chatbot/ChatbotChatPage";
-import ChatbotLiveFeedPage from "../pages/chatbot/ChatbotLiveFeedPage";
-import ChatbotLlmConsolePage from "../pages/chatbot/ChatbotLlmConsolePage";
-import ChatbotSettingsPage from "../pages/chatbot/ChatbotSettingsPage";
-import SupportStoresPage from "../pages/SupportStoresPage";
+
+// All other pages — lazy: each becomes its own JS chunk, loaded on demand
+const PosDashboardPage    = lazy(() => import("../pages/PosDashboardPage"));
+const LandingPage         = lazy(() => import("../pages/LandingPage"));
+const PosPage             = lazy(() => import("../pages/PosPage"));
+const OrdersPage          = lazy(() => import("../pages/OrdersPage"));
+const InventoryPage       = lazy(() => import("../pages/InventoryPage"));
+const ProductsPage        = lazy(() => import("../pages/ProductsPage"));
+const CategoriesPage      = lazy(() => import("../pages/CategoriesPage"));
+const SuppliersPage       = lazy(() => import("../pages/SuppliersPage"));
+const OperationsPage      = lazy(() => import("../pages/OperationsPage"));
+const UsersPage           = lazy(() => import("../pages/UsersPage"));
+const CashflowPage        = lazy(() => import("../pages/CashflowPage"));
+const ReportsPage         = lazy(() => import("../pages/ReportsPage"));
+const InvoicesPage        = lazy(() => import("../pages/InvoicesPage"));
+const SettingsPage        = lazy(() => import("../pages/SettingsPage"));
+const KdsPage             = lazy(() => import("../pages/KdsPage"));
+const SupportStoresPage   = lazy(() => import("../pages/SupportStoresPage"));
+const ChatbotOverviewPage = lazy(() => import("../pages/chatbot/ChatbotOverviewPage"));
+const ChatbotChatPage     = lazy(() => import("../pages/chatbot/ChatbotChatPage"));
+const ChatbotLiveFeedPage = lazy(() => import("../pages/chatbot/ChatbotLiveFeedPage"));
+const ChatbotLlmConsolePage = lazy(() => import("../pages/chatbot/ChatbotLlmConsolePage"));
+const ChatbotSettingsPage = lazy(() => import("../pages/chatbot/ChatbotSettingsPage"));
+const OrderDetailPage     = lazy(() => import("../pages/OrderDetailPage"));
+const ProductDetailPage   = lazy(() => import("../pages/ProductDetailPage"));
+const NotFoundPage        = lazy(() => import("../pages/NotFoundPage"));
+
+/** Thin fallback shown while a lazy chunk is downloading. */
+function PageFallback() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        minHeight: 240,
+      }}
+    >
+      <div className="spinner" style={{ width: 22, height: 22 }} />
+    </div>
+  );
+}
+
+/** Wraps a lazy page in Suspense so each route gets its own fallback. */
+function S({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<PageFallback />}>{children}</Suspense>;
+}
 
 const Auth = ({ children }: { children: ReactNode }) => (
   <AuthGuard>{children}</AuthGuard>
@@ -57,13 +87,14 @@ const ProtectedRoute = ({
 );
 
 export const router = createBrowserRouter([
+  { path: "/", element: <S><LandingPage /></S> },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
   {
     path: "/dashboard",
     element: (
       <ProtectedRoute requiredModule="core.dashboard">
-        <PosDashboardPage />
+        <S><PosDashboardPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -71,7 +102,15 @@ export const router = createBrowserRouter([
     path: "/orders",
     element: (
       <ProtectedRoute requiredModule="core.sales">
-        <OrdersPage />
+        <S><OrdersPage /></S>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/orders/:id",
+    element: (
+      <ProtectedRoute requiredModule="core.sales">
+        <S><OrderDetailPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -82,7 +121,18 @@ export const router = createBrowserRouter([
         requiredModule="core.inventory"
         requiredPermission="canManageProducts"
       >
-        <ProductsPage />
+        <S><ProductsPage /></S>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/products/:id",
+    element: (
+      <ProtectedRoute
+        requiredModule="core.inventory"
+        requiredPermission="canManageProducts"
+      >
+        <S><ProductDetailPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -93,7 +143,7 @@ export const router = createBrowserRouter([
         requiredModule="core.inventory"
         requiredPermission="canManageProducts"
       >
-        <CategoriesPage />
+        <S><CategoriesPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -104,7 +154,7 @@ export const router = createBrowserRouter([
         requiredModule="core.inventory"
         requiredPermission="canManageInventory"
       >
-        <InventoryPage />
+        <S><InventoryPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -115,7 +165,7 @@ export const router = createBrowserRouter([
         requiredModule="core.inventory"
         requiredPermission="canManageInventory"
       >
-        <OperationsPage />
+        <S><OperationsPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -126,7 +176,7 @@ export const router = createBrowserRouter([
         requiredModule="core.suppliers"
         requiredPermission="canManageInventory"
       >
-        <SuppliersPage />
+        <S><SuppliersPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -137,7 +187,7 @@ export const router = createBrowserRouter([
         requiredModule="core.users"
         requiredPermission="canManageUsers"
       >
-        <UsersPage />
+        <S><UsersPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -148,7 +198,7 @@ export const router = createBrowserRouter([
         requiredModule="core.payments"
         requiredPermission="canViewCashflow"
       >
-        <InvoicesPage />
+        <S><InvoicesPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -159,7 +209,7 @@ export const router = createBrowserRouter([
         requiredModule="core.payments"
         requiredPermission="canViewCashflow"
       >
-        <CashflowPage />
+        <S><CashflowPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -170,7 +220,7 @@ export const router = createBrowserRouter([
         requiredModule="core.reports"
         requiredPermission="canViewAllReports"
       >
-        <ReportsPage />
+        <S><ReportsPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -181,7 +231,7 @@ export const router = createBrowserRouter([
         requiredModule="core.settings"
         requiredPermission="canChangeSettings"
       >
-        <SettingsPage />
+        <S><SettingsPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -190,7 +240,7 @@ export const router = createBrowserRouter([
     path: "/chatbot",
     element: (
       <ProtectedRoute requiredModule="core.dashboard">
-        <ChatbotOverviewPage />
+        <S><ChatbotOverviewPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -202,7 +252,7 @@ export const router = createBrowserRouter([
     path: "/chatbot/chats",
     element: (
       <ProtectedRoute requiredModule="core.dashboard">
-        <ChatbotChatPage />
+        <S><ChatbotChatPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -210,7 +260,7 @@ export const router = createBrowserRouter([
     path: "/chatbot/live",
     element: (
       <ProtectedRoute requiredModule="core.dashboard">
-        <ChatbotLiveFeedPage />
+        <S><ChatbotLiveFeedPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -218,7 +268,7 @@ export const router = createBrowserRouter([
     path: "/chatbot/llm",
     element: (
       <ProtectedRoute requiredModule="core.dashboard">
-        <ChatbotLlmConsolePage />
+        <S><ChatbotLlmConsolePage /></S>
       </ProtectedRoute>
     ),
   },
@@ -226,7 +276,7 @@ export const router = createBrowserRouter([
     path: "/chatbot/settings",
     element: (
       <ProtectedRoute requiredModule="core.dashboard">
-        <ChatbotSettingsPage />
+        <S><ChatbotSettingsPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -237,7 +287,7 @@ export const router = createBrowserRouter([
         requiredModule="core.settings"
         requiredPermission="canVerifyStores"
       >
-        <SupportStoresPage />
+        <S><SupportStoresPage /></S>
       </ProtectedRoute>
     ),
   },
@@ -248,7 +298,7 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredModule="core.pos">
         <RegisterGuard>
-          <PosPage />
+          <S><PosPage /></S>
         </RegisterGuard>
       </ProtectedRoute>
     ),
@@ -259,10 +309,11 @@ export const router = createBrowserRouter([
     path: "/kds",
     element: (
       <ProtectedRoute requiredModule="fnb.kds">
-        <KdsPage />
+        <S><KdsPage /></S>
       </ProtectedRoute>
     ),
   },
 
-  { path: "*", element: <Navigate to="/dashboard" replace /> },
+  // 404 — must be last; AuthGuard redirects unauthenticated users to /login
+  { path: "*", element: <Auth><S><NotFoundPage /></S></Auth> },
 ]);

@@ -9,6 +9,7 @@ import {
   updateKitchenItemStatus,
   getActiveKitchenTickets,
 } from "../services/api";
+import { useToast } from "../store/toast.store";
 
 const TICKET_STATUS_COLORS: Record<
   string,
@@ -44,6 +45,7 @@ function timeSince(iso: string) {
 }
 
 export default function KdsPage() {
+  const toast = useToast();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<
@@ -73,7 +75,7 @@ export default function KdsPage() {
       await updateKitchenTicketStatus(ticketId, status);
       load();
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message ?? "Gagal memperbarui status tiket");
     }
   }
 
@@ -82,7 +84,7 @@ export default function KdsPage() {
       await updateKitchenItemStatus(itemId, status);
       load();
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e.message ?? "Gagal memperbarui status item");
     }
   }
 
