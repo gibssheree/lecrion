@@ -1,124 +1,67 @@
+/* ── Logo ────────────────────────────────────────────── */
 .lp-logo {
   display: block;
   width: auto;
-  height: 31px;
+  height: 24px;
 }
 
+/* ── Buttons — solid black primary, ghost secondary ─── */
 .lp-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 46px;
+  gap: 7px;
+  height: 40px;
   padding: 0 18px;
-  border: 1px solid var(--lp-brand-dark);
-  border-radius: var(--lp-radius);
-  background: var(--lp-brand);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--lp-accent);
   color: #fff !important;
+  font-family: inherit;
   font-size: 14px;
-  font-weight: 820;
-  box-shadow: 0 10px 24px rgba(36, 87, 197, 0.22);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.lp-button:hover {
+  background: var(--lp-accent-hover);
 }
 
 .lp-button--secondary {
-  border-color: rgba(16, 24, 39, 0.16);
-  background: rgba(255, 255, 255, 0.94);
+  background: transparent;
+  border-color: var(--lp-line-strong);
   color: var(--lp-ink) !important;
-  box-shadow: none;
+}
+
+.lp-button--secondary:hover {
+  background: var(--lp-paper);
+  border-color: var(--lp-ink);
 }
 
 .lp-button--ghost {
-  border-color: transparent;
   background: transparent;
   color: var(--lp-ink) !important;
-  box-shadow: none;
 }
 
+.lp-button--ghost:hover {
+  color: var(--lp-link) !important;
+}
+
+/* ── Badge — rarely used, subtle ─────────────────────── */
 .lp-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: #9ed7bf;
-  font-size: 13px;
-  font-weight: 820;
-}
-
-.lp-stat {
-  min-width: 150px;
-  padding: 15px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--lp-radius);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.lp-stat strong,
-.lp-stat span {
-  display: block;
-}
-
-.lp-stat strong {
-  color: #fff;
-  font-size: 24px;
-  line-height: 1;
-}
-
-.lp-stat span {
-  margin-top: 7px;
-  color: rgba(255, 255, 255, 0.68);
+  gap: 7px;
+  padding: 5px 11px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-paper);
+  color: var(--lp-text);
   font-size: 12px;
-  font-weight: 700;
-}
-
-.lp-feature-card,
-.lp-vertical-card,
-.lp-pricing-card,
-.lp-testimonial-card {
-  border: 1px solid var(--lp-line);
-  border-radius: var(--lp-radius);
-  background: #fff;
-}
-
-.lp-feature-card {
-  min-height: 172px;
-  padding: 20px;
-}
-
-.lp-feature-card svg {
-  color: var(--lp-brand);
-}
-
-.lp-feature-card h3,
-.lp-vertical-card h3,
-.lp-pricing-card h3 {
-  margin-top: 16px;
-  color: var(--lp-ink);
-  font-size: 17px;
-}
-
-.lp-feature-card p,
-.lp-vertical-card p,
-.lp-pricing-card p {
-  margin-top: 8px;
-  color: var(--lp-text);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.lp-faq-item {
-  border: 1px solid var(--lp-line);
-  border-radius: var(--lp-radius);
-  background: #fff;
-}
-
-.lp-faq-item summary {
-  cursor: pointer;
-  padding: 18px 20px;
-  color: var(--lp-ink);
-  font-weight: 800;
-}
-
-.lp-faq-item p {
-  padding: 0 20px 18px;
-  color: var(--lp-text);
-  line-height: 1.6;
+  font-weight: 500;
 }

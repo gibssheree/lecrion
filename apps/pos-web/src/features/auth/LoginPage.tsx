@@ -174,6 +174,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Devices mockup — laptop, phone, tablet composition */}
         <div className="auth-illustration-wrap">
           <img
             className="auth-illustration"

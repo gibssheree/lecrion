@@ -1,70 +1,71 @@
+/* Container & section rhythm — generous whitespace, calm. */
+
 .lp-container {
-  width: min(1180px, calc(100% - 40px));
+  width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
 }
 
 .lp-section {
-  padding: 86px 0;
+  padding: 96px 0;
 }
 
 .lp-section--light {
-  background: #fff;
+  background: var(--lp-bg);
 }
-
 .lp-section--soft {
   background: var(--lp-soft);
 }
-
-.lp-section--dark {
-  background: #101827;
-  color: #fff;
+.lp-section--paper {
+  background: var(--lp-paper);
 }
 
+/* Section heading — small kicker, big-but-restrained title */
 .lp-section-heading {
-  max-width: 780px;
-  margin-bottom: 36px;
+  max-width: 720px;
+  margin-bottom: 56px;
 }
 
-.lp-section-heading span,
-.lp-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--lp-green);
-  font-size: 13px;
-  font-weight: 820;
+.lp-kicker,
+.lp-section-heading > span:first-child {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: var(--lp-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.lp-section-heading h2,
-.lp-cta-panel h2 {
-  margin-top: 10px;
+.lp-section-heading h2 {
   color: var(--lp-ink);
-  font-size: clamp(30px, 4vw, 52px);
-  line-height: 1.04;
+  font-size: clamp(28px, 3.4vw, 44px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
 }
 
-.lp-section--dark .lp-section-heading h2 {
-  color: #fff;
+.lp-section-heading h2 em {
+  font-style: normal;
+  color: var(--lp-muted);
+  font-weight: 600;
 }
 
-.lp-section-heading p,
-.lp-cta-panel p {
-  margin-top: 14px;
+.lp-section-heading p {
+  margin-top: 16px;
+  max-width: 580px;
   color: var(--lp-text);
-  font-size: 17px;
-  line-height: 1.65;
-}
-
-.lp-section--dark .lp-section-heading p {
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 @media (max-width: 640px) {
   .lp-container {
-    width: min(100% - 32px, 1180px);
+    width: min(100% - 32px, 1200px);
   }
-
   .lp-section {
     padding: 64px 0;
+  }
+  .lp-section-heading {
+    margin-bottom: 40px;
   }
 }

@@ -1,27 +1,28 @@
-import { ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import Section from "../layout/Section";
 
 export default function ProblemSection() {
   return (
-    <Section className="lp-problem-section" tone="soft">
+    <Section tone="paper">
       <div className="lp-problem-grid">
-        <div>
-          <span className="lp-kicker">Masalah lama</span>
-          <h2>Operasional bocor saat sistemnya terpisah.</h2>
+        <div className="lp-problem-col">
+          <span className="lp-kicker">Sebelum Lecrion</span>
+          <h3>Operasional bocor saat sistemnya terpisah.</h3>
           <ul>
-            <li><XCircle size={18} />Order chat tidak nyambung ke kasir.</li>
-            <li><XCircle size={18} />Stok baru ketahuan habis setelah pelanggan menunggu.</li>
-            <li><XCircle size={18} />Owner menunggu rekap manual akhir hari.</li>
+            <li>Order chat tidak nyambung ke kasir.</li>
+            <li>Stok baru ketahuan habis setelah pelanggan menunggu.</li>
+            <li>Owner menunggu rekap manual akhir hari.</li>
+            <li>Laporan dari kasir, dapur, dan dashboard berbeda angkanya.</li>
           </ul>
         </div>
-        <ArrowRight className="lp-problem-arrow" size={34} />
-        <div>
+
+        <div className="lp-problem-col">
           <span className="lp-kicker">Dengan Lecrion</span>
-          <h2>Satu alur dari transaksi sampai laporan.</h2>
+          <h3>Satu alur dari transaksi sampai laporan.</h3>
           <ul>
-            <li><CheckCircle2 size={18} />Kasir, bot, stok, dan laporan membaca data yang sama.</li>
-            <li><CheckCircle2 size={18} />Staff melihat tugas sesuai role.</li>
-            <li><CheckCircle2 size={18} />Owner bisa cek performa tanpa menunggu rekap.</li>
+            <li>Kasir, bot, stok, dan laporan baca data yang sama.</li>
+            <li>Staff melihat tugas sesuai role tanpa training panjang.</li>
+            <li>Owner cek performa tanpa menunggu rekap.</li>
+            <li>Setiap angka punya satu sumber kebenaran.</li>
           </ul>
         </div>
       </div>

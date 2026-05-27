@@ -1,4 +1,4 @@
-import { ArrowRight, MessageSquareText } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Section from "../layout/Section";
 import Button from "../ui/Button";
 
@@ -7,14 +7,22 @@ export default function CtaSection() {
     <Section id="contact" className="lp-cta-section">
       <div className="lp-cta-panel">
         <div>
-          <span className="lp-kicker">Demo</span>
-          <h2>Lihat Lecrion sebagai sistem operasional, bukan mockup.</h2>
-          <p>Mulai dari kasir, stok, order WhatsApp, sampai laporan owner dalam satu alur yang bisa diuji.</p>
+          <h2>
+            Lihat Lecrion sebagai sistem,
+            <br />
+            bukan mockup.
+          </h2>
+          <p>
+            Mulai dari kasir, stok, order WhatsApp, sampai laporan owner dalam
+            satu alur yang bisa diuji langsung.
+          </p>
         </div>
         <div className="lp-cta-actions">
-          <Button href="/login">Buka POS <ArrowRight size={18} /></Button>
-          <Button href="mailto:hello@lecrion.local" variant="secondary">
-            <MessageSquareText size={18} /> Minta demo
+          <Button href="/login">
+            Buka POS <ArrowRight size={15} />
+          </Button>
+          <Button href="mailto:hello@lecrion.id" variant="secondary">
+            Minta demo
           </Button>
         </div>
       </div>

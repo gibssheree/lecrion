@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useReveal } from "../../hooks/useReveal";
 
 export default function Section({
   children,
@@ -11,9 +12,16 @@ export default function Section({
   id?: string;
   tone?: "light" | "soft" | "dark";
 }) {
+  const { ref, visible } = useReveal<HTMLDivElement>();
+
   return (
     <section id={id} className={`lp-section lp-section--${tone} ${className}`.trim()}>
-      <div className="lp-container">{children}</div>
+      <div
+        ref={ref}
+        className={`lp-container lp-reveal${visible ? " is-visible" : ""}`}
+      >
+        {children}
+      </div>
     </section>
   );
 }

@@ -1,34 +1,75 @@
-import { Activity, Clock3, PackageCheck, ReceiptText } from "lucide-react";
+import dashboardPreview from "../../assets/dashboard-preview.png";
 import Section from "../layout/Section";
+
+const FEED = [
+  { ts: "16:42", text: "Order #2847 — Kopi Susu ×2, Croissant ×1" },
+  { ts: "16:41", text: "KDS: tiket T-0091 siap disajikan" },
+  { ts: "16:40", text: "Stok Arabica turun ke 8 kg, threshold 10 kg" },
+  { ts: "16:38", text: "Shift Kasir Rina ditutup, total Rp 3.150.000" },
+  { ts: "16:37", text: "WhatsApp order #2848 dari +62812-xxxx-3847" },
+];
 
 export default function ProductPreviewSection() {
   return (
-    <Section id="product">
+    <Section id="product" tone="light">
       <div className="lp-section-heading">
         <span>Produk</span>
-        <h2>Yang dipakai owner, kasir, dapur, dan admin tetap satu sistem.</h2>
-        <p>Lecrion menyatukan titik transaksi dan back-office supaya data tidak pecah di spreadsheet, chat, dan aplikasi terpisah.</p>
+        <h2>
+          Owner, kasir, dapur, dan admin
+          <br />
+          <em>baca data yang sama.</em>
+        </h2>
+        <p>
+          Tidak ada rekap manual. Tidak ada data yang tercecer di spreadsheet
+          atau chat.
+        </p>
       </div>
-      <div className="lp-product-preview">
-        <div className="lp-console">
-          <div className="lp-console__top">
-            <div>
-              <span>Hari ini</span>
-              <strong>Rp 8.420.000</strong>
-            </div>
-            <small>Live</small>
+
+      <div className="lp-preview-grid">
+        <div className="lp-preview-screen">
+          <div className="lp-preview-chrome" aria-hidden="true">
+            <span />
+            <span />
+            <span />
           </div>
-          <div className="lp-console__metrics">
-            <article><ReceiptText size={20} /><span>Order</span><strong>186</strong></article>
-            <article><PackageCheck size={20} /><span>Stok aman</span><strong>92%</strong></article>
-            <article><Clock3 size={20} /><span>Serve time</span><strong>6m</strong></article>
-          </div>
-          <div className="lp-console__feed">
-            <div><Activity size={16} />Order #1042 dari WhatsApp masuk ke KDS</div>
-            <div><Activity size={16} />Kasir outlet Utama menutup shift Rp 3.150.000</div>
-            <div><Activity size={16} />Stok Americano low, perlu restock 12 cup</div>
-          </div>
+          <img
+            src={dashboardPreview}
+            alt="Dashboard Lecrion menampilkan ringkasan penjualan, stok, dan shift aktif"
+            className="lp-preview-img"
+          />
         </div>
+
+        <aside className="lp-preview-panel" aria-label="Aktivitas outlet">
+          <div className="lp-preview-panel__header">
+            <span className="lp-preview-live-dot" aria-hidden="true" />
+            <strong>Aktivitas outlet</strong>
+            <span className="lp-preview-panel__time">Baru saja</span>
+          </div>
+
+          <div className="lp-preview-kpis">
+            <div className="lp-preview-kpi">
+              <strong>Rp 8.420.000</strong>
+              <span>Pendapatan</span>
+            </div>
+            <div className="lp-preview-kpi">
+              <strong>186</strong>
+              <span>Transaksi</span>
+            </div>
+            <div className="lp-preview-kpi">
+              <strong>92%</strong>
+              <span>Stok aman</span>
+            </div>
+          </div>
+
+          <div className="lp-preview-feed">
+            {FEED.map((item) => (
+              <div key={item.ts} className="lp-preview-feed__item">
+                <span className="ts">{item.ts}</span>
+                {item.text}
+              </div>
+            ))}
+          </div>
+        </aside>
       </div>
     </Section>
   );
