@@ -95,7 +95,7 @@ export default function LoginPage() {
       if (user?.role !== "support") {
         await refresh();
       }
-      navigate(user?.role === "support" ? "/support/stores" : "/dashboard", {
+      navigate(user?.role === "support" ? "/support" : "/dashboard", {
         replace: true,
       });
     } catch {

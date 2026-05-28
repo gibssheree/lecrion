@@ -8,6 +8,7 @@ import { LlmService } from '../llm/llm.service';
 import { ReportsService } from '../reports/reports.service';
 import { NutritionAdvisorService } from '../llm/nutrition-advisor.service';
 import { AppConfigService } from '../../infrastructure/config/app-config.service';
+import { StoresService } from '../stores/stores.service';
 import { detectIntent, Intent } from '@bot/intents/intentDetector';
 import {
   formatMenuList,
@@ -91,6 +92,30 @@ function parseDeliveryDetails(
 export class BotDispatchService {
   private readonly logger = new Logger(BotDispatchService.name);
 
+  /**
+   * Intents that expose sensitive business data (sales reports, omzet, and
+   * raw inventory/stock levels). These are owner-only and must NOT be served
+   * to arbitrary customers chatting the public WhatsApp number.
+   *
+   * Customer-facing product info (menu, product_detail, ingredients_*,
+   * nutrition) is intentionally NOT in this set.
+   */
+  private static readonly OWNER_ONLY_INTENTS = new Set<string>([
+    'report_today',
+    'report_year',
+    'report_year_detail',
+    'report_month',
+    'report_best_month',
+    'report_summary',
+    'ingredient_summary',
+    'ingredient_all_stock',
+    'ingredient_by_category',
+    'ingredient_single_stock',
+    'ingredient_out_summary',
+    'ingredient_low_stock',
+    'ingredient_pop_ice',
+  ]);
+
   constructor(
     private readonly catalog: CatalogService,
     private readonly inventory: InventoryService,
@@ -101,6 +126,7 @@ export class BotDispatchService {
     private readonly reports: ReportsService,
     private readonly nutrition: NutritionAdvisorService,
     private readonly config: AppConfigService,
+    private readonly stores: StoresService,
   ) {}
 
   /**
@@ -153,6 +179,16 @@ export class BotDispatchService {
       imageUrl,
       isgroup,
     } = ctx;
+
+    // ── Owner-only data gate ───────────────────────────────────────────────
+    // Sales reports & raw stock levels must only reach the store owner's
+    // configured WhatsApp number(s). Everyone else gets a polite decline.
+    if (
+      BotDispatchService.OWNER_ONLY_INTENTS.has(intent.type) &&
+      !(await this.isOwnerSender(sender))
+    ) {
+      return this.handleOwnerOnlyDenied();
+    }
 
     switch (intent.type) {
       case 'menu':
@@ -701,6 +737,53 @@ export class BotDispatchService {
       reply: messages[intentType] ?? 'Fitur favorit belum tersedia.',
       entryType: 'chat',
     };
+  }
+
+  // ─── Owner gating ────────────────────────────────────────────────────────
+
+  /**
+   * Polite decline shown when a non-owner triggers an owner-only intent
+   * (sales reports / stock levels) on the public WhatsApp number.
+   */
+  private handleOwnerOnlyDenied(): DispatchResult {
+    return {
+      reply: [
+        'Maaf, informasi laporan penjualan & stok hanya untuk pemilik toko. 🙏',
+        'Ketik *menu* untuk melihat produk yang tersedia.',
+      ].join('\n'),
+      entryType: 'chat',
+    };
+  }
+
+  /**
+   * True if the sender's WhatsApp number is in the store's admin allowlist,
+   * configured via Bot Settings → "Nomor WA Admin" (setting key: adminPhones).
+   *
+   * Fail-closed: if no admin numbers are configured or the lookup fails,
+   * NO ONE is treated as owner over WhatsApp (sensitive data stays hidden).
+   */
+  private async isOwnerSender(sender: string): Promise<boolean> {
+    try {
+      const settings = await this.stores.getSettings(this.config.defaultStoreId);
+      const raw = settings['adminPhones'] ?? '';
+      if (!raw.trim()) return false;
+      const allow = raw
+        .split(/[\s,;]+/)
+        .map((entry) => this.normalizePhone(entry))
+        .filter(Boolean);
+      return allow.includes(this.normalizePhone(sender));
+    } catch {
+      return false;
+    }
+  }
+
+  /** Canonicalize an Indonesian phone number to "62…" digits for comparison. */
+  private normalizePhone(phone: string): string {
+    let d = String(phone ?? '').replace(/\D/g, '');
+    if (!d) return '';
+    if (d.startsWith('0')) d = '62' + d.slice(1);
+    else if (d.startsWith('8')) d = '62' + d;
+    return d;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

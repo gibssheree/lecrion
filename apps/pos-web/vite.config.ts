@@ -95,6 +95,12 @@ export default defineConfig({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      // Socket.IO WebSocket — must enable ws: true so vite proxies upgrade requests
+      "/ws/realtime": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 });

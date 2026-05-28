@@ -121,6 +121,23 @@ export class StoresController {
 export class AdminStoresController {
   constructor(private readonly storesService: StoresService) {}
 
+  // ── Platform-wide list ──────────────────────────────────────────────────
+  @Get()
+  @Roles('support')
+  listAllStores(
+    @Query('status') status?: string,
+    @Query('vertical') vertical?: string,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.storesService.listAllStores({
+      status,
+      vertical,
+      q,
+      limit: limit ? Math.max(1, Number(limit) || 100) : undefined,
+    });
+  }
+
   @Get(':storeId/capabilities')
   @Roles('support')
   getAdminCapabilities(@Param('storeId') storeId: string) {
@@ -131,6 +148,18 @@ export class AdminStoresController {
   @Roles('support')
   getAdminBusinessProfile(@Param('storeId') storeId: string) {
     return this.storesService.getBusinessProfile(storeId);
+  }
+
+  @Get(':storeId/activity')
+  @Roles('support')
+  getAdminActivity(@Param('storeId') storeId: string) {
+    return this.storesService.getStoreActivity(storeId);
+  }
+
+  @Get(':storeId/users')
+  @Roles('support')
+  getAdminStoreUsers(@Param('storeId') storeId: string) {
+    return this.storesService.listStoreUsers(storeId);
   }
 
   @Patch(':storeId/business-profile/verify')

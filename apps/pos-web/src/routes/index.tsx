@@ -4,6 +4,8 @@ import AuthGuard from "../app/guards/AuthGuard";
 import RegisterGuard from "../app/guards/RegisterGuard";
 import ModuleGuard from "../app/guards/ModuleGuard";
 import PermissionGuard from "../app/guards/PermissionGuard";
+import { PageTitleProvider } from "../app/PageTitleContext";
+import PosLayout from "../components/layout/PosLayout";
 import type { PermissionKey } from "../hooks/usePermissions";
 
 // Auth pages — eager: loaded immediately so login isn't behind a waterfall
@@ -11,30 +13,58 @@ import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 
 // All other pages — lazy: each becomes its own JS chunk, loaded on demand
-const PosDashboardPage    = lazy(() => import("../pages/PosDashboardPage"));
-const LandingPage         = lazy(() => import("../pages/LandingPage"));
-const PosPage             = lazy(() => import("../pages/PosPage"));
-const OrdersPage          = lazy(() => import("../pages/OrdersPage"));
-const InventoryPage       = lazy(() => import("../pages/InventoryPage"));
-const ProductsPage        = lazy(() => import("../pages/ProductsPage"));
-const CategoriesPage      = lazy(() => import("../pages/CategoriesPage"));
-const SuppliersPage       = lazy(() => import("../pages/SuppliersPage"));
-const OperationsPage      = lazy(() => import("../pages/OperationsPage"));
-const UsersPage           = lazy(() => import("../pages/UsersPage"));
-const CashflowPage        = lazy(() => import("../pages/CashflowPage"));
-const ReportsPage         = lazy(() => import("../pages/ReportsPage"));
-const InvoicesPage        = lazy(() => import("../pages/InvoicesPage"));
-const SettingsPage        = lazy(() => import("../pages/SettingsPage"));
-const KdsPage             = lazy(() => import("../pages/KdsPage"));
-const SupportStoresPage   = lazy(() => import("../pages/SupportStoresPage"));
-const ChatbotOverviewPage = lazy(() => import("../pages/chatbot/ChatbotOverviewPage"));
-const ChatbotChatPage     = lazy(() => import("../pages/chatbot/ChatbotChatPage"));
-const ChatbotLiveFeedPage = lazy(() => import("../pages/chatbot/ChatbotLiveFeedPage"));
-const ChatbotLlmConsolePage = lazy(() => import("../pages/chatbot/ChatbotLlmConsolePage"));
-const ChatbotSettingsPage = lazy(() => import("../pages/chatbot/ChatbotSettingsPage"));
-const OrderDetailPage     = lazy(() => import("../pages/OrderDetailPage"));
-const ProductDetailPage   = lazy(() => import("../pages/ProductDetailPage"));
-const NotFoundPage        = lazy(() => import("../pages/NotFoundPage"));
+const PosDashboardPage = lazy(() => import("../pages/PosDashboardPage"));
+const LandingPage = lazy(() => import("../pages/LandingPage"));
+const PosPage = lazy(() => import("../pages/PosPage"));
+const OrdersPage = lazy(() => import("../pages/OrdersPage"));
+const InventoryPage = lazy(() => import("../pages/InventoryPage"));
+const ProductsPage = lazy(() => import("../pages/ProductsPage"));
+const CategoriesPage = lazy(() => import("../pages/CategoriesPage"));
+const SuppliersPage = lazy(() => import("../pages/SuppliersPage"));
+const OperationsPage = lazy(() => import("../pages/OperationsPage"));
+const CashflowPage = lazy(() => import("../pages/CashflowPage"));
+const ReportsPage = lazy(() => import("../pages/ReportsPage"));
+const InvoicesPage = lazy(() => import("../pages/InvoicesPage"));
+const SettingsPage = lazy(() => import("../pages/SettingsPage"));
+const KdsPage = lazy(() => import("../pages/KdsPage"));
+const SupportStoresPage = lazy(() => import("../pages/SupportStoresPage"));
+const SupportDashboardPage = lazy(
+  () => import("../pages/support/SupportDashboardPage"),
+);
+const SupportMerchantsPage = lazy(
+  () => import("../pages/support/SupportMerchantsPage"),
+);
+const SupportMerchantDetailPage = lazy(
+  () => import("../pages/support/SupportMerchantDetailPage"),
+);
+const SupportVerificationPage = lazy(
+  () => import("../pages/support/SupportVerificationPage"),
+);
+const SupportLlmPlatformPage = lazy(
+  () => import("../pages/support/SupportLlmPlatformPage"),
+);
+const SupportAuditPage = lazy(
+  () => import("../pages/support/SupportAuditPage"),
+);
+const SupportHealthPage = lazy(
+  () => import("../pages/support/SupportHealthPage"),
+);
+const ChatbotOverviewPage = lazy(
+  () => import("../pages/chatbot/ChatbotOverviewPage"),
+);
+const ChatbotChatPage = lazy(() => import("../pages/chatbot/ChatbotChatPage"));
+const ChatbotLiveFeedPage = lazy(
+  () => import("../pages/chatbot/ChatbotLiveFeedPage"),
+);
+const ChatbotLlmConsolePage = lazy(
+  () => import("../pages/chatbot/ChatbotLlmConsolePage"),
+);
+const ChatbotSettingsPage = lazy(
+  () => import("../pages/chatbot/ChatbotSettingsPage"),
+);
+const OrderDetailPage = lazy(() => import("../pages/OrderDetailPage"));
+const ProductDetailPage = lazy(() => import("../pages/ProductDetailPage"));
+const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 
 /** Thin fallback shown while a lazy chunk is downloading. */
 function PageFallback() {
@@ -68,7 +98,7 @@ interface ProtectedRouteProps {
   children: ReactNode;
 }
 
-const ProtectedRoute = ({
+const Protected = ({
   requiredModule,
   requiredPermission,
   children,
@@ -86,234 +116,403 @@ const ProtectedRoute = ({
   </Auth>
 );
 
+/**
+ * Layout route — wraps the entire authenticated app.
+ * PosLayout is mounted ONCE; only its <Outlet /> swaps between pages.
+ * That eliminates the flicker that came from each page re-rendering the shell.
+ */
+const AppShell = () => (
+  <PageTitleProvider>
+    <PosLayout />
+  </PageTitleProvider>
+);
+
 export const router = createBrowserRouter([
-  { path: "/", element: <S><LandingPage /></S> },
+  // Public / auth routes — no shell
+  {
+    path: "/",
+    element: (
+      <S>
+        <LandingPage />
+      </S>
+    ),
+  },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
-  {
-    path: "/dashboard",
-    element: (
-      <ProtectedRoute requiredModule="core.dashboard">
-        <S><PosDashboardPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/orders",
-    element: (
-      <ProtectedRoute requiredModule="core.sales">
-        <S><OrdersPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/orders/:id",
-    element: (
-      <ProtectedRoute requiredModule="core.sales">
-        <S><OrderDetailPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/products",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.inventory"
-        requiredPermission="canManageProducts"
-      >
-        <S><ProductsPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/products/:id",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.inventory"
-        requiredPermission="canManageProducts"
-      >
-        <S><ProductDetailPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/categories",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.inventory"
-        requiredPermission="canManageProducts"
-      >
-        <S><CategoriesPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/inventory",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.inventory"
-        requiredPermission="canManageInventory"
-      >
-        <S><InventoryPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/operations",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.inventory"
-        requiredPermission="canManageInventory"
-      >
-        <S><OperationsPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/suppliers",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.suppliers"
-        requiredPermission="canManageInventory"
-      >
-        <S><SuppliersPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/users",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.users"
-        requiredPermission="canManageUsers"
-      >
-        <S><UsersPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/invoices",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.payments"
-        requiredPermission="canViewCashflow"
-      >
-        <S><InvoicesPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/cashflow",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.payments"
-        requiredPermission="canViewCashflow"
-      >
-        <S><CashflowPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/reports",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.reports"
-        requiredPermission="canViewAllReports"
-      >
-        <S><ReportsPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/settings",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.settings"
-        requiredPermission="canChangeSettings"
-      >
-        <S><SettingsPage /></S>
-      </ProtectedRoute>
-    ),
-  },
 
-  {
-    path: "/chatbot",
-    element: (
-      <ProtectedRoute requiredModule="core.dashboard">
-        <S><ChatbotOverviewPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/chatbot/dashboard",
-    element: <Navigate to="/chatbot" replace />,
-  },
-  {
-    path: "/chatbot/chats",
-    element: (
-      <ProtectedRoute requiredModule="core.dashboard">
-        <S><ChatbotChatPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/chatbot/live",
-    element: (
-      <ProtectedRoute requiredModule="core.dashboard">
-        <S><ChatbotLiveFeedPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/chatbot/llm",
-    element: (
-      <ProtectedRoute requiredModule="core.dashboard">
-        <S><ChatbotLlmConsolePage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/chatbot/settings",
-    element: (
-      <ProtectedRoute requiredModule="core.dashboard">
-        <S><ChatbotSettingsPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/support/stores",
-    element: (
-      <ProtectedRoute
-        requiredModule="core.settings"
-        requiredPermission="canVerifyStores"
-      >
-        <S><SupportStoresPage /></S>
-      </ProtectedRoute>
-    ),
-  },
-
-  // POS Kasir — requires active register session
+  // POS Kasir — full-screen, no shell
   {
     path: "/kasir",
     element: (
-      <ProtectedRoute requiredModule="core.pos">
+      <Protected requiredModule="core.pos">
         <RegisterGuard>
-          <S><PosPage /></S>
+          <S>
+            <PosPage />
+          </S>
         </RegisterGuard>
-      </ProtectedRoute>
+      </Protected>
     ),
   },
 
-  // KDS — Kitchen Display System (F&B)
+  // KDS — full-screen, no shell
   {
     path: "/kds",
     element: (
-      <ProtectedRoute requiredModule="fnb.kds">
-        <S><KdsPage /></S>
-      </ProtectedRoute>
+      <Protected requiredModule="fnb.kds">
+        <S>
+          <KdsPage />
+        </S>
+      </Protected>
     ),
   },
 
-  // 404 — must be last; AuthGuard redirects unauthenticated users to /login
-  { path: "*", element: <Auth><S><NotFoundPage /></S></Auth> },
+  // All shell-wrapped pages share PosLayout (mounted once)
+  {
+    element: <AppShell />,
+    children: [
+      {
+        path: "/dashboard",
+        element: (
+          <Protected requiredModule="core.dashboard">
+            <S>
+              <PosDashboardPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/orders",
+        element: (
+          <Protected requiredModule="core.sales">
+            <S>
+              <OrdersPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/orders/:id",
+        element: (
+          <Protected requiredModule="core.sales">
+            <S>
+              <OrderDetailPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/products",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <ProductsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/:id",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <ProductDetailPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/categories",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <CategoriesPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/inventory",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <InventoryPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/operations",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <OperationsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/suppliers",
+        element: (
+          <Protected
+            requiredModule="core.suppliers"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <SuppliersPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/users",
+        element: <Navigate to="/settings" replace />,
+      },
+      {
+        path: "/invoices",
+        element: (
+          <Protected
+            requiredModule="core.payments"
+            requiredPermission="canViewCashflow"
+          >
+            <S>
+              <InvoicesPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/cashflow",
+        element: (
+          <Protected
+            requiredModule="core.payments"
+            requiredPermission="canViewCashflow"
+          >
+            <S>
+              <CashflowPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports",
+        element: (
+          <Protected
+            requiredModule="core.reports"
+            requiredPermission="canViewAllReports"
+          >
+            <S>
+              <ReportsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/settings",
+        element: <Navigate to="/settings/toko" replace />,
+      },
+      {
+        path: "/settings/:section",
+        element: (
+          <Protected
+            requiredModule="core.settings"
+            requiredPermission="canChangeSettings"
+          >
+            <S>
+              <SettingsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/chatbot",
+        element: (
+          <Protected requiredModule="core.dashboard">
+            <S>
+              <ChatbotOverviewPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/chatbot/dashboard",
+        element: <Navigate to="/chatbot" replace />,
+      },
+      {
+        path: "/chatbot/chats",
+        element: (
+          <Protected requiredModule="core.dashboard">
+            <S>
+              <ChatbotChatPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/chatbot/live",
+        element: (
+          <Protected requiredModule="core.dashboard">
+            <S>
+              <ChatbotLiveFeedPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/chatbot/llm",
+        element: (
+          <Protected requiredModule="core.dashboard">
+            <S>
+              <ChatbotLlmConsolePage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/chatbot/settings",
+        element: (
+          <Protected requiredModule="core.dashboard">
+            <S>
+              <ChatbotSettingsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canManageAllStores"
+          >
+            <S>
+              <SupportDashboardPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support/merchants",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canManageAllStores"
+          >
+            <S>
+              <SupportMerchantsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support/merchants/:storeId",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canManageAllStores"
+          >
+            <S>
+              <SupportMerchantDetailPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support/verifikasi",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canVerifyStores"
+          >
+            <S>
+              <SupportVerificationPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support/llm",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canConfigureLlmPlatform"
+          >
+            <S>
+              <SupportLlmPlatformPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support/audit",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canViewAuditLogs"
+          >
+            <S>
+              <SupportAuditPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/support/health",
+        element: (
+          <Protected
+            requiredModule="core.dashboard"
+            requiredPermission="canViewSystemHealth"
+          >
+            <S>
+              <SupportHealthPage />
+            </S>
+          </Protected>
+        ),
+      },
+      // Legacy alias — old verification page redirect target
+      {
+        path: "/support/stores",
+        element: <Navigate to="/support/merchants" replace />,
+      },
+      {
+        path: "/support/legacy-stores",
+        element: (
+          <Protected
+            requiredModule="core.settings"
+            requiredPermission="canVerifyStores"
+          >
+            <S>
+              <SupportStoresPage />
+            </S>
+          </Protected>
+        ),
+      },
+
+      // 404 — last in shell-wrapped group
+      {
+        path: "*",
+        element: (
+          <Auth>
+            <S>
+              <NotFoundPage />
+            </S>
+          </Auth>
+        ),
+      },
+    ],
+  },
 ]);

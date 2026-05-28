@@ -429,7 +429,9 @@ export class StoresService {
     const verticalModules =
       dbVerticalModules.length > 0
         ? dbVerticalModules
-        : ([...(VERTICAL_MODULES[businessVertical] ?? [])] as PlatformModuleValue[]);
+        : ([
+            ...(VERTICAL_MODULES[businessVertical] ?? []),
+          ] as PlatformModuleValue[]);
     const enabledModuleSet = new Set<PlatformModuleValue>([
       ...coreModules,
       ...verticalModules,
@@ -603,5 +605,235 @@ export class StoresService {
     } catch {
       return null;
     }
+  }
+
+  // ── Platform support: list/search all merchants ──────────────────────────
+  /**
+   * List all stores known to the platform.
+   * Each store is derived from store_business_profiles or distinct store_settings prefixes.
+   * Filters: status (verification), vertical, free-text search.
+   */
+  async listAllStores(filters: {
+    status?: string;
+    vertical?: string;
+    q?: string;
+    limit?: number;
+  }): Promise<
+    Array<{
+      storeId: string;
+      name: string;
+      businessVertical: string;
+      requestedBusinessVertical: string | null;
+      verificationStatus: string;
+      ownerName: string | null;
+      ownerPhone: string | null;
+      city: string | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }>
+  > {
+    const limit = Math.min(filters.limit ?? 100, 500);
+
+    // Source A: store_business_profiles (preferred — has timestamps & status)
+    const profiles =
+      (await this.queryOptional<StoreBusinessProfileRow>(
+        `SELECT store_id,
+                requested_business_vertical,
+                verified_business_vertical,
+                verification_status,
+                verified_by,
+                verified_at,
+                notes,
+                created_at,
+                updated_at
+         FROM store_business_profiles
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        limit,
+      )) ?? [];
+
+    // Source B: distinct storeIds inferred from store_settings (covers stores
+    // created before the business_profiles table existed)
+    const settingRows =
+      (await this.queryOptional<{ key: string; value: string }>(
+        `SELECT key, value FROM store_settings`,
+      )) ?? [];
+    const settingsByStore = new Map<string, Record<string, string>>();
+    for (const row of settingRows) {
+      const sep = row.key.indexOf(':');
+      if (sep <= 0) continue;
+      const sid = row.key.slice(0, sep);
+      const k = row.key.slice(sep + 1);
+      const obj = settingsByStore.get(sid) ?? {};
+      obj[k] = row.value;
+      settingsByStore.set(sid, obj);
+    }
+
+    // Merge sources
+    const merged = new Map<string, ReturnType<typeof this.shapeStoreRow>>();
+    for (const p of profiles) {
+      const sid = p.store_id ?? '';
+      if (!sid) continue;
+      const settings = settingsByStore.get(sid) ?? {};
+      merged.set(sid, this.shapeStoreRow(sid, settings, p));
+    }
+    for (const [sid, settings] of settingsByStore) {
+      if (!merged.has(sid)) {
+        merged.set(sid, this.shapeStoreRow(sid, settings, null));
+      }
+    }
+
+    let result = Array.from(merged.values());
+
+    // Apply filters
+    if (filters.status) {
+      result = result.filter((s) => s.verificationStatus === filters.status);
+    }
+    if (filters.vertical) {
+      result = result.filter((s) => s.businessVertical === filters.vertical);
+    }
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.storeId.toLowerCase().includes(q) ||
+          s.name.toLowerCase().includes(q) ||
+          (s.ownerName?.toLowerCase().includes(q) ?? false) ||
+          (s.city?.toLowerCase().includes(q) ?? false),
+      );
+    }
+
+    return result.slice(0, limit);
+  }
+
+  /**
+   * Quick activity stats for a single store — for support diagnostics.
+   */
+  async getStoreActivity(storeId: string): Promise<{
+    storeId: string;
+    userCount: number;
+    productCount: number;
+    activeRegister: { id: number; cashierId: string; openedAt: string } | null;
+    salesToday: number;
+    revenueToday: number;
+    lastSaleAt: string | null;
+  }> {
+    const today = new Date();
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    ).toISOString();
+
+    const [users, products, register, salesAgg, lastSale] = await Promise.all([
+      this.queryOptional<{ c: number }>(
+        `SELECT COUNT(*) as c FROM users WHERE store_id = ?`,
+        storeId,
+      ),
+      this.queryOptional<{ c: number }>(`SELECT COUNT(*) as c FROM menu`),
+      this.queryOptional<{
+        id: number;
+        cashier_id: string;
+        opened_at: string;
+      }>(
+        `SELECT id, cashier_id, opened_at
+         FROM cash_register_sessions
+         WHERE store_id = ? AND status = 'open'
+         ORDER BY opened_at DESC LIMIT 1`,
+        storeId,
+      ),
+      this.queryOptional<{ count: number; total: number }>(
+        `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
+         FROM pos_sales
+         WHERE store_id = ? AND created_at >= ?`,
+        storeId,
+        startOfDay,
+      ),
+      this.queryOptional<{ created_at: string }>(
+        `SELECT created_at FROM pos_sales WHERE store_id = ?
+         ORDER BY created_at DESC LIMIT 1`,
+        storeId,
+      ),
+    ]);
+
+    const r = register?.[0];
+    const s = salesAgg?.[0];
+
+    return {
+      storeId,
+      userCount: Number(users?.[0]?.c ?? 0),
+      productCount: Number(products?.[0]?.c ?? 0),
+      activeRegister: r
+        ? { id: r.id, cashierId: r.cashier_id, openedAt: r.opened_at }
+        : null,
+      salesToday: Number(s?.count ?? 0),
+      revenueToday: Number(s?.total ?? 0),
+      lastSaleAt: lastSale?.[0]?.created_at ?? null,
+    };
+  }
+
+  /**
+   * List users belonging to a store (no password hashes).
+   */
+  async listStoreUsers(storeId: string): Promise<
+    Array<{
+      id: number;
+      email: string;
+      role: string;
+      createdAt: string;
+    }>
+  > {
+    const rows =
+      (await this.queryOptional<{
+        id: number;
+        email: string;
+        role: string;
+        created_at: string;
+      }>(
+        `SELECT id, email, role, created_at
+         FROM users
+         WHERE store_id = ?
+         ORDER BY created_at ASC`,
+        storeId,
+      )) ?? [];
+    return rows.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role ?? 'cashier',
+      createdAt: u.created_at,
+    }));
+  }
+
+  /**
+   * Reshape merged store info into the public listAllStores row shape.
+   */
+  private shapeStoreRow(
+    storeId: string,
+    settings: Record<string, string>,
+    profile: StoreBusinessProfileRow | null,
+  ) {
+    const businessVertical = profile
+      ? normalizeBusinessVertical(profile.verified_business_vertical)
+      : normalizeBusinessVertical(
+          settings.businessVertical ?? settings.businessType,
+        );
+    const status = profile
+      ? normalizeVerificationStatus(profile.verification_status)
+      : StoreVerificationStatus.UNVERIFIED;
+
+    return {
+      storeId,
+      name: settings.storeName || storeId,
+      businessVertical,
+      requestedBusinessVertical: profile?.requested_business_vertical
+        ? normalizeBusinessVertical(profile.requested_business_vertical)
+        : null,
+      verificationStatus: status,
+      ownerName: settings.ownerName ?? null,
+      ownerPhone: settings.ownerPhone ?? null,
+      city: settings.city ?? null,
+      createdAt: profile?.created_at ?? null,
+      updatedAt: profile?.updated_at ?? null,
+    };
   }
 }

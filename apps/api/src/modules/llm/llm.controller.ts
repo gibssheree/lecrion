@@ -8,11 +8,33 @@ import {
 } from '@nestjs/common';
 import { LlmService } from './llm.service';
 import { LlmRole } from './llm.types';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
 
 interface LlmChatBody {
   message: string;
-  role?: LlmRole;
-  sender?: string;
+}
+
+/**
+ * Map the authenticated user's role to an LLM persona/access level.
+ * Role is derived from the JWT — never trusted from the request body —
+ * so a logged-in cashier cannot request an admin-level prompt.
+ */
+function mapUserRoleToLlmRole(role?: string): LlmRole {
+  switch (role) {
+    case 'owner':
+    case 'manager':
+    case 'dashboard': // dashboard service identity behaves as manager
+      return 'admin';
+    case 'cashier':
+      return 'cashier';
+    case 'support':
+      return 'support';
+    case 'inventory_staff':
+      return 'cashier'; // may check stock, not financial data
+    default:
+      return 'customer'; // least privilege for unknown/service roles
+  }
 }
 
 // Tool definitions for the dashboard Tool Inspector
@@ -86,11 +108,14 @@ export class LlmController {
    */
   @Post('chat')
   @HttpCode(HttpStatus.OK)
-  async chat(@Body() body: LlmChatBody) {
-    const { message, role = 'admin', sender = 'dashboard-console' } = body;
+  async chat(@Body() body: LlmChatBody, @CurrentUser() user: AuthUser) {
+    const message = body?.message;
     if (!message?.trim()) {
       return { reply: 'Pesan tidak boleh kosong.' };
     }
+    // Role + identity come from the authenticated token, NOT the request body.
+    const role = mapUserRoleToLlmRole(user?.role);
+    const sender = user?.actor ?? 'dashboard-console';
     const reply = await this.llmService.chat({
       sender,
       message: message.trim(),

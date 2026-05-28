@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CheckoutService } from '../checkout/checkout.service';
@@ -18,6 +19,7 @@ import { CreatePosSaleDto } from './pos-sales.dto';
 import { PosSalesService } from './pos-sales.service';
 import { PosCorrectionsService } from './pos-corrections.service';
 import { PosApprovalService } from './pos-approval.service';
+import { PosSessionService } from './pos-session.service';
 import {
   VoidOrderDto,
   RefundOrderDto,
@@ -29,6 +31,7 @@ import {
   RejectApprovalDto,
   InlineApprovalDto,
 } from './pos-approval.dto';
+import { OpenSessionDto, CloseSessionDto } from './pos-session.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -67,7 +70,63 @@ export class PosController {
     private readonly posSalesService: PosSalesService,
     private readonly posCorrectionsService: PosCorrectionsService,
     private readonly posApprovalService: PosApprovalService,
+    private readonly posSessionService: PosSessionService,
   ) {}
+
+  // ── Kasir Sessions ────────────────────────────────────────────────────────
+
+  /**
+   * GET /api/pos/sessions/current
+   * Returns the caller's currently open session, or null.
+   */
+  @Get('sessions/current')
+  @Roles('owner', 'manager', 'cashier')
+  getCurrentSession(@CurrentUser() user: AuthUser) {
+    return this.posSessionService.getCurrentSession(user);
+  }
+
+  /**
+   * GET /api/pos/sessions
+   * List sessions for the store (manager/owner only).
+   */
+  @Get('sessions')
+  @Roles('owner', 'manager')
+  listSessions(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.posSessionService.listSessions(user, {
+      status,
+      limit: limit ? parseInt(limit, 10) : 50,
+    });
+  }
+
+  /**
+   * POST /api/pos/sessions/open
+   * Opens a new kasir session for the current cashier.
+   */
+  @Post('sessions/open')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  openSession(@Body() dto: OpenSessionDto, @CurrentUser() user: AuthUser) {
+    return this.posSessionService.openSession(dto, user);
+  }
+
+  /**
+   * POST /api/pos/sessions/:id/close
+   * Closes an open kasir session.
+   */
+  @Post('sessions/:id/close')
+  @HttpCode(HttpStatus.OK)
+  @Roles('owner', 'manager', 'cashier')
+  closeSession(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CloseSessionDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.posSessionService.closeSession(id, dto, user);
+  }
 
   @Post('sales')
   @HttpCode(HttpStatus.OK)

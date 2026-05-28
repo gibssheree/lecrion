@@ -72,7 +72,8 @@ const FIELDS: SectionDef[] = [
     fields: [
       {
         key: "adminPhones",
-        label: "Nomor WA Admin",
+        label:
+          "Nomor WA Admin (boleh akses laporan & stok via WhatsApp) — pisahkan dengan koma",
         type: "text",
       },
     ],

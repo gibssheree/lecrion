@@ -32,6 +32,7 @@ import { FnbModule } from './modules/fnb/fnb.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
     CustomersModule,
     SuppliersModule,
     InvoicesModule,
+    SupportModule,
   ],
   controllers: [],
   providers: [],

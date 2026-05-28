@@ -29,6 +29,7 @@ import {
 import { AuthUser } from '../auth/auth.types';
 import { CreatePosSaleDto, PosSaleReceipt } from './pos-sales.dto';
 import { PosCalculationService } from './pos-calculation.service';
+import { StoresService } from '../stores/stores.service';
 
 type MenuRow = {
   id: number;
@@ -49,6 +50,7 @@ export class PosSalesService {
     private readonly sync: SyncService,
     private readonly readModel: ReadModelService,
     private readonly calc: PosCalculationService,
+    private readonly stores: StoresService,
   ) {}
 
   async createSale(
@@ -67,6 +69,10 @@ export class PosSalesService {
     // Load store calculation policy BEFORE the transaction (async-safe).
     const storeId = dto.storeId ?? user?.storeId ?? 'default-store';
     const storePolicy = await this.calc.getPolicy(storeId);
+
+    // Validate payment methods against store's kasirPaymentMethods setting.
+    // Fail-open: if setting is empty, all methods are allowed.
+    await this.validatePaymentMethods(dto.payments.map((p) => p.method), storeId);
 
     try {
       const receipt = await this.prisma.$transaction(async (tx) => {
@@ -687,6 +693,28 @@ export class PosSalesService {
       items,
       createdAt: order.created_at,
     };
+  }
+
+  /**
+   * Validates that all payment methods used in a sale are in the store's
+   * allowed kasirPaymentMethods list. Fail-open: if the setting is empty,
+   * any method is accepted (backward compatibility).
+   */
+  private async validatePaymentMethods(
+    methods: string[],
+    storeId: string,
+  ): Promise<void> {
+    const raw = await this.stores.getSetting('kasirPaymentMethods', '', storeId);
+    if (!raw.trim()) return; // setting not configured → allow all
+
+    const allowed = raw.split(',').map((m) => m.trim().toLowerCase());
+    for (const method of methods) {
+      if (!allowed.includes(method.toLowerCase())) {
+        throw new BadRequestException(
+          `Metode pembayaran "${method}" tidak diizinkan. Diizinkan: ${allowed.join(', ')}`,
+        );
+      }
+    }
   }
 
   private buildIdempotencyKey(clientSaleId: string): string {

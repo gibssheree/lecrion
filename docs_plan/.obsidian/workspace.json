@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "16-pos-agent-execution-strategy.md",
+                "file": "SaaS production.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "16-pos-agent-execution-strategy"
+              "title": "SaaS production"
             }
           }
         ],
@@ -121,8 +121,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "72933ea42f741fcd",
@@ -230,15 +229,17 @@
   },
   "active": "7b7e32ac0bb1c541",
   "lastOpenFiles": [
+    "singgah.md",
+    "SaaS production.md",
+    "Pasted image 20260528155024.png",
     "lecrion.md",
     "tasks.md",
+    "16-pos-agent-execution-strategy.md",
     "17-business-vertical-navigation-architecture-plan.md",
     "Untitled",
-    "16-pos-agent-execution-strategy.md",
     "03-file-architecture.md",
     "01-blueprint.md",
     "15-enterprise-pos-parity-plan.md",
-    "singgah.md",
     "07-ultimate-tasks.md",
     "09-zed-based-plan.md",
     "10-overall-assessment.md",

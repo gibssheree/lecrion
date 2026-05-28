@@ -495,6 +495,53 @@ export const posCheckout = (data: {
     body: JSON.stringify(data),
   });
 
+// ── Kasir Sessions ────────────────────────────────────
+
+export interface KasirSession {
+  id: number;
+  storeId: string;
+  cashierId: string;
+  status: string;
+  openingCash: number;
+  expectedCash: number;
+  countedCash: number | null;
+  variance: number | null;
+  notes: string | null;
+  openedAt: string;
+  closedAt: string | null;
+}
+
+export const getCurrentSession = () =>
+  request<KasirSession | null>("/api/pos/sessions/current");
+
+export const openKasirSession = (data: {
+  openingCash: number;
+  notes?: string;
+}) =>
+  request<KasirSession>("/api/pos/sessions/open", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const closeKasirSession = (
+  sessionId: number,
+  data: { closingCash?: number; notes?: string },
+) =>
+  request<KasirSession>(`/api/pos/sessions/${sessionId}/close`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const listKasirSessions = (params?: {
+  status?: string;
+  limit?: number;
+}) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  return request<KasirSession[]>(`/api/pos/sessions?${qs.toString()}`);
+};
+
 // ── Payments ──────────────────────────────────────────
 export const recordPayment = (data: {
   orderId: number;
@@ -616,6 +663,159 @@ export const setStoreModuleOverride = (
       body: JSON.stringify({ enabled, reason }),
     },
   );
+
+// ── Support / platform admin ────────────────────────────────────────────────
+
+export interface SupportStoreRow {
+  storeId: string;
+  name: string;
+  businessVertical: string;
+  requestedBusinessVertical: string | null;
+  verificationStatus: string;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  city: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export const listAdminStores = (
+  filters: {
+    status?: string;
+    vertical?: string;
+    q?: string;
+    limit?: number;
+  } = {},
+) => {
+  const qs = buildQs({
+    status: filters.status,
+    vertical: filters.vertical,
+    q: filters.q,
+    limit: filters.limit,
+  });
+  return request<SupportStoreRow[]>(`/api/admin/stores${qs}`);
+};
+
+export interface SupportStoreActivity {
+  storeId: string;
+  userCount: number;
+  productCount: number;
+  activeRegister: { id: number; cashierId: string; openedAt: string } | null;
+  salesToday: number;
+  revenueToday: number;
+  lastSaleAt: string | null;
+}
+
+export const getAdminStoreActivity = (storeId: string) =>
+  request<SupportStoreActivity>(
+    `/api/admin/stores/${encodeURIComponent(storeId)}/activity`,
+  );
+
+export interface SupportStoreUser {
+  id: number;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export const getAdminStoreUsers = (storeId: string) =>
+  request<SupportStoreUser[]>(
+    `/api/admin/stores/${encodeURIComponent(storeId)}/users`,
+  );
+
+export interface PendingBusinessProfile {
+  storeId: string;
+  requestedBusinessVertical: string | null;
+  verifiedBusinessVertical: string;
+  verificationStatus: string;
+  notes: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export const getAdminPendingProfiles = () =>
+  request<PendingBusinessProfile[]>("/api/admin/business-profiles/pending");
+
+export interface SystemHealth {
+  db: { ok: boolean; latencyMs: number };
+  sync: {
+    pendingOutbox: number;
+    processedOutbox: number;
+    failedOutbox: number;
+    lastProcessedAt: string | null;
+  };
+  activity: {
+    sessionsActive: number;
+    ordersToday: number;
+    stores: number;
+    users: number;
+  };
+  timestamp: string;
+}
+
+export const getAdminSystemHealth = () =>
+  request<SystemHealth>("/api/admin/system/health");
+
+export interface AdminAuditLog {
+  id: number;
+  actor: string;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  tenantId: string;
+  storeId: string;
+  channel: string;
+  correlationId: string | null;
+  before: any;
+  after: any;
+  createdAt: string;
+}
+
+export const getAdminAuditLogs = (
+  filters: {
+    storeId?: string;
+    actor?: string;
+    resource?: string;
+    action?: string;
+    limit?: number;
+  } = {},
+) => {
+  const qs = buildQs({
+    storeId: filters.storeId,
+    actor: filters.actor,
+    resource: filters.resource,
+    action: filters.action,
+    limit: filters.limit,
+  });
+  return request<{ logs: AdminAuditLog[] }>(`/api/admin/audit-logs${qs}`);
+};
+
+export interface PlatformLlmConfig {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+  systemPrompts: Record<string, string>;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export const getAdminLlmConfig = () =>
+  request<PlatformLlmConfig>("/api/admin/llm/config");
+
+export const updateAdminLlmConfig = (
+  patch: Partial<{
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+    systemPrompts: Record<string, string>;
+  }>,
+) =>
+  request<PlatformLlmConfig>("/api/admin/llm/config", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 
 export const getSettings = () =>
   request<Record<string, string>>("/api/stores/settings");

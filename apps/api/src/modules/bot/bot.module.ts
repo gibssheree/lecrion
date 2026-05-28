@@ -8,6 +8,7 @@ import { ChatbotModule } from '../chatbot/chatbot.module';
 import { CheckoutModule } from '../checkout/checkout.module';
 import { LlmModule } from '../llm/llm.module';
 import { ReportsModule } from '../reports/reports.module';
+import { StoresModule } from '../stores/stores.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ReportsModule } from '../reports/reports.module';
     CheckoutModule,
     LlmModule,
     ReportsModule,
+    StoresModule,
   ],
   controllers: [BotController],
   providers: [BotDispatchService, ScheduledReportsService],

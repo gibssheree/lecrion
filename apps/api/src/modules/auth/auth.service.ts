@@ -218,8 +218,14 @@ export class AuthService {
       }
       if (params.taxEnabled) {
         settings.push(
-          { key: `${storeId}:calc.tax_rate`, value: String(params.taxRate ?? 11) },
-          { key: `${storeId}:calc.tax_mode`, value: params.taxMode ?? 'inclusive' },
+          {
+            key: `${storeId}:calc.tax_rate`,
+            value: String(params.taxRate ?? 11),
+          },
+          {
+            key: `${storeId}:calc.tax_mode`,
+            value: params.taxMode ?? 'inclusive',
+          },
         );
       }
       if (params.serviceChargeEnabled) {
@@ -229,10 +235,15 @@ export class AuthService {
         });
       }
 
-      await tx.store_settings.createMany({
-        data: settings.map((s) => ({ key: s.key, value: s.value, updated_at: now })),
-        skipDuplicates: true,
-      });
+      // SQLite does not support createMany with skipDuplicates.
+      // Use individual upserts instead.
+      for (const s of settings) {
+        await tx.store_settings.upsert({
+          where: { key: s.key },
+          create: { key: s.key, value: s.value, updated_at: now },
+          update: { value: s.value, updated_at: now },
+        });
+      }
 
       // 3. Store business profile
       await tx.store_business_profiles.create({
@@ -247,7 +258,9 @@ export class AuthService {
       });
     });
 
-    this.logger.log(`Self-register: email=${params.email} store=${storeId} vertical=${params.businessVertical}`);
+    this.logger.log(
+      `Self-register: email=${params.email} store=${storeId} vertical=${params.businessVertical}`,
+    );
 
     // Issue tokens immediately — user is logged in right after register
     const authUser: AuthUser = {
@@ -260,7 +273,9 @@ export class AuthService {
     };
 
     // Re-fetch the actual user id for the token sub
-    const created = await this.prisma.users.findUnique({ where: { email: params.email } });
+    const created = await this.prisma.users.findUnique({
+      where: { email: params.email },
+    });
     if (created) authUser.actor = String(created.id);
 
     const tokens = await this.issueTokens(authUser);

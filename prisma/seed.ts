@@ -10,18 +10,31 @@ const prisma = new PrismaClient({ adapter } as any);
 async function main() {
   const password = await bcrypt.hash("admin123", 10);
 
-  const user = await prisma.users.upsert({
+  const owner = await prisma.users.upsert({
     where: { email: "admin@lecrion.com" },
     update: {},
     create: {
       email: "admin@lecrion.com",
       password_hash: password,
+      role: "owner",
+      store_id: "default-store",
     },
   });
 
-  console.log("✅ User created:", user.email);
-  console.log("   Email:    admin@lecrion.com");
-  console.log("   Password: admin123");
+  const support = await prisma.users.upsert({
+    where: { email: "support@lecrion.com" },
+    update: {},
+    create: {
+      email: "support@lecrion.com",
+      password_hash: password,
+      role: "support",
+      store_id: "default-store",
+    },
+  });
+
+  console.log("✅ Users seeded:");
+  console.log("   Owner:   admin@lecrion.com   / admin123");
+  console.log("   Support: support@lecrion.com / admin123");
 }
 
 main()

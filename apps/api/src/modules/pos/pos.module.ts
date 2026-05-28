@@ -4,6 +4,7 @@ import { PosSalesService } from './pos-sales.service';
 import { PosCorrectionsService } from './pos-corrections.service';
 import { PosApprovalService } from './pos-approval.service';
 import { PosCalculationService } from './pos-calculation.service';
+import { PosSessionService } from './pos-session.service';
 import { CheckoutModule } from '../checkout/checkout.module';
 import { ChatbotModule } from '../chatbot/chatbot.module';
 import { ReportsModule } from '../reports/reports.module';
@@ -32,12 +33,14 @@ import { AuthModule } from '../auth/auth.module';
     PosCorrectionsService,
     PosApprovalService,
     PosCalculationService,
+    PosSessionService,
   ],
   exports: [
     PosSalesService,
     PosCorrectionsService,
     PosApprovalService,
     PosCalculationService,
+    PosSessionService,
   ],
 })
 export class PosModule {}

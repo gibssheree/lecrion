@@ -56,14 +56,14 @@ type ReloadTarget = "snapshots" | "orders" | "session" | "shift";
  *   order.created   → ["snapshots", "orders"]  (2 calls, no session reload)
  */
 const EVENT_RELOAD_MAP: Readonly<Record<string, readonly ReloadTarget[]>> = {
-  "order.created":            ["snapshots", "orders"],
-  "order.confirmed":          ["snapshots", "orders", "shift"],
-  "payment.confirmed":        ["snapshots", "shift"],
+  "order.created": ["snapshots", "orders"],
+  "order.confirmed": ["snapshots", "orders", "shift"],
+  "payment.confirmed": ["snapshots", "shift"],
   "cashflow.income.recorded": ["snapshots", "shift"],
-  "register.opened":          ["session"],
-  "register.closed":          ["session"],
-  "stock.adjusted":           [],  // live feed only — no reload needed
-  "stock.low":                [],  // live feed only — toast shown separately
+  "register.opened": ["session"],
+  "register.closed": ["session"],
+  "stock.adjusted": [], // live feed only — no reload needed
+  "stock.low": [], // live feed only — toast shown separately
 } as const;
 
 function describeDashboardEvent(
@@ -157,8 +157,8 @@ export default function PosDashboardPage() {
 
     const ops: Promise<unknown>[] = [];
     if (targets.includes("snapshots")) ops.push(reloadSnapshots());
-    if (targets.includes("orders"))    ops.push(reloadOrders());
-    if (targets.includes("session"))   ops.push(refresh());
+    if (targets.includes("orders")) ops.push(reloadOrders());
+    if (targets.includes("session")) ops.push(refresh());
     if (targets.includes("shift") && session?.id) {
       ops.push(loadShiftSummary(session.id));
     }
@@ -256,7 +256,9 @@ export default function PosDashboardPage() {
                 : "TUTUP"}
           </div>
           <div className="summary-card-sub">
-            {session ? `Kasir: ${resolveName(session.cashier_id)}` : "Tidak ada sesi"}
+            {session
+              ? `Kasir: ${resolveName(session.cashier_id)}`
+              : "Tidak ada sesi"}
           </div>
         </div>
       </div>
@@ -562,13 +564,35 @@ export default function PosDashboardPage() {
             {!connected && (
               <div
                 style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
                   fontSize: 12,
                   color: "var(--text-muted)",
                   textAlign: "center",
-                  padding: "12px 0",
+                  padding: "20px 12px",
                 }}
               >
-                Menghubungkan ke server…
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: "var(--text-muted)",
+                    opacity: 0.4,
+                    animation: "spin 1.4s ease-in-out infinite alternate",
+                  }}
+                />
+                <span>Menghubungkan ke server…</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: "4px 10px", minHeight: 26, fontSize: 11 }}
+                  onClick={() => window.location.reload()}
+                >
+                  Coba lagi
+                </button>
               </div>
             )}
             {events.length === 0 && connected && (
