@@ -1877,6 +1877,80 @@ body {
   transform: scale(1.05);
 }
 
+.pos-nav-group {
+  margin: 1px 0;
+}
+
+.pos-nav-group-trigger {
+  width: calc(100% - 16px);
+}
+
+.pos-nav-group-trigger .nav-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.58;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.pos-nav-group.is-open .nav-chevron {
+  transform: rotate(90deg);
+  opacity: 0.92;
+}
+
+.pos-nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0 8px 5px 8px;
+  padding: 2px 0 2px 36px;
+}
+
+.pos-nav-child {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.pos-nav-child::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.pos-nav-child:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.pos-nav-child.active {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+  font-weight: 750;
+}
+
+.pos-nav-child.active::before {
+  background: #fff;
+}
+
 .pos-nav-item .nav-label {
   min-width: 0;
   overflow: hidden;
@@ -2119,6 +2193,10 @@ body {
   padding: 9px 0;
   margin: 1px 8px;
   gap: 0;
+}
+
+.sidebar-collapsed .pos-nav-group-trigger .nav-chevron {
+  display: none;
 }
 
 /* ── Dashboard summary cards ────────────────────────── */

@@ -62,6 +62,66 @@ describe('StoresService capabilities', () => {
     expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_KDS);
   });
 
+  it('normalizes the retail_store registration preset to retail capabilities', async () => {
+    const prisma = createPrismaMock({ businessVertical: 'retail_store' });
+    const service = new StoresService(prisma as never);
+
+    const capabilities = await service.getCapabilities('default-store');
+
+    expect(capabilities.businessVertical).toBe(BusinessVertical.RETAIL);
+    expect(capabilities.businessPreset).toBe('retail_store');
+    expect(capabilities.enabledModules).toContain(PlatformModule.RETAIL_BARCODE);
+    expect(capabilities.enabledModules).toContain(PlatformModule.RETAIL_VARIANTS);
+  });
+
+  it('keeps cafe as an F&B preset without default KDS/table modules', async () => {
+    const prisma = createPrismaMock({ businessVertical: 'cafe' });
+    const service = new StoresService(prisma as never);
+
+    const capabilities = await service.getCapabilities('default-store');
+
+    expect(capabilities.businessVertical).toBe(
+      BusinessVertical.RESTAURANT_CAFE,
+    );
+    expect(capabilities.businessPreset).toBe('cafe');
+    expect(capabilities.enabledModules).toContain(PlatformModule.FNB_MODIFIERS);
+    expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_KDS);
+    expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_TABLES);
+  });
+
+  it('maps accommodation preset to accommodation hotel capabilities', async () => {
+    const prisma = createPrismaMock({ businessVertical: 'accommodation' });
+    const service = new StoresService(prisma as never);
+
+    const capabilities = await service.getCapabilities('default-store');
+
+    expect(capabilities.businessVertical).toBe(
+      BusinessVertical.ACCOMMODATION_HOTEL,
+    );
+    expect(capabilities.businessPreset).toBe('accommodation');
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.ACCOMMODATION_RESERVATIONS,
+    );
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.ACCOMMODATION_ROOMS,
+    );
+  });
+
+  it('maps building materials preset to construction capabilities', async () => {
+    const prisma = createPrismaMock({ businessVertical: 'building_materials' });
+    const service = new StoresService(prisma as never);
+
+    const capabilities = await service.getCapabilities('default-store');
+
+    expect(capabilities.businessVertical).toBe(
+      BusinessVertical.CONSTRUCTION_MATERIALS,
+    );
+    expect(capabilities.businessPreset).toBe('building_materials');
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.CONSTRUCTION_UNIT_CONVERSION,
+    );
+  });
+
   it('uses verified persistent profile over legacy settings and applies overrides', async () => {
     const prisma = createPrismaMock({ businessType: 'retail' });
     prisma.$queryRawUnsafe.mockImplementation((sql: string) => {

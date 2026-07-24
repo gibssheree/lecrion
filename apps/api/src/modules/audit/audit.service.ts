@@ -11,7 +11,7 @@ export interface AuditRecordOptions {
   tenantId?: string;
   storeId?: string;
   correlationId?: string | null;
-  channel?: 'api' | 'bot' | 'dashboard' | 'worker';
+  channel?: 'api' | 'bot' | 'dashboard' | 'worker' | 'aggregator';
 }
 
 @Injectable()

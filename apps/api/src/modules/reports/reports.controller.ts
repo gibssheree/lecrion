@@ -8,8 +8,10 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { ReadModelService } from './read-model.service';
 import { PosReportsService } from './pos-reports.service';
@@ -246,11 +248,58 @@ export class ReportsController {
       .then((text) => ({ text }));
   }
 
-  // ─── Phase 11: Forecasting ──────────────────────────────────────────────────
-
   @Get('pos/forecast')
   @Roles('owner', 'manager')
   getForecast(@Query('storeId') storeId?: string) {
     return this.posReports.getForecast({ storeId });
+  }
+
+  // ─── Phase 3: CSV Export ─────────────────────────────────────────────────────
+
+  /**
+   * GET /api/reports/pos/export/csv
+   *
+   * Streams a UTF-8 CSV file of all POS sales in the requested date range.
+   * The file is ready to open in Microsoft Excel (BOM prepended).
+   *
+   * Query params:
+   *   storeId   - store ID (default: 'default-store')
+   *   dateFrom  - YYYY-MM-DD start date (default: today)
+   *   dateTo    - YYYY-MM-DD end date   (default: today)
+   */
+  @Get('pos/export/csv')
+  @Roles('owner', 'manager')
+  async exportPosCsv(
+    @Res() res: Response,
+    @Query('storeId') storeId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    const { filename, rows } = await this.posReports.exportPosSalesCsv({
+      storeId,
+      dateFrom,
+      dateTo,
+    });
+
+    // Serialize rows to CSV string with proper quoting
+    const csvBody = rows
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`)
+          .join(','),
+      )
+      .join('\r\n');
+
+    // Prepend UTF-8 BOM so Excel opens the file correctly
+    const bom = '\uFEFF';
+    const csvBuffer = Buffer.from(bom + csvBody, 'utf-8');
+
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': String(csvBuffer.length),
+    });
+
+    res.send(csvBuffer);
   }
 }

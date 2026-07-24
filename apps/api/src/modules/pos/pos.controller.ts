@@ -188,6 +188,30 @@ export class PosController {
 
   // ── Phase 5: Correction endpoints ─────────────────────────────────────────
 
+  /**
+   * GET /api/pos/corrections
+   * List void / refund / return correction documents.
+   */
+  @Get('corrections')
+  @Roles('owner', 'manager', 'cashier')
+  listCorrections(
+    @Query('type') type?: string,
+    @Query('storeId') storeId?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.posCorrectionsService.listCorrections({
+      type,
+      storeId,
+      fromDate,
+      toDate,
+      limit: limit ? parseInt(limit, 10) : 50,
+      offset: offset ? parseInt(offset, 10) : 0,
+    });
+  }
+
   @Post('orders/:id/void')
   @HttpCode(HttpStatus.OK)
   @Roles('owner', 'manager', 'cashier')

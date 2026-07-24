@@ -5,6 +5,7 @@ export const BusinessVertical = {
   RESTAURANT_CAFE: 'restaurant_cafe',
   WHOLESALE_DISTRIBUTION: 'wholesale_distribution',
   WAREHOUSE_LOGISTICS: 'warehouse_logistics',
+  ACCOMMODATION_HOTEL: 'accommodation_hotel',
   MANUFACTURING: 'manufacturing',
   CONSTRUCTION_MATERIALS: 'construction_materials',
   SERVICE_REPAIR: 'service_repair',
@@ -71,6 +72,14 @@ export const PlatformModule = {
   WAREHOUSE_PACKING: 'warehouse.packing',
   WAREHOUSE_DISPATCH: 'warehouse.dispatch',
   WAREHOUSE_TRANSFER: 'warehouse.transfer',
+
+  ACCOMMODATION_RESERVATIONS: 'accommodation.reservations',
+  ACCOMMODATION_ROOMS: 'accommodation.rooms',
+  ACCOMMODATION_CHECKIN: 'accommodation.checkin',
+  ACCOMMODATION_HOUSEKEEPING: 'accommodation.housekeeping',
+  ACCOMMODATION_GUEST_SERVICES: 'accommodation.guest_services',
+  ACCOMMODATION_AMENITIES_INVENTORY:
+    'accommodation.amenities_inventory',
 
   MANUFACTURING_BOM: 'manufacturing.bom',
   MANUFACTURING_PRODUCTION_ORDER: 'manufacturing.production_order',
@@ -156,6 +165,14 @@ export const VERTICAL_MODULES: Record<
     PlatformModule.WAREHOUSE_DISPATCH,
     PlatformModule.WAREHOUSE_TRANSFER,
   ],
+  [BusinessVertical.ACCOMMODATION_HOTEL]: [
+    PlatformModule.ACCOMMODATION_RESERVATIONS,
+    PlatformModule.ACCOMMODATION_ROOMS,
+    PlatformModule.ACCOMMODATION_CHECKIN,
+    PlatformModule.ACCOMMODATION_HOUSEKEEPING,
+    PlatformModule.ACCOMMODATION_GUEST_SERVICES,
+    PlatformModule.ACCOMMODATION_AMENITIES_INVENTORY,
+  ],
   [BusinessVertical.MANUFACTURING]: [
     PlatformModule.MANUFACTURING_BOM,
     PlatformModule.MANUFACTURING_PRODUCTION_ORDER,
@@ -185,9 +202,77 @@ export const VERTICAL_MODULES: Record<
   ],
 };
 
+export const BusinessPreset = {
+  RESTAURANT: 'restaurant',
+  CAFE: 'cafe',
+  RETAIL_STORE: 'retail_store',
+  ACCOMMODATION: 'accommodation',
+  BUILDING_MATERIALS: 'building_materials',
+} as const;
+
+export type BusinessPresetValue =
+  (typeof BusinessPreset)[keyof typeof BusinessPreset];
+
+export const BUSINESS_PRESET_VALUES = Object.values(
+  BusinessPreset,
+) as BusinessPresetValue[];
+
+export const BUSINESS_PRESET_TO_VERTICAL = {
+  [BusinessPreset.RESTAURANT]: BusinessVertical.RESTAURANT_CAFE,
+  [BusinessPreset.CAFE]: BusinessVertical.RESTAURANT_CAFE,
+  [BusinessPreset.RETAIL_STORE]: BusinessVertical.RETAIL,
+  [BusinessPreset.ACCOMMODATION]: BusinessVertical.ACCOMMODATION_HOTEL,
+  [BusinessPreset.BUILDING_MATERIALS]:
+    BusinessVertical.CONSTRUCTION_MATERIALS,
+} as const satisfies Record<BusinessPresetValue, BusinessVerticalValue>;
+
+export const PRESET_MODULES = {
+  [BusinessPreset.RESTAURANT]: [
+    PlatformModule.FNB_TABLES,
+    PlatformModule.FNB_KDS,
+    PlatformModule.FNB_RECIPES,
+    PlatformModule.FNB_RAW_INGREDIENTS,
+    PlatformModule.FNB_MODIFIERS,
+    PlatformModule.FNB_DINE_IN,
+  ],
+  [BusinessPreset.CAFE]: [
+    PlatformModule.FNB_RECIPES,
+    PlatformModule.FNB_RAW_INGREDIENTS,
+    PlatformModule.FNB_MODIFIERS,
+  ],
+  [BusinessPreset.RETAIL_STORE]: [
+    PlatformModule.RETAIL_BARCODE,
+    PlatformModule.RETAIL_VARIANTS,
+    PlatformModule.RETAIL_STOCK_OPNAME,
+    PlatformModule.RETAIL_PRICE_LABELS,
+    PlatformModule.RETAIL_EXCHANGES,
+  ],
+  [BusinessPreset.ACCOMMODATION]: [
+    PlatformModule.ACCOMMODATION_RESERVATIONS,
+    PlatformModule.ACCOMMODATION_ROOMS,
+    PlatformModule.ACCOMMODATION_CHECKIN,
+    PlatformModule.ACCOMMODATION_HOUSEKEEPING,
+    PlatformModule.ACCOMMODATION_GUEST_SERVICES,
+    PlatformModule.ACCOMMODATION_AMENITIES_INVENTORY,
+  ],
+  [BusinessPreset.BUILDING_MATERIALS]: [
+    PlatformModule.CONSTRUCTION_UNIT_CONVERSION,
+    PlatformModule.CONSTRUCTION_PROJECT_REFERENCE,
+    PlatformModule.CONSTRUCTION_DELIVERY_SCHEDULE,
+    PlatformModule.CONSTRUCTION_BULK_STOCK,
+    PlatformModule.RETAIL_BARCODE,
+    PlatformModule.WAREHOUSE_LOCATIONS,
+    PlatformModule.WAREHOUSE_TRANSFER,
+  ],
+} as const satisfies Record<
+  BusinessPresetValue,
+  readonly PlatformModuleValue[]
+>;
+
 export interface StoreCapabilitiesResponse {
   storeId: string;
   businessVertical: BusinessVerticalValue;
+  businessPreset: BusinessPresetValue | null;
   requestedBusinessVertical: BusinessVerticalValue | null;
   verificationStatus: StoreVerificationStatusValue;
   enabledModules: PlatformModuleValue[];

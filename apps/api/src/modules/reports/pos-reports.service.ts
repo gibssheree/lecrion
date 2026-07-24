@@ -1006,7 +1006,111 @@ export class PosReportsService {
     }
     return lines.join('\n');
   }
+
+  // ─── Phase 3: CSV Export ────────────────────────────────────────────────────
+
+  /**
+   * Generates a CSV export of all POS sales within a date range.
+   *
+   * Returns an array of rows (string[][]) ready to be streamed as text/csv.
+   * Caller is responsible for serializing and setting response headers.
+   *
+   * Columns:
+   *   Receipt No, Date, Time, Cashier, Order Type, Customer, Items,
+   *   Subtotal, Discount, Tax, Service Charge, Total, Payment Methods, Status
+   */
+  async exportPosSalesCsv(params: {
+    storeId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ filename: string; rows: string[][] }> {
+    const store = params.storeId || 'default-store';
+    const today = new Date().toISOString().slice(0, 10);
+    const dateFrom = params.dateFrom || today;
+    const dateTo = params.dateTo || today;
+
+    const sales = await this.prisma.pos_sales.findMany({
+      where: {
+        store_id: store,
+        created_at: {
+          gte: `${dateFrom}T00:00:00.000Z`,
+          lte: `${dateTo}T23:59:59.999Z`,
+        },
+      },
+      include: {
+        pos_sale_items: true,
+      },
+      orderBy: { created_at: 'asc' },
+    });
+
+    const header = [
+      'No Struk',
+      'Tanggal',
+      'Jam',
+      'Kasir',
+      'Tipe Order',
+      'Customer',
+      'Produk',
+      'Subtotal (Rp)',
+      'Diskon (Rp)',
+      'Pajak (Rp)',
+      'Service Charge (Rp)',
+      'Total (Rp)',
+      'Metode Bayar',
+      'Status',
+    ];
+
+    const dataRows = sales.map((s) => {
+      const dt = new Date(s.created_at);
+      const dateStr = dt.toLocaleDateString('id-ID', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Jakarta',
+      });
+      const timeStr = dt.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'Asia/Jakarta',
+        hour12: false,
+      });
+
+      const itemsSummary = s.pos_sale_items
+        .map((i) => `${i.name} x${i.qty}`)
+        .join('; ');
+
+      let paymentMethods = '';
+      try {
+        const pm = JSON.parse(s.payment_methods || '[]') as string[];
+        paymentMethods = pm.join(', ');
+      } catch {
+        paymentMethods = s.payment_methods || '';
+      }
+
+      return [
+        s.receipt_number,
+        dateStr,
+        timeStr,
+        s.cashier_id,
+        s.order_type,
+        s.customer_name || '-',
+        itemsSummary,
+        String(Math.round(n(s.subtotal))),
+        String(Math.round(n(s.discount_amount))),
+        String(Math.round(n(s.tax_amount))),
+        String(Math.round(n(s.service_charge_amount))),
+        String(Math.round(n(s.total))),
+        paymentMethods,
+        s.status,
+      ];
+    });
+
+    const filename = `lecrion-sales-${dateFrom}-${dateTo}.csv`;
+    return { filename, rows: [header, ...dataRows] };
+  }
 }
+
 
 // ── Linear regression helper (OLS) ────────────────────────────────────────────
 function olsRegression(points: { x: number; y: number }[]): {

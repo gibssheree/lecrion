@@ -2,6 +2,12 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '@libs/db/src/prisma';
+import {
+  BUSINESS_PRESET_TO_VERTICAL,
+  BusinessPresetValue,
+  BusinessVertical,
+  BusinessVerticalValue,
+} from '@libs/contracts/src/modules';
 import { AppConfigService } from '../../infrastructure/config/app-config.service';
 import {
   JwtPayload,
@@ -41,6 +47,37 @@ const buildServiceKeys = (
     channel: 'dashboard',
   },
 });
+
+function normalizeBusinessPreset(value?: string): BusinessPresetValue | null {
+  if (!value) return null;
+  if (value in BUSINESS_PRESET_TO_VERTICAL) return value as BusinessPresetValue;
+  if (value === 'restaurant_cafe' || value === 'restaurant') return 'restaurant';
+  if (value === 'retail') return 'retail_store';
+  if (value === 'construction_materials') return 'building_materials';
+  if (value === 'accommodation_hotel' || value === 'hotel') {
+    return 'accommodation';
+  }
+  return null;
+}
+
+function normalizeBusinessVertical(value?: string): BusinessVerticalValue {
+  const preset = normalizeBusinessPreset(value);
+  if (preset) return BUSINESS_PRESET_TO_VERTICAL[preset];
+  const aliases: Record<string, BusinessVerticalValue> = {
+    general: BusinessVertical.GENERAL,
+    restaurant_cafe: BusinessVertical.RESTAURANT_CAFE,
+    retail: BusinessVertical.RETAIL,
+    grocery_minimarket: BusinessVertical.GROCERY_MINIMARKET,
+    wholesale_distribution: BusinessVertical.WHOLESALE_DISTRIBUTION,
+    warehouse_logistics: BusinessVertical.WAREHOUSE_LOGISTICS,
+    accommodation_hotel: BusinessVertical.ACCOMMODATION_HOTEL,
+    manufacturing: BusinessVertical.MANUFACTURING,
+    construction_materials: BusinessVertical.CONSTRUCTION_MATERIALS,
+    service_repair: BusinessVertical.SERVICE_REPAIR,
+    health_wellness: BusinessVertical.HEALTH_WELLNESS,
+  };
+  return aliases[value ?? ''] ?? BusinessVertical.GENERAL;
+}
 
 @Injectable()
 export class AuthService {
@@ -192,6 +229,8 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(params.password, 10);
     const now = new Date().toISOString();
     const storeId = `store-${Date.now()}`;
+    const businessPreset = normalizeBusinessPreset(params.businessVertical);
+    const businessVertical = normalizeBusinessVertical(params.businessVertical);
 
     await this.prisma.$transaction(async (tx: any) => {
       // 1. Create owner user
@@ -209,10 +248,16 @@ export class AuthService {
       // 2. Store settings
       const settings: Array<{ key: string; value: string }> = [
         { key: `${storeId}:storeName`, value: params.storeName },
-        { key: `${storeId}:businessVertical`, value: params.businessVertical },
+        { key: `${storeId}:businessVertical`, value: businessVertical },
         { key: `${storeId}:ownerName`, value: params.name },
         { key: `${storeId}:ownerPhone`, value: params.phone },
       ];
+      if (businessPreset) {
+        settings.push({
+          key: `${storeId}:businessPreset`,
+          value: businessPreset,
+        });
+      }
       if (params.city) {
         settings.push({ key: `${storeId}:city`, value: params.city });
       }
@@ -249,9 +294,9 @@ export class AuthService {
       await tx.store_business_profiles.create({
         data: {
           store_id: storeId,
-          requested_business_vertical: params.businessVertical,
-          verified_business_vertical: params.businessVertical,
-          verification_status: 'auto_approved',
+          requested_business_vertical: businessVertical,
+          verified_business_vertical: businessVertical,
+          verification_status: 'verified',
           verified_at: now,
           notes: 'Auto-approved on self-registration',
         } as any,
@@ -259,7 +304,7 @@ export class AuthService {
     });
 
     this.logger.log(
-      `Self-register: email=${params.email} store=${storeId} vertical=${params.businessVertical}`,
+      `Self-register: email=${params.email} store=${storeId} vertical=${businessVertical}`,
     );
 
     // Issue tokens immediately — user is logged in right after register

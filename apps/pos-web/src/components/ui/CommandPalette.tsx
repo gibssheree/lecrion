@@ -8,7 +8,11 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search } from "lucide-react";
-import { MAIN_NAV } from "../../navigation/navigation.registry";
+import {
+  BusinessPresetKey,
+  flattenNavigation,
+  MAIN_NAV,
+} from "../../navigation/navigation.registry";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useStoreCapabilities } from "../../hooks/useStoreCapabilities";
 
@@ -30,14 +34,21 @@ interface Props {
 export default function CommandPalette({ open, onClose }: Props) {
   const navigate = useNavigate();
   const permissions = usePermissions();
-  const { hasModule } = useStoreCapabilities();
+  const { businessPreset, hasModule } = useStoreCapabilities();
   const [query, setQuery] = useState("");
   const [focusedIdx, setFocusedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Build nav items from MAIN_NAV filtered by permissions
-  const navItems: CmdItem[] = MAIN_NAV.filter((item) => {
+  const navItems: CmdItem[] = flattenNavigation(MAIN_NAV).filter((item) => {
+    const preset = businessPreset as BusinessPresetKey | null;
+    if (item.presets && (!preset || !item.presets.includes(preset))) {
+      return false;
+    }
+    if (item.excludePresets && preset && item.excludePresets.includes(preset)) {
+      return false;
+    }
     if (!hasModule(item.requiredModule)) return false;
     if (item.requirePermission && !permissions[item.requirePermission]) return false;
     return true;

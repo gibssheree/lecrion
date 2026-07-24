@@ -5,6 +5,7 @@ import ProductRail from "./ProductRail";
 import CartPanel from "./CartPanel";
 import PaymentDrawer from "./PaymentDrawer";
 import RecentOrdersDrawer from "../../features/orders/RecentOrdersDrawer";
+import OfflineSyncBanner from "./OfflineSyncBanner";
 import { useCartStore } from "../../store/cart.store";
 
 export default function PosShell() {
@@ -30,6 +31,7 @@ export default function PosShell() {
   return (
     <div className="pos-shell">
       <TopBar onOpenOrders={() => setShowOrders(true)} />
+      <OfflineSyncBanner />
 
       <div className="pos-main">
         <ProductRail onStockCounts={handleStockCounts} />

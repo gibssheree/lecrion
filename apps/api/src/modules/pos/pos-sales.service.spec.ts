@@ -137,6 +137,12 @@ describe('PosSalesService', () => {
       sync as any,
       readModel as any,
       new PosCalculationService({ getSettings: async () => ({}) } as any),
+      {
+        getSetting: async () => '',
+        getCapabilities: async () => ({ enabledModules: [] }),
+      } as any,
+      { createTicketForOrder: async () => null } as any,
+      { emitKitchenTicketCreated: () => undefined } as any,
     );
 
     return { service, prisma, tx, users, sync, readModel };

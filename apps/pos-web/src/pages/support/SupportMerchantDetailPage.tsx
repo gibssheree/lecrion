@@ -20,19 +20,12 @@ import {
 } from "../../services/api";
 import { fmt } from "../../utils/fmt";
 import { useToast } from "../../store/toast.store";
+import { BUSINESS_VERTICALS } from "../../constants/verticals";
 
-const VERTICAL_OPTIONS = [
-  { value: "general", label: "General / Mixed Business" },
-  { value: "retail", label: "Retail Store" },
-  { value: "grocery_minimarket", label: "Grocery / Minimarket" },
-  { value: "restaurant_cafe", label: "Restaurant / Cafe" },
-  { value: "wholesale_distribution", label: "Wholesale / Distribution" },
-  { value: "warehouse_logistics", label: "Warehouse / Logistics" },
-  { value: "manufacturing", label: "Manufacturing / Production" },
-  { value: "construction_materials", label: "Building Materials" },
-  { value: "service_repair", label: "Services / Repair Shop" },
-  { value: "health_wellness", label: "Health / Wellness" },
-];
+const VERTICAL_OPTIONS = BUSINESS_VERTICALS.map((v) => ({
+  value: v.key,
+  label: v.label,
+}));
 
 const MODULE_OPTIONS = [
   "fnb.tables",

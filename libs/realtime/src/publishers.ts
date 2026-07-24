@@ -72,3 +72,58 @@ export function emitInboxEvent(inboxRow: {
 export function emitNotification(notification: Record<string, any>): void {
   emit("notification", notification);
 }
+
+export function emitKitchenTicketCreated(ticket: {
+  id: number;
+  storeId: string;
+  orderId: number;
+  ticketNumber: string;
+  tableId?: number | null;
+  status: string;
+  priority?: string;
+  itemCount: number;
+}): void {
+  emit(
+    "kitchen.ticket.created",
+    {
+      event: "kitchen.ticket.created",
+      ticketId: ticket.id,
+      orderId: ticket.orderId,
+      ticketNumber: ticket.ticketNumber,
+      tableId: ticket.tableId ?? null,
+      status: ticket.status,
+      priority: ticket.priority ?? "normal",
+      itemCount: ticket.itemCount,
+      storeId: ticket.storeId,
+    },
+    `store:${ticket.storeId}`,
+  );
+  // Also emit to dashboard so admin sees activity globally
+  emit("kitchen.ticket.created", {
+    event: "kitchen.ticket.created",
+    ticketId: ticket.id,
+    storeId: ticket.storeId,
+  });
+}
+
+export function emitKitchenTicketUpdated(ticket: {
+  id: number;
+  storeId: string;
+  status: string;
+}): void {
+  emit(
+    "kitchen.ticket.updated",
+    {
+      event: "kitchen.ticket.updated",
+      ticketId: ticket.id,
+      status: ticket.status,
+      storeId: ticket.storeId,
+    },
+    `store:${ticket.storeId}`,
+  );
+  emit("kitchen.ticket.updated", {
+    event: "kitchen.ticket.updated",
+    ticketId: ticket.id,
+    storeId: ticket.storeId,
+  });
+}

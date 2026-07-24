@@ -45,6 +45,7 @@ export function useCheckout() {
 
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal);
+  const orderType = useCartStore((s) => s.orderType);
   const clear = useCartStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
   const registerSession = useRegisterStore((s) => s.session);
@@ -84,7 +85,7 @@ export function useCheckout() {
         registerSessionId: registerSession.id,
         storeId: registerSession.store_id,
         cashierId: user?.actor ?? "kasir",
-        orderType: "pickup" as const,
+        orderType,
         customerName: customerName || undefined,
         note: note || undefined,
         items: items.map((i) => ({

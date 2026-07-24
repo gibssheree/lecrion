@@ -90,4 +90,32 @@ export class RealtimeService {
   emitNotification(notification: Record<string, any>): void {
     publishers.emitNotification(notification);
   }
+
+  /**
+   * Emit kitchen ticket created event to KDS clients.
+   * Targets the per-store room and dashboard for global activity feed.
+   */
+  emitKitchenTicketCreated(ticket: {
+    id: number;
+    storeId: string;
+    orderId: number;
+    ticketNumber: string;
+    tableId?: number | null;
+    status: string;
+    priority?: string;
+    itemCount: number;
+  }): void {
+    publishers.emitKitchenTicketCreated(ticket);
+  }
+
+  /**
+   * Emit kitchen ticket status update — KDS will refetch.
+   */
+  emitKitchenTicketUpdated(ticket: {
+    id: number;
+    storeId: string;
+    status: string;
+  }): void {
+    publishers.emitKitchenTicketUpdated(ticket);
+  }
 }

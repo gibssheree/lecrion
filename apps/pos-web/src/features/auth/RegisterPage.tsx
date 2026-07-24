@@ -109,7 +109,7 @@ function IconBuilding() {
 
 const VERTICALS = [
   {
-    key: "restaurant_cafe",
+    key: "restaurant",
     icon: <IconRestaurant />,
     label: "Restoran",
     desc: "Meja, dapur, dine-in & delivery",

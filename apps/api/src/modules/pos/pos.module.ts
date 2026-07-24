@@ -14,6 +14,8 @@ import { AuditModule } from '../audit/audit.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { StoresModule } from '../stores/stores.module';
 import { AuthModule } from '../auth/auth.module';
+import { FnbModule } from '../fnb/fnb.module';
+import { RealtimeModule } from '../../infrastructure/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { AuthModule } from '../auth/auth.module';
     InventoryModule,
     StoresModule,
     AuthModule,
+    FnbModule,
+    RealtimeModule,
   ],
   controllers: [PosController],
   providers: [

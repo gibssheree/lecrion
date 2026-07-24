@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
   ChevronDown,
+  ChevronRight,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -36,11 +37,15 @@ import { useSocket } from "../../hooks/useSocket";
 import { getStoreInfo } from "../../services/api";
 import {
   CHATBOT_NAV,
+  BusinessPresetKey,
+  isNavigationGroup,
   MAIN_NAV,
   NavigationItem,
+  NavigationNode,
   SUPPORT_NAV,
 } from "../../navigation/navigation.registry";
 import { useAuthStore } from "../../store/auth.store";
+import { verticalLabel as resolveVerticalLabel } from "../../constants/verticals";
 const lecrionLogo = "/Lecrion.png";
 
 interface Props {
@@ -55,17 +60,8 @@ const ROLE_LABELS: Record<string, string> = {
   support: "Support",
 };
 
-const VERTICAL_LABELS: Record<string, string> = {
-  restaurant_cafe: "Restoran",
-  cafe: "Cafe",
-  retail_store: "Retail Store",
-  accommodation: "Akomodasi / Hotel",
-  building_materials: "Toko Bangunan",
-  general: "General",
-};
-
 function verticalLabel(value?: string | null) {
-  return VERTICAL_LABELS[value ?? ""] ?? value ?? "General";
+  return resolveVerticalLabel(value);
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -78,9 +74,18 @@ function canShowItem(
   item: NavigationItem,
   hasModule: (moduleKey: string) => boolean,
   permissions: ReturnType<typeof usePermissions>,
+  businessPreset?: string | null,
 ) {
   // Hide merchant nav items entirely for support users
   if (permissions.isSupport && item.hideForSupport) return false;
+
+  const preset = businessPreset as BusinessPresetKey | null | undefined;
+  if (item.presets && (!preset || !item.presets.includes(preset))) {
+    return false;
+  }
+  if (item.excludePresets && preset && item.excludePresets.includes(preset)) {
+    return false;
+  }
 
   // Virtual support module always passes the gate for support users
   const moduleOk =
@@ -93,6 +98,12 @@ function canShowItem(
   return Boolean(permissions[item.requirePermission]);
 }
 
+function isItemActive(item: NavigationItem, pathname: string) {
+  if (item.end) return pathname === item.to;
+  if (item.to === "/") return pathname === "/";
+  return pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
+
 export default function PosLayout({ children }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,6 +112,7 @@ export default function PosLayout({ children }: Props) {
   const permissions = usePermissions();
   const {
     data: capabilities,
+    businessPreset,
     businessVertical,
     verificationStatus,
     hasModule,
@@ -114,6 +126,9 @@ export default function PosLayout({ children }: Props) {
   // Sidebar / business panel state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [bizInfoOpen, setBizInfoOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(["sales", "products", "inventory"]),
+  );
   const bizInfoRef = useRef<HTMLDivElement>(null);
 
   // Navbar dropdowns
@@ -168,22 +183,54 @@ export default function PosLayout({ children }: Props) {
   const hasPending =
     Boolean(pendingVertical) && pendingVertical !== businessVertical;
 
-  const visibleMainNav = useMemo(
-    () => MAIN_NAV.filter((item) => canShowItem(item, hasModule, permissions)),
-    [hasModule, permissions],
-  );
+  const visibleMainNav = useMemo(() => {
+    const filterNode = (node: NavigationNode): NavigationNode | null => {
+      if (isNavigationGroup(node)) {
+        const children = node.children.filter((item) =>
+          canShowItem(item, hasModule, permissions, businessPreset),
+        );
+        return children.length > 0 ? { ...node, children } : null;
+      }
+      return canShowItem(node, hasModule, permissions, businessPreset)
+        ? node
+        : null;
+    };
+
+    return MAIN_NAV.map(filterNode).filter(
+      (node): node is NavigationNode => Boolean(node),
+    );
+  }, [businessPreset, hasModule, permissions]);
 
   const visibleChatbotNav = useMemo(
     () =>
-      CHATBOT_NAV.filter((item) => canShowItem(item, hasModule, permissions)),
-    [hasModule, permissions],
+      CHATBOT_NAV.filter((item) =>
+        canShowItem(item, hasModule, permissions, businessPreset),
+      ),
+    [businessPreset, hasModule, permissions],
   );
 
   const visibleSupportNav = useMemo(
     () =>
-      SUPPORT_NAV.filter((item) => canShowItem(item, hasModule, permissions)),
-    [hasModule, permissions],
+      SUPPORT_NAV.filter((item) =>
+        canShowItem(item, hasModule, permissions, businessPreset),
+      ),
+    [businessPreset, hasModule, permissions],
   );
+
+  useEffect(() => {
+    const activeGroup = visibleMainNav.find(
+      (node) =>
+        isNavigationGroup(node) &&
+        node.children.some((item) => isItemActive(item, location.pathname)),
+    );
+    if (!activeGroup || !isNavigationGroup(activeGroup)) return;
+    setOpenGroups((current) => {
+      if (current.has(activeGroup.id)) return current;
+      const next = new Set(current);
+      next.add(activeGroup.id);
+      return next;
+    });
+  }, [location.pathname, visibleMainNav]);
 
   useEffect(() => {
     if (sidebarCollapsed) setBizInfoOpen(false);
@@ -223,9 +270,66 @@ export default function PosLayout({ children }: Props) {
         className={({ isActive }) => `pos-nav-item${isActive ? " active" : ""}`}
         title={sidebarCollapsed ? item.label : undefined}
       >
-        <span className="nav-icon">{item.icon}</span>
+        {item.icon && <span className="nav-icon">{item.icon}</span>}
         <span className="nav-label">{item.label}</span>
       </NavLink>
+    );
+  }
+
+  function renderNavNode(node: NavigationNode) {
+    if (!isNavigationGroup(node)) return renderNavItem(node);
+
+    const active = node.children.some((item) =>
+      isItemActive(item, location.pathname),
+    );
+    const open = openGroups.has(node.id) || active;
+
+    return (
+      <div
+        key={node.id}
+        className={`pos-nav-group${open ? " is-open" : ""}${active ? " active" : ""}`}
+      >
+        <button
+          type="button"
+          className={`pos-nav-item pos-nav-group-trigger${active ? " active" : ""}`}
+          title={sidebarCollapsed ? node.label : undefined}
+          aria-expanded={open}
+          onClick={() => {
+            if (sidebarCollapsed) {
+              setSidebarCollapsed(false);
+              setOpenGroups((current) => new Set(current).add(node.id));
+              return;
+            }
+            setOpenGroups((current) => {
+              const next = new Set(current);
+              if (next.has(node.id)) next.delete(node.id);
+              else next.add(node.id);
+              return next;
+            });
+          }}
+        >
+          <span className="nav-icon">{node.icon}</span>
+          <span className="nav-label">{node.label}</span>
+          <ChevronRight size={13} className="nav-chevron" />
+        </button>
+
+        {!sidebarCollapsed && open && (
+          <div className="pos-nav-children">
+            {node.children.map((item) => (
+              <NavLink
+                key={item.id}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `pos-nav-child${isActive ? " active" : ""}`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -497,7 +601,7 @@ export default function PosLayout({ children }: Props) {
             ) : (
               <>
                 <div className="pos-sidebar-section">Menu</div>
-                {visibleMainNav.map(renderNavItem)}
+                {visibleMainNav.map(renderNavNode)}
 
                 {visibleChatbotNav.length > 0 && (
                   <>

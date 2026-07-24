@@ -30,6 +30,9 @@ import { AuthUser } from '../auth/auth.types';
 import { CreatePosSaleDto, PosSaleReceipt } from './pos-sales.dto';
 import { PosCalculationService } from './pos-calculation.service';
 import { StoresService } from '../stores/stores.service';
+import { KitchenService } from '../fnb/kitchen.service';
+import { RealtimeService } from '../../infrastructure/realtime/realtime.service';
+import { PlatformModule } from '@libs/contracts/src/modules';
 
 type MenuRow = {
   id: number;
@@ -51,6 +54,8 @@ export class PosSalesService {
     private readonly readModel: ReadModelService,
     private readonly calc: PosCalculationService,
     private readonly stores: StoresService,
+    private readonly kitchen: KitchenService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async createSale(
@@ -72,7 +77,10 @@ export class PosSalesService {
 
     // Validate payment methods against store's kasirPaymentMethods setting.
     // Fail-open: if setting is empty, all methods are allowed.
-    await this.validatePaymentMethods(dto.payments.map((p) => p.method), storeId);
+    await this.validatePaymentMethods(
+      dto.payments.map((p) => p.method),
+      storeId,
+    );
 
     try {
       const receipt = await this.prisma.$transaction(async (tx) => {
@@ -518,6 +526,16 @@ export class PosSalesService {
       });
 
       this.refreshReports();
+
+      // Phase 12: F&B auto-create kitchen ticket after sale commits.
+      // Only for stores that enable fnb.kds module. Idempotent on order_id.
+      // Failures here NEVER block the sale — log only.
+      this.maybeCreateKitchenTicket(receipt, storeId, dto).catch((err) => {
+        this.logger.warn(
+          `[POS] Kitchen ticket auto-create failed for order ${receipt.orderId}: ${err?.message ?? err}`,
+        );
+      });
+
       return receipt;
     } catch (err: unknown) {
       if (this.isUniqueConstraintError(err)) {
@@ -704,7 +722,11 @@ export class PosSalesService {
     methods: string[],
     storeId: string,
   ): Promise<void> {
-    const raw = await this.stores.getSetting('kasirPaymentMethods', '', storeId);
+    const raw = await this.stores.getSetting(
+      'kasirPaymentMethods',
+      '',
+      storeId,
+    );
     if (!raw.trim()) return; // setting not configured → allow all
 
     const allowed = raw.split(',').map((m) => m.trim().toLowerCase());
@@ -890,5 +912,54 @@ export class PosSalesService {
         `Report projection rebuild after POS sale failed: ${err.message}`,
       );
     });
+  }
+
+  /**
+   * Phase 12 — F&B integration.
+   * Auto-create a kitchen ticket for the just-completed sale when the store
+   * has the FNB_KDS module enabled. This is fire-and-forget: failures are
+   * logged but do not affect the sale.
+   *
+   * Triggered for every order_type because cafes/restaurants need the
+   * kitchen to know about take-away (`pickup`) orders too. If you want to
+   * scope to dine_in only, gate on `dto.orderType === 'dine_in'`.
+   */
+  private async maybeCreateKitchenTicket(
+    receipt: PosSaleReceipt,
+    storeId: string,
+    dto: CreatePosSaleDto,
+  ): Promise<void> {
+    const capabilities = await this.stores.getCapabilities(storeId);
+    if (!capabilities.enabledModules.includes(PlatformModule.FNB_KDS)) {
+      return;
+    }
+
+    const ticket = await this.kitchen.createTicketForOrder({
+      orderId: receipt.orderId,
+      storeId,
+      priority: 'normal',
+      notes: dto.note,
+    });
+
+    if (ticket) {
+      try {
+        this.realtime.emitKitchenTicketCreated({
+          id: ticket.id,
+          storeId,
+          orderId: ticket.order_id,
+          ticketNumber: ticket.ticket_number,
+          tableId: ticket.table_id,
+          status: ticket.status,
+          priority: ticket.priority ?? 'normal',
+          itemCount: Array.isArray((ticket as any).items)
+            ? (ticket as any).items.length
+            : dto.items.length,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[POS] Kitchen ticket emit failed: ${(err as Error)?.message ?? err}`,
+        );
+      }
+    }
   }
 }

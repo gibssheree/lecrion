@@ -19,6 +19,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Query,
   Body,
@@ -35,10 +36,16 @@ import { AuditService } from '../audit/audit.service';
 import { RealtimeService } from '../../infrastructure/realtime/realtime.service';
 import { InventoryLedgerService } from '../inventory/inventory-ledger.service';
 import { ProductBarcodesService } from './product-barcodes.service';
+import {
+  ProductVariantsService,
+  CreateVariantDto,
+} from './product-variants.service';
 import { STOCK_EVENTS } from '@libs/contracts/src/events';
 import {
   StockMovementType,
   PRODUCT_TYPE_VALUES,
+  ProductVariantTypeValue,
+  BarcodeTypeValue,
 } from '@libs/contracts/src/enums';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -53,6 +60,7 @@ export class CatalogController {
     private readonly realtime: RealtimeService,
     private readonly ledger: InventoryLedgerService,
     private readonly barcodes: ProductBarcodesService,
+    private readonly variants: ProductVariantsService,
   ) {}
 
   // ── GET /api/products ──────────────────────────────────────────────────────
@@ -300,5 +308,141 @@ export class CatalogController {
     }
 
     return { status: 'success', id, stock, qtyChange };
+  }
+
+  // ── Phase 12: Variants CRUD ───────────────────────────────────────────────
+
+  @Get(':id/variants')
+  @Roles('owner', 'manager', 'cashier', 'inventory_staff')
+  async listVariants(@Param('id') idParam: string) {
+    const id = Number(idParam);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
+    }
+    const variants = await this.variants.getVariantsForParent(id);
+    return { variants };
+  }
+
+  @Post(':id/variants')
+  @Roles('owner', 'manager')
+  async createVariant(
+    @Param('id') idParam: string,
+    @Body()
+    body: {
+      variantProductId: number;
+      variantType?: ProductVariantTypeValue;
+      variantValue: string;
+      sortOrder?: number;
+    },
+  ) {
+    const parentId = Number(idParam);
+    if (!Number.isInteger(parentId) || parentId <= 0) {
+      throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
+    }
+    if (!body?.variantProductId || !body?.variantValue) {
+      throw new HttpException(
+        {
+          status: 'error',
+          message: 'variantProductId and variantValue are required',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const dto: CreateVariantDto = {
+      parentProductId: parentId,
+      variantProductId: Number(body.variantProductId),
+      variantType: body.variantType,
+      variantValue: body.variantValue,
+      sortOrder: body.sortOrder,
+    };
+    const variant = await this.variants.create(dto);
+    this.audit.record({
+      actor: 'api',
+      action: 'product.variant.created',
+      resource: 'product_variants',
+      resourceId: variant.id,
+      after: variant,
+      channel: 'api',
+    });
+    return { status: 'created', variant };
+  }
+
+  @Delete('variants/:variantId')
+  @Roles('owner', 'manager')
+  async removeVariant(@Param('variantId') idParam: string) {
+    const id = Number(idParam);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
+    }
+    const variant = await this.variants.deactivate(id);
+    if (!variant) {
+      throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
+    }
+    return { status: 'deactivated', variant };
+  }
+
+  // ── Phase 12: Barcodes CRUD ────────────────────────────────────────────────
+
+  @Get(':id/barcodes')
+  @Roles('owner', 'manager', 'cashier', 'inventory_staff')
+  async listBarcodes(@Param('id') idParam: string) {
+    const id = Number(idParam);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
+    }
+    const list = await this.barcodes.getBarcodesForProduct(id);
+    return { barcodes: list };
+  }
+
+  @Post(':id/barcodes')
+  @Roles('owner', 'manager')
+  async addBarcode(
+    @Param('id') idParam: string,
+    @Body()
+    body: {
+      barcode: string;
+      barcodeType?: BarcodeTypeValue;
+      isPrimary?: boolean;
+    },
+  ) {
+    const menuId = Number(idParam);
+    if (!Number.isInteger(menuId) || menuId <= 0) {
+      throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
+    }
+    if (!body?.barcode?.trim()) {
+      throw new HttpException(
+        { status: 'error', message: 'barcode is required' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const barcode = await this.barcodes.addBarcode({
+      menuId,
+      barcode: body.barcode.trim(),
+      barcodeType: body.barcodeType,
+      isPrimary: body.isPrimary,
+    });
+    this.audit.record({
+      actor: 'api',
+      action: 'product.barcode.added',
+      resource: 'product_barcodes',
+      resourceId: barcode.id,
+      after: barcode,
+      channel: 'api',
+    });
+    return { status: 'created', barcode };
+  }
+
+  @Delete('barcodes/:barcodeId')
+  @Roles('owner', 'manager')
+  async removeBarcode(@Param('barcodeId') idParam: string) {
+    const id = Number(idParam);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
+    }
+    const ok = await this.barcodes.removeBarcode(id);
+    if (!ok) {
+      throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
+    }
+    return { status: 'deleted' };
   }
 }

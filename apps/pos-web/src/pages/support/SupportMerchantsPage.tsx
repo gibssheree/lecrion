@@ -7,6 +7,7 @@ import Pagination from "../../components/ui/Pagination";
 import { usePagination } from "../../hooks/usePagination";
 import { useApi } from "../../hooks/useApi";
 import { listAdminStores } from "../../services/api";
+import { BUSINESS_VERTICALS } from "../../constants/verticals";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua status" },
@@ -18,16 +19,7 @@ const STATUS_OPTIONS = [
 
 const VERTICAL_OPTIONS = [
   { value: "", label: "Semua kategori" },
-  { value: "general", label: "General" },
-  { value: "retail", label: "Retail" },
-  { value: "grocery_minimarket", label: "Grocery / Minimarket" },
-  { value: "restaurant_cafe", label: "Restaurant / Cafe" },
-  { value: "wholesale_distribution", label: "Wholesale" },
-  { value: "warehouse_logistics", label: "Warehouse" },
-  { value: "manufacturing", label: "Manufacturing" },
-  { value: "construction_materials", label: "Building Materials" },
-  { value: "service_repair", label: "Services" },
-  { value: "health_wellness", label: "Health" },
+  ...BUSINESS_VERTICALS.map((v) => ({ value: v.key, label: v.label })),
 ];
 
 const STATUS_BADGE: Record<string, string> = {

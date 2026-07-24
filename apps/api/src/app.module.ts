@@ -33,6 +33,7 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { SupportModule } from './modules/support/support.module';
+import { AggregatorModule } from './modules/aggregator/aggregator.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { SupportModule } from './modules/support/support.module';
     SuppliersModule,
     InvoicesModule,
     SupportModule,
+    AggregatorModule,
   ],
   controllers: [],
   providers: [],

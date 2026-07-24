@@ -25,8 +25,28 @@ const OperationsPage = lazy(() => import("../pages/OperationsPage"));
 const CashflowPage = lazy(() => import("../pages/CashflowPage"));
 const ReportsPage = lazy(() => import("../pages/ReportsPage"));
 const InvoicesPage = lazy(() => import("../pages/InvoicesPage"));
+const VerticalFeaturePage = lazy(() => import("../pages/VerticalFeaturePage"));
 const SettingsPage = lazy(() => import("../pages/SettingsPage"));
 const KdsPage = lazy(() => import("../pages/KdsPage"));
+
+// Phase 12 — vertical-specific pages (real implementations, replace placeholders)
+const TablesPage = lazy(() => import("../pages/TablesPage"));
+const ReturnsPage = lazy(() => import("../pages/ReturnsPage"));
+const ProductVariantsPage = lazy(() => import("../pages/ProductVariantsPage"));
+const ProductBarcodesPage = lazy(() => import("../pages/ProductBarcodesPage"));
+const InventoryLocationsPage = lazy(
+  () => import("../pages/InventoryLocationsPage"),
+);
+const InventoryMovementsPage = lazy(
+  () => import("../pages/InventoryMovementsPage"),
+);
+const StockTransfersPage = lazy(() => import("../pages/StockTransfersPage"));
+const ModifiersPage = lazy(() => import("../pages/ModifiersPage"));
+const RecipesPage = lazy(() => import("../pages/RecipesPage"));
+const StockOpnamePage = lazy(() => import("../pages/StockOpnamePage"));
+const ReportProductsPage = lazy(() => import("../pages/ReportProductsPage"));
+const ReportInventoryPage = lazy(() => import("../pages/ReportInventoryPage"));
+const RawIngredientsPage = lazy(() => import("../pages/RawIngredientsPage"));
 const SupportStoresPage = lazy(() => import("../pages/SupportStoresPage"));
 const SupportDashboardPage = lazy(
   () => import("../pages/support/SupportDashboardPage"),
@@ -116,6 +136,19 @@ const Protected = ({
   </Auth>
 );
 
+function VerticalFeature(props: {
+  title: string;
+  domain: "sales" | "products" | "inventory" | "reports";
+  description: string;
+  checkpoints: string[];
+}) {
+  return (
+    <S>
+      <VerticalFeaturePage {...props} />
+    </S>
+  );
+}
+
 /**
  * Layout route — wraps the entire authenticated app.
  * PosLayout is mounted ONCE; only its <Outlet /> swaps between pages.
@@ -201,6 +234,77 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "/sales/tables",
+        element: (
+          <Protected requiredModule="fnb.tables">
+            <S>
+              <TablesPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/sales/reservations",
+        element: (
+          <Protected requiredModule="accommodation.reservations">
+            <VerticalFeature
+              title="Reservasi"
+              domain="sales"
+              description="Ruang kerja reservasi kamar untuk akomodasi, dari booking awal sampai kesiapan check-in."
+              checkpoints={[
+                "Kalender reservasi",
+                "Data tamu dan durasi menginap",
+                "Status booking dan pembayaran awal",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/sales/checkins",
+        element: (
+          <Protected requiredModule="accommodation.checkin">
+            <VerticalFeature
+              title="Check-in / Check-out"
+              domain="sales"
+              description="Alur operasional tamu masuk, tamu keluar, deposit, dan final invoice hotel."
+              checkpoints={[
+                "Daftar tamu hari ini",
+                "Deposit dan charge tambahan",
+                "Finalisasi check-out",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/sales/delivery-schedule",
+        element: (
+          <Protected requiredModule="construction.delivery_schedule">
+            <VerticalFeature
+              title="Jadwal Pengiriman"
+              domain="sales"
+              description="Jadwal kirim material proyek, armada, alamat tujuan, dan status pemenuhan pesanan."
+              checkpoints={[
+                "Tanggal dan slot pengiriman",
+                "Alamat proyek dan penerima",
+                "Status loading, dikirim, selesai",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/returns",
+        element: (
+          <Protected requiredModule="retail.exchanges">
+            <S>
+              <ReturnsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
         path: "/products",
         element: (
           <Protected
@@ -240,6 +344,158 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "/products/modifiers",
+        element: (
+          <Protected
+            requiredModule="fnb.modifiers"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <ModifiersPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/recipes",
+        element: (
+          <Protected
+            requiredModule="fnb.recipes"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <RecipesPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/variants",
+        element: (
+          <Protected
+            requiredModule="retail.variants"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <ProductVariantsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/barcodes",
+        element: (
+          <Protected
+            requiredModule="retail.barcode"
+            requiredPermission="canManageProducts"
+          >
+            <S>
+              <ProductBarcodesPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/rooms",
+        element: (
+          <Protected
+            requiredModule="accommodation.rooms"
+            requiredPermission="canManageProducts"
+          >
+            <VerticalFeature
+              title="Tipe Kamar"
+              domain="products"
+              description="Kelola tipe kamar, kapasitas, harga dasar, dan inventori kamar yang bisa dipesan."
+              checkpoints={[
+                "Tipe dan kapasitas kamar",
+                "Harga dasar per malam",
+                "Fasilitas kamar",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/services",
+        element: (
+          <Protected
+            requiredModule="accommodation.guest_services"
+            requiredPermission="canManageProducts"
+          >
+            <VerticalFeature
+              title="Layanan Tambahan"
+              domain="products"
+              description="Kelola layanan hotel seperti laundry, extra bed, breakfast, dan add-on tamu."
+              checkpoints={[
+                "Katalog layanan tamu",
+                "Harga layanan",
+                "Posting ke invoice tamu",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/stay-packages",
+        element: (
+          <Protected
+            requiredModule="accommodation.reservations"
+            requiredPermission="canManageProducts"
+          >
+            <VerticalFeature
+              title="Paket Menginap"
+              domain="products"
+              description="Rangkai kamar, layanan, promo, dan aturan masa menginap sebagai paket jual."
+              checkpoints={[
+                "Komposisi paket",
+                "Periode berlaku",
+                "Harga paket dan deposit",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/unit-conversion",
+        element: (
+          <Protected
+            requiredModule="construction.unit_conversion"
+            requiredPermission="canManageProducts"
+          >
+            <VerticalFeature
+              title="Satuan & Konversi"
+              domain="products"
+              description="Atur konversi satuan material seperti sak, dus, batang, meter, kilogram, dan kubik."
+              checkpoints={[
+                "Satuan dasar dan satuan jual",
+                "Rasio konversi",
+                "Pembulatan dan toleransi",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/products/project-pricing",
+        element: (
+          <Protected
+            requiredModule="construction.project_reference"
+            requiredPermission="canManageProducts"
+          >
+            <VerticalFeature
+              title="Harga Proyek"
+              domain="products"
+              description="Kelola harga khusus untuk proyek, pelanggan kontraktor, atau volume pembelian material."
+              checkpoints={[
+                "Referensi proyek",
+                "Harga kontrak",
+                "Volume dan masa berlaku",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
         path: "/inventory",
         element: (
           <Protected
@@ -253,7 +509,118 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "/inventory/raw-ingredients",
+        element: (
+          <Protected
+            requiredModule="fnb.raw_ingredients"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <RawIngredientsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/inventory/amenities",
+        element: (
+          <Protected
+            requiredModule="accommodation.amenities_inventory"
+            requiredPermission="canManageInventory"
+          >
+            <VerticalFeature
+              title="Amenities / Consumables"
+              domain="inventory"
+              description="Kelola stok amenities hotel seperti toiletries, linen consumables, welcome drink, dan barang kamar."
+              checkpoints={[
+                "Barang konsumsi per kamar",
+                "Minimum stok housekeeping",
+                "Pemakaian per check-in",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/inventory/locations",
+        element: (
+          <Protected
+            requiredModule="warehouse.locations"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <InventoryLocationsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/inventory/movements",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <InventoryMovementsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/inventory/stock-opname",
+        element: (
+          <Protected
+            requiredModule="retail.stock_opname"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <StockOpnamePage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/inventory/transfers",
+        element: (
+          <Protected
+            requiredModule="warehouse.transfer"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <StockTransfersPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
         path: "/operations",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <OperationsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/operations/purchase-orders",
+        element: (
+          <Protected
+            requiredModule="core.inventory"
+            requiredPermission="canManageInventory"
+          >
+            <S>
+              <OperationsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/operations/goods-receipts",
         element: (
           <Protected
             requiredModule="core.inventory"
@@ -286,7 +653,7 @@ export const router = createBrowserRouter([
         path: "/invoices",
         element: (
           <Protected
-            requiredModule="core.payments"
+            requiredModule="core.invoices"
             requiredPermission="canViewCashflow"
           >
             <S>
@@ -310,6 +677,91 @@ export const router = createBrowserRouter([
       },
       {
         path: "/reports",
+        element: (
+          <Protected
+            requiredModule="core.reports"
+            requiredPermission="canViewAllReports"
+          >
+            <S>
+              <ReportsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports/sales",
+        element: (
+          <Protected
+            requiredModule="core.reports"
+            requiredPermission="canViewAllReports"
+          >
+            <S>
+              <ReportsPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports/products",
+        element: (
+          <Protected
+            requiredModule="core.reports"
+            requiredPermission="canViewAllReports"
+          >
+            <S>
+              <ReportProductsPage flavor="products" />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports/inventory",
+        element: (
+          <Protected
+            requiredModule="core.reports"
+            requiredPermission="canViewAllReports"
+          >
+            <S>
+              <ReportInventoryPage />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports/menu",
+        element: (
+          <Protected
+            requiredModule="fnb.recipes"
+            requiredPermission="canViewAllReports"
+          >
+            <S>
+              <ReportProductsPage flavor="menu" />
+            </S>
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports/reservations",
+        element: (
+          <Protected
+            requiredModule="accommodation.reservations"
+            requiredPermission="canViewAllReports"
+          >
+            <VerticalFeature
+              title="Laporan Reservasi"
+              domain="reports"
+              description="Analisis okupansi, reservasi masuk, pembatalan, dan performa tipe kamar."
+              checkpoints={[
+                "Okupansi per periode",
+                "Booking source",
+                "Pembatalan dan no-show",
+              ]}
+            />
+          </Protected>
+        ),
+      },
+      {
+        path: "/reports/revenue",
         element: (
           <Protected
             requiredModule="core.reports"

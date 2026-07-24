@@ -6,6 +6,8 @@
 
 import { create } from "zustand";
 
+export type OrderType = "pickup" | "dine_in" | "delivery";
+
 export interface CartItem {
   productId: number;
   name: string;
@@ -19,6 +21,7 @@ export interface HeldCart {
   id: string;
   label: string;
   items: CartItem[];
+  orderType: OrderType;
   createdAt: string;
   updatedAt: string;
   isHeld: boolean;
@@ -30,6 +33,7 @@ interface CartState {
   items: CartItem[];
   subtotal: number;
   itemCount: number;
+  orderType: OrderType;
   addItem: (product: {
     id: number;
     name: string;
@@ -40,6 +44,7 @@ interface CartState {
   removeItem: (productId: number) => void;
   updateQty: (productId: number, qty: number) => void;
   clear: () => void;
+  setOrderType: (type: OrderType) => void;
   createCart: (label?: string) => void;
   switchCart: (cartId: string) => void;
   holdActiveCart: (label?: string) => void;
@@ -53,7 +58,15 @@ function newCart(label = "Keranjang Baru"): HeldCart {
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `cart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  return { id, label, items: [], createdAt: now, updatedAt: now, isHeld: false };
+  return {
+    id,
+    label,
+    items: [],
+    orderType: "dine_in",
+    createdAt: now,
+    updatedAt: now,
+    isHeld: false,
+  };
 }
 
 function calcTotals(items: CartItem[]) {
@@ -67,9 +80,19 @@ function activeItems(carts: HeldCart[], activeCartId: string): CartItem[] {
   return carts.find((cart) => cart.id === activeCartId)?.items ?? [];
 }
 
+function activeOrderType(carts: HeldCart[], activeCartId: string): OrderType {
+  return carts.find((cart) => cart.id === activeCartId)?.orderType ?? "dine_in";
+}
+
 function derive(carts: HeldCart[], activeCartId: string) {
   const items = activeItems(carts, activeCartId);
-  return { carts, activeCartId, items, ...calcTotals(items) };
+  return {
+    carts,
+    activeCartId,
+    items,
+    orderType: activeOrderType(carts, activeCartId),
+    ...calcTotals(items),
+  };
 }
 
 const initialCart = newCart("Keranjang 1");
@@ -80,6 +103,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   subtotal: 0,
   itemCount: 0,
+  orderType: initialCart.orderType,
 
   addItem: (product) => {
     const isStockTracked = product.isStockTracked ?? true;
@@ -161,7 +185,22 @@ export const useCartStore = create<CartState>((set, get) => ({
     const { carts, activeCartId } = get();
     const updatedCarts = carts.map((cart) =>
       cart.id === activeCartId
-        ? { ...cart, items: [], isHeld: false, updatedAt: new Date().toISOString() }
+        ? {
+            ...cart,
+            items: [],
+            isHeld: false,
+            updatedAt: new Date().toISOString(),
+          }
+        : cart,
+    );
+    set(derive(updatedCarts, activeCartId));
+  },
+
+  setOrderType: (type) => {
+    const { carts, activeCartId } = get();
+    const updatedCarts = carts.map((cart) =>
+      cart.id === activeCartId
+        ? { ...cart, orderType: type, updatedAt: new Date().toISOString() }
         : cart,
     );
     set(derive(updatedCarts, activeCartId));
@@ -183,7 +222,9 @@ export const useCartStore = create<CartState>((set, get) => ({
     const activeCart = carts.find((cart) => cart.id === activeCartId);
     if (!activeCart || activeCart.items.length === 0) return;
     const nextLabel =
-      label?.trim() || activeCart.label || `Hold ${new Date().toLocaleTimeString("id-ID")}`;
+      label?.trim() ||
+      activeCart.label ||
+      `Hold ${new Date().toLocaleTimeString("id-ID")}`;
     const updatedCarts = carts.map((cart) =>
       cart.id === activeCartId
         ? {
@@ -210,7 +251,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     const { carts, activeCartId } = get();
     const updatedCarts = carts.map((cart) =>
       cart.id === cartId
-        ? { ...cart, label: label.trim() || cart.label, updatedAt: new Date().toISOString() }
+        ? {
+            ...cart,
+            label: label.trim() || cart.label,
+            updatedAt: new Date().toISOString(),
+          }
         : cart,
     );
     set(derive(updatedCarts, activeCartId));

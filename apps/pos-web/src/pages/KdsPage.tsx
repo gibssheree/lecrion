@@ -10,6 +10,7 @@ import {
   getActiveKitchenTickets,
 } from "../services/api";
 import { useToast } from "../store/toast.store";
+import { getSocket } from "../services/realtime";
 
 const TICKET_STATUS_COLORS: Record<
   string,
@@ -68,6 +69,25 @@ export default function KdsPage() {
     load();
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
+  }, [load]);
+
+  // Realtime: refresh tickets immediately when a new one is created or any
+  // ticket status changes anywhere in the store. The polling interval above
+  // remains as a safety net.
+  useEffect(() => {
+    const socket = getSocket();
+    const handleCreated = () => {
+      load();
+    };
+    const handleUpdated = () => {
+      load();
+    };
+    socket.on("kitchen.ticket.created", handleCreated);
+    socket.on("kitchen.ticket.updated", handleUpdated);
+    return () => {
+      socket.off("kitchen.ticket.created", handleCreated);
+      socket.off("kitchen.ticket.updated", handleUpdated);
+    };
   }, [load]);
 
   async function handleTicketStatus(ticketId: number, status: string) {

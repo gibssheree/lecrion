@@ -15,6 +15,7 @@ export function useStoreCapabilities() {
   return {
     ...capabilities,
     enabledModules,
+    businessPreset: capabilities.data?.businessPreset ?? null,
     businessVertical: capabilities.data?.businessVertical ?? "general",
     verificationStatus: capabilities.data?.verificationStatus ?? "unverified",
     hasModule,

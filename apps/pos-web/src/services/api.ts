@@ -568,11 +568,61 @@ export const getReportSnapshots = async () => {
   return { snapshots: raw ?? {} };
 };
 
+// ── Reports — focused subreports (Phase 12) ───────────────────────────────
+export interface PosTopProductRow {
+  productId?: number;
+  product_id?: number;
+  name: string;
+  qty: number;
+  revenue: number;
+  saleCount?: number;
+  sale_count?: number;
+}
+
+export const getPosTopProducts = (
+  params: {
+    storeId?: string;
+    fromDate?: string;
+    toDate?: string;
+    limit?: number;
+  } = {},
+) => {
+  const qs = buildQs({
+    storeId: params.storeId,
+    fromDate: params.fromDate,
+    toDate: params.toDate,
+    limit: params.limit ?? 20,
+  });
+  return request<PosTopProductRow[]>(`/api/reports/pos/top-products${qs}`);
+};
+
+export const getPosSummary = (
+  params: {
+    storeId?: string;
+    fromDate?: string;
+    toDate?: string;
+  } = {},
+) => {
+  const qs = buildQs(params);
+  return request<any>(`/api/reports/pos/summary${qs}`);
+};
+
+export const getStockChangeLogs = (limit = 100) =>
+  request<any[]>(`/api/reports/stock-changes?limit=${limit}`);
+
+export const getLowStockAlert = (storeId = "default-store") =>
+  request<any>(
+    `/api/reports/pos/low-stock-alert?storeId=${encodeURIComponent(storeId)}`,
+  );
+
 // ── Settings ──────────────────────────────────────────
 export type BusinessType =
   | "retail"
+  | "retail_store"
   | "restaurant"
   | "cafe"
+  | "accommodation"
+  | "building_materials"
   | "service"
   | "general";
 
@@ -582,6 +632,7 @@ export interface StoreInfo {
   tenantId: string;
   status: string;
   businessType: BusinessType;
+  businessPreset?: string | null;
   businessVertical?: string;
   isFnb: boolean;
 }
@@ -591,6 +642,7 @@ export const getStoreInfo = () => request<StoreInfo>("/api/stores/info");
 export interface StoreCapabilities {
   storeId: string;
   businessVertical: string;
+  businessPreset: string | null;
   requestedBusinessVertical: string | null;
   verificationStatus: "unverified" | "pending" | "verified" | "rejected";
   enabledModules: string[];
@@ -959,6 +1011,525 @@ export const recordCashAdjustment = (
   request<CashAdjustmentResponse>(
     `/api/register/sessions/${sessionId}/cash-adjustments`,
     { method: "POST", body: JSON.stringify(data) },
+  );
+
+// ── Phase 12: F&B Tables ─────────────────────────────────────────────────────
+
+export interface DiningArea {
+  id: number;
+  store_id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  tables?: DiningTable[];
+}
+
+export interface DiningTable {
+  id: number;
+  store_id: string;
+  table_number: string;
+  area_id: number | null;
+  capacity: number;
+  status: "available" | "occupied" | "reserved" | "cleaning";
+  is_active: boolean;
+  area?: { id: number; name: string } | null;
+}
+
+export const getDiningAreas = (storeId = "default-store") =>
+  request<DiningArea[]>(
+    `/api/fnb/areas?storeId=${encodeURIComponent(storeId)}`,
+  );
+
+export const createDiningArea = (data: {
+  name: string;
+  description?: string;
+  sortOrder?: number;
+  storeId?: string;
+}) =>
+  request<DiningArea>("/api/fnb/areas", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateDiningArea = (
+  id: number,
+  data: { name?: string; description?: string; sortOrder?: number },
+) =>
+  request<DiningArea>(`/api/fnb/areas/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deactivateDiningArea = (id: number) =>
+  request<DiningArea>(`/api/fnb/areas/${id}`, { method: "DELETE" });
+
+export const getDiningTables = (storeId = "default-store") =>
+  request<DiningTable[]>(
+    `/api/fnb/tables?storeId=${encodeURIComponent(storeId)}`,
+  );
+
+export const createDiningTable = (data: {
+  tableNumber: string;
+  areaId?: number | null;
+  capacity?: number;
+  storeId?: string;
+}) =>
+  request<{ status: string; table: DiningTable }>("/api/fnb/tables", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateDiningTable = (
+  id: number,
+  data: {
+    tableNumber?: string;
+    areaId?: number | null;
+    capacity?: number;
+    isActive?: boolean;
+  },
+) =>
+  request<{ status: string; table: DiningTable }>(`/api/fnb/tables/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const setDiningTableStatus = (
+  id: number,
+  status: DiningTable["status"],
+) =>
+  request<{ status: string; table: DiningTable }>(
+    `/api/fnb/tables/${id}/status`,
+    { method: "PATCH", body: JSON.stringify({ status }) },
+  );
+
+// ── Phase 12: Inventory movements (typed) ────────────────────────────────────
+
+export interface InventoryMovement {
+  id: number;
+  menuId: number;
+  changeType: string;
+  qtyBefore: number;
+  qtyChange: number;
+  qtyAfter: number;
+  note: string | null;
+  storeId: string;
+  operatorId: string | null;
+  sourceRef: string | null;
+  orderId: number | null;
+  adminId: number | null;
+  locationId: number | null;
+  createdAt: string;
+}
+
+export const getInventoryMovements = (
+  params: {
+    storeId?: string;
+    changeType?: string;
+    locationId?: number;
+    menuId?: number;
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  request<{ movements: InventoryMovement[]; total: number }>(
+    `/api/inventory/movements${buildQs({
+      storeId: params.storeId,
+      changeType: params.changeType,
+      locationId: params.locationId,
+      limit: params.limit ?? 100,
+      offset: params.offset,
+    })}`,
+  );
+
+export interface InventoryStockBalance {
+  menuId: number;
+  locationId: number | null;
+  qtyOnHand: number;
+  legacyStock: number;
+}
+
+export const getInventoryStock = (
+  storeId = "default-store",
+  locationId?: number,
+) => {
+  const qs = buildQs({ storeId, locationId });
+  return request<InventoryStockBalance[]>(`/api/inventory/stock${qs}`);
+};
+
+export const createInventoryLocation = (data: {
+  name: string;
+  type?: string;
+  isDefault?: boolean;
+  storeId?: string;
+}) =>
+  request<InventoryLocation>("/api/inventory/locations", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+// ── Phase 12: Product variants ───────────────────────────────────────────────
+
+export interface ProductVariant {
+  id: number;
+  parentProductId: number;
+  variantProductId: number;
+  variantType: string;
+  variantValue: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  variantProduct: {
+    id: number;
+    name: string;
+    price: number;
+    stock: number;
+    sku: string | null;
+    barcode: string | null;
+    isActive: boolean;
+    isStockTracked: boolean;
+  };
+}
+
+// NOTE: variants service is registered but no controller wraps it as of
+// today. We expose helper API functions; if backend endpoints are added
+// later, they can plug in without UI changes.
+
+export const getProductVariants = (productId: number) =>
+  request<{ variants: ProductVariant[] }>(
+    `/api/products/${productId}/variants`,
+  );
+
+export const createProductVariant = (
+  parentId: number,
+  data: {
+    variantProductId: number;
+    variantType?: string;
+    variantValue: string;
+    sortOrder?: number;
+  },
+) =>
+  request<{ status: string; variant: any }>(
+    `/api/products/${parentId}/variants`,
+    { method: "POST", body: JSON.stringify(data) },
+  );
+
+export const removeProductVariant = (variantId: number) =>
+  request<{ status: string }>(`/api/products/variants/${variantId}`, {
+    method: "DELETE",
+  });
+
+// ── Phase 12: Product barcodes (CRUD) ─────────────────────────────────────────
+
+export interface ProductBarcode {
+  id: number;
+  menuId: number;
+  barcode: string;
+  barcodeType: string;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
+export const getProductBarcodes = (productId: number) =>
+  request<{ barcodes: ProductBarcode[] }>(
+    `/api/products/${productId}/barcodes`,
+  );
+
+export const addProductBarcode = (
+  productId: number,
+  data: { barcode: string; barcodeType?: string; isPrimary?: boolean },
+) =>
+  request<{ status: string; barcode: ProductBarcode }>(
+    `/api/products/${productId}/barcodes`,
+    { method: "POST", body: JSON.stringify(data) },
+  );
+
+export const removeProductBarcode = (barcodeId: number) =>
+  request<{ status: string }>(`/api/products/barcodes/${barcodeId}`, {
+    method: "DELETE",
+  });
+
+// ── Phase 12: Modifiers (FnB) ─────────────────────────────────────────────────
+
+export interface ModifierOption {
+  id: number;
+  groupId: number;
+  name: string;
+  priceDelta: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ModifierGroup {
+  id: number;
+  storeId: string;
+  name: string;
+  description: string | null;
+  selectionType: "single" | "multiple";
+  isRequired: boolean;
+  minSelect: number;
+  maxSelect: number | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  options: ModifierOption[];
+}
+
+export const getModifierGroups = (
+  includeInactive = false,
+  storeId = "default-store",
+) => {
+  const qs = buildQs({
+    storeId,
+    includeInactive: includeInactive ? "true" : "false",
+  });
+  return request<ModifierGroup[]>(`/api/modifiers/groups${qs}`);
+};
+
+export const createModifierGroup = (data: {
+  name: string;
+  description?: string;
+  selectionType?: "single" | "multiple";
+  isRequired?: boolean;
+  minSelect?: number;
+  maxSelect?: number | null;
+  sortOrder?: number;
+  storeId?: string;
+  options?: Array<{
+    name: string;
+    priceDelta?: number;
+    sortOrder?: number;
+    isActive?: boolean;
+  }>;
+}) =>
+  request<ModifierGroup>("/api/modifiers/groups", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateModifierGroup = (
+  id: number,
+  data: Partial<{
+    name: string;
+    description: string;
+    selectionType: "single" | "multiple";
+    isRequired: boolean;
+    minSelect: number;
+    maxSelect: number | null;
+    sortOrder: number;
+    isActive: boolean;
+  }>,
+) =>
+  request<ModifierGroup>(`/api/modifiers/groups/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deactivateModifierGroup = (id: number) =>
+  request(`/api/modifiers/groups/${id}`, { method: "DELETE" });
+
+export const addModifierOption = (
+  groupId: number,
+  data: { name: string; priceDelta?: number; sortOrder?: number },
+) =>
+  request<ModifierOption>(`/api/modifiers/groups/${groupId}/options`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateModifierOption = (
+  id: number,
+  data: Partial<{
+    name: string;
+    priceDelta: number;
+    sortOrder: number;
+    isActive: boolean;
+  }>,
+) =>
+  request<ModifierOption>(`/api/modifiers/options/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const removeModifierOption = (id: number) =>
+  request(`/api/modifiers/options/${id}`, { method: "DELETE" });
+
+// ── Phase 12: Recipes / BOM ──────────────────────────────────────────────────
+
+export interface RecipeIngredient {
+  id?: number;
+  ingredientMenuId: number;
+  ingredientName?: string;
+  qty: number;
+  unitCode?: string | null;
+  unitCost?: number | null;
+  lineCost?: number | null;
+  notes?: string | null;
+  sortOrder?: number;
+}
+
+export interface Recipe {
+  id: number;
+  menuId: number;
+  menuName: string;
+  menuSku: string | null;
+  menuPrice: number | null;
+  yieldQty: number;
+  yieldUnit: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  ingredients: RecipeIngredient[];
+  totalCost: number;
+  hpp: number;
+}
+
+export const getRecipes = () => request<Recipe[]>("/api/recipes");
+
+export const getRecipeByMenu = (menuId: number) =>
+  request<Recipe>(`/api/recipes/menu/${menuId}`);
+
+export const upsertRecipe = (data: {
+  menuId: number;
+  yieldQty?: number;
+  yieldUnit?: string;
+  notes?: string;
+  isActive?: boolean;
+  ingredients: RecipeIngredient[];
+}) =>
+  request<Recipe>("/api/recipes", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const deleteRecipe = (menuId: number) =>
+  request(`/api/recipes/menu/${menuId}`, { method: "DELETE" });
+
+// ── Phase 12: Stock Opname ───────────────────────────────────────────────────
+
+export type StockOpnameStatus = "draft" | "submitted" | "posted" | "cancelled";
+
+export interface StockOpnameLine {
+  id: number;
+  sessionId: number;
+  menuId: number;
+  productName: string;
+  systemQty: number;
+  countedQty: number | null;
+  varianceQty: number;
+  unitCost: number | null;
+  varianceValue: number;
+  notes: string | null;
+}
+
+export interface StockOpnameSession {
+  id: number;
+  sessionNumber: string;
+  storeId: string;
+  locationId: number | null;
+  status: StockOpnameStatus;
+  notes: string | null;
+  createdBy: string;
+  submittedAt: string | null;
+  postedAt: string | null;
+  postedBy: string | null;
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancelledReason: string | null;
+  totalVarianceQty: number;
+  totalVarianceValue: number;
+  createdAt: string;
+  updatedAt: string;
+  lines?: StockOpnameLine[];
+}
+
+export const getStockOpnameSessions = (
+  storeId = "default-store",
+  status?: StockOpnameStatus,
+  limit = 50,
+) => {
+  const qs = buildQs({ storeId, status, limit });
+  return request<StockOpnameSession[]>(`/api/stock-opname/sessions${qs}`);
+};
+
+export const getStockOpnameSession = (id: number) =>
+  request<StockOpnameSession & { lines: StockOpnameLine[] }>(
+    `/api/stock-opname/sessions/${id}`,
+  );
+
+export const createStockOpnameSession = (data: {
+  storeId?: string;
+  locationId?: number;
+  notes?: string;
+  menuIds?: number[];
+}) =>
+  request<StockOpnameSession & { lines: StockOpnameLine[] }>(
+    "/api/stock-opname/sessions",
+    { method: "POST", body: JSON.stringify(data) },
+  );
+
+export const updateStockOpnameLine = (
+  sessionId: number,
+  lineId: number,
+  data: { countedQty: number; notes?: string },
+) =>
+  request<StockOpnameLine>(
+    `/api/stock-opname/sessions/${sessionId}/lines/${lineId}`,
+    { method: "PATCH", body: JSON.stringify(data) },
+  );
+
+export const submitStockOpname = (id: number) =>
+  request<StockOpnameSession>(`/api/stock-opname/sessions/${id}/submit`, {
+    method: "POST",
+  });
+
+export const postStockOpname = (id: number) =>
+  request<StockOpnameSession & { lines: StockOpnameLine[] }>(
+    `/api/stock-opname/sessions/${id}/post`,
+    { method: "POST" },
+  );
+
+export const cancelStockOpname = (id: number, reason?: string) =>
+  request<StockOpnameSession>(`/api/stock-opname/sessions/${id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+
+// ── Phase 12: POS Corrections list (Returns / Refunds) ───────────────────────
+
+export interface PosCorrectionListItem {
+  id: number;
+  correctionNumber: string;
+  type: "void" | "refund" | "return";
+  reason: string;
+  operatorId: string;
+  orderId: number;
+  saleId: number | null;
+  receiptNumber: string | null;
+  amount: number;
+  metadata: any;
+  createdAt: string;
+}
+
+export const listPosCorrections = (
+  params: {
+    type?: "void" | "refund" | "return";
+    fromDate?: string;
+    toDate?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  request<{ items: PosCorrectionListItem[]; total: number }>(
+    `/api/pos/corrections${buildQs({
+      type: params.type,
+      fromDate: params.fromDate,
+      toDate: params.toDate,
+      limit: params.limit ?? 50,
+      offset: params.offset,
+    })}`,
   );
 
 // ── POS Corrections (Phase 5) ─────────────────────────────────────────────────

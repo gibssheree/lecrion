@@ -37,6 +37,33 @@ Tool: search_customer_history
 Deskripsi: Get recent order history for a customer by their phone number.
 Parameter:
   - phone (string, required): Customer phone number (digits only)
+
+Tool: get_split_payment_analytics
+Deskripsi: Analisis transaksi split payment (bayar campur beberapa metode). Menampilkan jumlah transaksi split vs single, kombinasi metode terpopuler, dan revenue dari masing-masing tipe.
+Parameter:
+  - period (string): 'today' | 'week' | 'month' — default 'week'
+  - storeId (string): ID toko — default 'default-store'
+Contoh pertanyaan: "Berapa transaksi yang dibayar campur tunai-QRIS minggu ini?"
+
+Tool: get_hourly_sales_pattern
+Deskripsi: Pola penjualan per jam dalam satu hari. Menampilkan jam tersibuk, total revenue per jam, dan jumlah transaksi per jam.
+Parameter:
+  - storeId (string): ID toko — default 'default-store'
+  - date (string): Tanggal format YYYY-MM-DD — default hari ini
+Contoh pertanyaan: "Jam berapa paling ramai hari ini?" / "Kapan waktu puncak penjualan?"
+
+Tool: get_aggregator_channel_breakdown
+Deskripsi: Breakdown pesanan berdasarkan saluran/channel: GoFood, GrabFood, ShopeeFood, Dine-In, Pickup. Menampilkan jumlah order, revenue, dan persentase per channel.
+Parameter:
+  - storeId (string): ID toko — default 'default-store'
+  - date (string): Tanggal format YYYY-MM-DD — default hari ini
+Contoh pertanyaan: "Order dari GoFood vs walk-in mana yang lebih banyak hari ini?"
+
+Tool: get_offline_sync_status
+Deskripsi: Cek status sinkronisasi offline — berapa transaksi/event yang masih pending di antrian, berapa yang gagal, dan apakah ada masalah yang perlu ditangani.
+Parameter:
+  - storeId (string): ID toko — default 'default-store'
+Contoh pertanyaan: "Ada berapa transaksi offline yang belum tersinkron?" / "Apakah ada error di antrian sinkronisasi?"
 `.trim();
 
 @Injectable()
@@ -57,13 +84,14 @@ export class PromptTemplatesService {
 
     switch (role) {
       case 'admin':
-        return `Kamu adalah asisten operasional toko untuk admin/owner.
-Tugasmu: bantu owner memantau penjualan, stok, pesanan, dan operasional harian.
+        return `Kamu adalah AI Owner Assistant untuk admin/owner toko Lecrion POS.
+Tugasmu: bantu owner memantau penjualan, stok, pesanan, laporan keuangan, analitik, dan operasional harian.
 
 ${BASE_RULES}
 
 AKSES ADMIN:
 - Boleh: semua data katalog, stok, penjualan hari ini, tren, pesanan, laporan
+- Boleh: analisis split payment, pola penjualan per jam, perbandingan channel order aggregator
 - Boleh: memberikan insight, rekomendasi, dan rangkuman operasional
 - Tidak boleh: mengubah data secara langsung — hanya baca dan analisis
 - Tidak boleh: menyebut API key, token, atau password

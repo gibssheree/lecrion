@@ -1,9 +1,12 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@libs/db/src/prisma';
 import {
+  BUSINESS_PRESET_TO_VERTICAL,
+  BusinessPresetValue,
   BusinessVertical,
   BusinessVerticalValue,
   CORE_MODULES,
+  PRESET_MODULES,
   PlatformModuleValue,
   StoreCapabilitiesResponse,
   StoreVerificationStatus,
@@ -44,9 +47,14 @@ function normalizeBusinessType(value?: string): BusinessType {
 const BUSINESS_TYPE_TO_VERTICAL: Record<string, BusinessVerticalValue> = {
   general: BusinessVertical.GENERAL,
   retail: BusinessVertical.RETAIL,
+  retail_store: BusinessVertical.RETAIL,
   restaurant: BusinessVertical.RESTAURANT_CAFE,
   cafe: BusinessVertical.RESTAURANT_CAFE,
   service: BusinessVertical.SERVICE_REPAIR,
+  accommodation: BusinessVertical.ACCOMMODATION_HOTEL,
+  accommodation_hotel: BusinessVertical.ACCOMMODATION_HOTEL,
+  hotel: BusinessVertical.ACCOMMODATION_HOTEL,
+  building_materials: BusinessVertical.CONSTRUCTION_MATERIALS,
   grocery_minimarket: BusinessVertical.GROCERY_MINIMARKET,
   restaurant_cafe: BusinessVertical.RESTAURANT_CAFE,
   wholesale_distribution: BusinessVertical.WHOLESALE_DISTRIBUTION,
@@ -59,6 +67,18 @@ const BUSINESS_TYPE_TO_VERTICAL: Record<string, BusinessVerticalValue> = {
 
 function normalizeBusinessVertical(value?: string): BusinessVerticalValue {
   return BUSINESS_TYPE_TO_VERTICAL[value ?? ''] ?? BusinessVertical.GENERAL;
+}
+
+function normalizeBusinessPreset(value?: string): BusinessPresetValue | null {
+  if (!value) return null;
+  if (value in BUSINESS_PRESET_TO_VERTICAL) return value as BusinessPresetValue;
+  if (value === 'restaurant_cafe' || value === 'restaurant') return 'restaurant';
+  if (value === 'retail') return 'retail_store';
+  if (value === 'construction_materials') return 'building_materials';
+  if (value === 'accommodation_hotel' || value === 'hotel') {
+    return 'accommodation';
+  }
+  return null;
 }
 
 function normalizeVerificationStatus(
@@ -291,6 +311,7 @@ export class StoresService {
     verifiedBy: string;
     notes?: string;
   }) {
+    const verifiedPreset = normalizeBusinessPreset(params.businessVertical);
     const verified = normalizeBusinessVertical(params.businessVertical);
     const now = new Date().toISOString();
 
@@ -324,6 +345,14 @@ export class StoresService {
       params.notes ?? null,
       now,
       now,
+    );
+
+    await this.setSettings(
+      {
+        businessVertical: verified,
+        ...(verifiedPreset ? { businessPreset: verifiedPreset } : {}),
+      },
+      params.storeId,
     );
 
     this.logger.log(
@@ -384,6 +413,9 @@ export class StoresService {
   async getStoreInfo(storeId = 'default-store') {
     const settings = await this.getSettings(storeId);
     const businessType = normalizeBusinessType(settings.businessType);
+    const businessPreset = normalizeBusinessPreset(
+      settings.businessPreset ?? settings.businessVertical ?? settings.businessType,
+    );
     const businessVertical = normalizeBusinessVertical(
       settings.businessVertical ?? settings.businessType,
     );
@@ -393,6 +425,7 @@ export class StoresService {
       tenantId: 'default',
       status: 'active',
       businessType,
+      businessPreset,
       businessVertical,
       isFnb: businessVertical === BusinessVertical.RESTAURANT_CAFE,
     };
@@ -403,6 +436,9 @@ export class StoresService {
   ): Promise<StoreCapabilitiesResponse> {
     const settings = await this.getSettings(storeId);
     const profile = await this.getStoreBusinessProfile(storeId);
+    const requestedPreset = normalizeBusinessPreset(
+      settings.businessPreset ?? settings.businessVertical ?? settings.businessType,
+    );
     const fallbackVertical = normalizeBusinessVertical(
       settings.businessVertical ?? settings.businessType,
     );
@@ -412,6 +448,11 @@ export class StoresService {
     const requestedBusinessVertical = profile?.requested_business_vertical
       ? normalizeBusinessVertical(profile.requested_business_vertical)
       : null;
+    const businessPreset =
+      requestedPreset &&
+      BUSINESS_PRESET_TO_VERTICAL[requestedPreset] === businessVertical
+        ? requestedPreset
+        : null;
     const verificationStatus = profile
       ? normalizeVerificationStatus(profile.verification_status)
       : StoreVerificationStatus.VERIFIED;
@@ -426,8 +467,13 @@ export class StoresService {
       dbCoreModules.length > 0
         ? dbCoreModules
         : ([...CORE_MODULES] as PlatformModuleValue[]);
+    const presetModules = businessPreset
+      ? ([...PRESET_MODULES[businessPreset]] as PlatformModuleValue[])
+      : [];
     const verticalModules =
-      dbVerticalModules.length > 0
+      presetModules.length > 0
+        ? presetModules
+        : dbVerticalModules.length > 0
         ? dbVerticalModules
         : ([
             ...(VERTICAL_MODULES[businessVertical] ?? []),
@@ -449,6 +495,7 @@ export class StoresService {
     return {
       storeId,
       businessVertical,
+      businessPreset,
       requestedBusinessVertical,
       verificationStatus,
       enabledModules: Array.from(enabledModuleSet),

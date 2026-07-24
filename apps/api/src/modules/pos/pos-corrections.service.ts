@@ -870,6 +870,85 @@ export class PosCorrectionsService {
     };
   }
 
+  // ── List corrections (for Returns / Refunds dashboard) ──────────────────────
+
+  /**
+   * List correction documents with optional filters.
+   *
+   * Used by the Retur / Refund page to show all void/refund/return events.
+   * Joins to orders for receipt number context.
+   */
+  async listCorrections(params: {
+    type?: string;
+    storeId?: string;
+    fromDate?: string;
+    toDate?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    items: Array<{
+      id: number;
+      correctionNumber: string;
+      type: string;
+      reason: string;
+      operatorId: string;
+      orderId: number;
+      saleId: number | null;
+      receiptNumber: string | null;
+      amount: number;
+      metadata: any;
+      createdAt: string;
+    }>;
+    total: number;
+  }> {
+    const limit = Math.min(Number(params.limit) || 50, 200);
+    const offset = Number(params.offset) || 0;
+
+    const where: Record<string, unknown> = {};
+    if (params.type) where['type'] = params.type;
+    if (params.fromDate || params.toDate) {
+      const range: Record<string, string> = {};
+      if (params.fromDate) range['gte'] = params.fromDate;
+      if (params.toDate) range['lte'] = params.toDate;
+      where['created_at'] = range;
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma.pos_corrections.findMany({
+        where,
+        include: { pos_sales: { select: { receipt_number: true } } },
+        orderBy: { created_at: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      this.prisma.pos_corrections.count({ where }),
+    ]);
+
+    const items = rows.map((row) => {
+      let metadata: any = null;
+      try {
+        metadata = row.metadata ? JSON.parse(row.metadata) : null;
+      } catch {
+        metadata = row.metadata;
+      }
+      return {
+        id: row.id,
+        correctionNumber: row.correction_number,
+        type: row.type,
+        reason: row.reason,
+        operatorId: row.operator_id,
+        orderId: row.original_order_id,
+        saleId: row.sale_id,
+        receiptNumber: row.pos_sales?.receipt_number ?? null,
+        amount: Number(row.amount),
+        metadata,
+        createdAt: row.created_at,
+      };
+    });
+
+    return { items, total };
+  }
+
   // ── Private helpers ──────────────────────────────────────────────────────────
 
   private isCashPayment(method: string): boolean {

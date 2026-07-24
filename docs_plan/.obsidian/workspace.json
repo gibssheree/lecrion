@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "SaaS production.md",
+                "file": "20-agent-execution-instructions.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "SaaS production"
+              "title": "20-agent-execution-instructions"
             }
           }
         ],
@@ -229,8 +229,11 @@
   },
   "active": "7b7e32ac0bb1c541",
   "lastOpenFiles": [
-    "singgah.md",
+    "18-production-readiness-roadmap.md",
+    "20-agent-execution-instructions.md",
+    "19-pilot-execution-plan-week1.md",
     "SaaS production.md",
+    "singgah.md",
     "Pasted image 20260528155024.png",
     "lecrion.md",
     "tasks.md",

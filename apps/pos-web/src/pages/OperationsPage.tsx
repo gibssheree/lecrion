@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { FileText, Plus, Save, X } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
 import {
@@ -55,7 +56,13 @@ function labelForType(value: string): string {
 }
 
 export default function OperationsPage() {
-  const [documentType, setDocumentType] = useState("");
+  const location = useLocation();
+  const routeDocumentType = location.pathname.includes("purchase-orders")
+    ? "purchase_order"
+    : location.pathname.includes("goods-receipts")
+      ? "goods_receipt"
+      : "";
+  const [documentType, setDocumentType] = useState(routeDocumentType);
   const [status, setStatus] = useState("");
   const docs = useApi(
     () =>
@@ -75,6 +82,10 @@ export default function OperationsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rows = (docs.data?.documents ?? docs.data?.items ?? []) as OperationDocument[];
+
+  useEffect(() => {
+    setDocumentType(routeDocumentType);
+  }, [routeDocumentType]);
 
   const stats = useMemo(
     () => ({
