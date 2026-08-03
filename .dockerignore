@@ -2,7 +2,8 @@
 node_modules
 apps/dashboard/node_modules
 apps/pos-web/node_modules
-apps/pos-web/landing-page
+apps/pos-web/landing-page/node_modules
+apps/pos-web/landing-page/dist
 database/*.db
 database/*.db-shm
 database/*.db-wal
