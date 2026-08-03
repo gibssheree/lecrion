@@ -59,11 +59,38 @@ async function main() {
     },
   });
 
+  // ── Leadership owner accounts ────────────────────────────────────────────
+  const exelOwnerPassword = await bcrypt.hash("exel123", 10);
+  await prisma.users.upsert({
+    where: { email: "exel@support.com" },
+    update: { password_hash: exelOwnerPassword, role: "owner" },
+    create: {
+      email: "exel@support.com",
+      password_hash: exelOwnerPassword,
+      role: "owner",
+      store_id: "default-store",
+    },
+  });
+
+  const jassonOwnerPassword = await bcrypt.hash("jasson123", 10);
+  await prisma.users.upsert({
+    where: { email: "jasson@support.com" },
+    update: { password_hash: jassonOwnerPassword, role: "owner" },
+    create: {
+      email: "jasson@support.com",
+      password_hash: jassonOwnerPassword,
+      role: "owner",
+      store_id: "default-store",
+    },
+  });
+
   console.log("✅ Users seeded:");
   console.log("   Owner:   admin@lecrion.com   / admin123");
   console.log("   Support: support@lecrion.com / admin123");
   console.log("   Support: exel@lecrion.com    / exeltest123");
   console.log("   Support: jasson@lecrion.com  / jassontest123");
+  console.log("   Owner:   exel@support.com    / exel123");
+  console.log("   Owner:   jasson@support.com  / jasson123");
 }
 
 main()
