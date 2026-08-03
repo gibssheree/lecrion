@@ -16,14 +16,24 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY tsconfig.json ./
+COPY prisma.config.ts ./
 
-# Install all deps (dev included for build)
-RUN npm ci --ignore-scripts
+# Install all deps (dev included for build). Do NOT pass --ignore-scripts:
+# better-sqlite3's install script builds/downloads its native binding, and
+# skipping it causes a "Could not locate the bindings file" crash at runtime.
+RUN npm ci
 
 # Copy source
 COPY apps/api ./apps/api
+# apps/bot is not a standalone service, but its TypeScript source is a real
+# build-time dependency: apps/api's bot module imports formatters/intents
+# from it via the "@bot/*" path alias (see tsconfig.json).
+COPY apps/bot ./apps/bot
 COPY libs ./libs
 COPY prisma ./prisma
+
+# Generate the Prisma client for this schema (not automatic in this repo).
+RUN npx prisma generate
 
 # Build NestJS API
 WORKDIR /app/apps/api
@@ -40,18 +50,27 @@ RUN addgroup -S lecrion && adduser -S lecrion -G lecrion
 # Copy workspace manifests for prod install
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
+COPY prisma.config.ts ./
 
-# Install production deps only
-RUN npm ci --omit=dev --ignore-scripts
+# Install production deps only (prisma CLI is a regular dependency — needed
+# here for `prisma migrate deploy` at container start). No --ignore-scripts —
+# better-sqlite3 needs its install script to build/download its native binding.
+RUN npm ci --omit=dev
 
-# Copy compiled output
+# Copy compiled output — self-contained, includes compiled libs/ already
+# (nest build resolves the "@libs/*" path alias into a relative require
+# pointing at apps/api/dist/libs/..., so no raw libs/ source is needed here).
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
-# Copy prisma schema + migrations (needed for prisma client)
+# Copy prisma schema + migrations (needed by `prisma migrate deploy`)
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/libs ./libs
 
-# DB directory
+# Copy the generated Prisma client (schema-specific output, not part of the
+# published @prisma/client package) so we don't need to re-run `prisma
+# generate` — and re-download the query engine — in this stage.
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# DB directory — matches the `lecrion_db` volume mount in docker-compose.yml
 RUN mkdir -p database && chown lecrion:lecrion database
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

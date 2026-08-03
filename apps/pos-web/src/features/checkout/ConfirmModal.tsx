@@ -1,5 +1,5 @@
-import { X, CreditCard, User, FileText, ShoppingBag } from "lucide-react";
-import { CartItem } from "../../store/cart.store";
+import { X, CreditCard, User, FileText, ShoppingBag, Smartphone } from "lucide-react";
+import { CartItem, useCartStore } from "../../store/cart.store";
 import { PaymentLineInput } from "./useCheckout";
 
 function fmt(n: number): string {
@@ -39,6 +39,9 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
 }: Props) {
+  const channel = useCartStore((s) => s.channel);
+  const externalOrderId = useCartStore((s) => s.externalOrderId);
+  const courierName = useCartStore((s) => s.courierName);
   const hasCash = payments.some((p) => p.method.toLowerCase() === "cash");
   const change = hasCash ? Math.max(0, cashPaidTotal - total) : 0;
   const isSplit = payments.length > 1;
@@ -84,8 +87,8 @@ export default function ConfirmModal({
           </button>
         </div>
 
-        {/* Customer & note */}
-        {(customerName || note) && (
+        {/* Customer, channel & note */}
+        {(customerName || note || channel) && (
           <div
             style={{
               background: "var(--bg-elevated)",
@@ -97,6 +100,27 @@ export default function ConfirmModal({
               gap: 4,
             }}
           >
+            {channel && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                }}
+              >
+                <Smartphone size={13} color="var(--primary)" />
+                <span style={{ color: "var(--text-muted)" }}>Order Online:</span>
+                <span className="badge blue" style={{ fontWeight: 700, textTransform: "capitalize" }}>
+                  {channel} {externalOrderId ? `(#${externalOrderId})` : ""}
+                </span>
+                {courierName && (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    via {courierName}
+                  </span>
+                )}
+              </div>
+            )}
             {customerName && (
               <div
                 style={{

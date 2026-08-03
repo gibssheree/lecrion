@@ -2,6 +2,7 @@
 node_modules
 apps/dashboard/node_modules
 apps/pos-web/node_modules
+apps/pos-web/landing-page
 database/*.db
 database/*.db-shm
 database/*.db-wal
@@ -10,6 +11,8 @@ database/*.db-wal
 !.env.example
 *.log
 npm-debug.log*
-infra/
-prisma/
 docs_plan/
+
+# NOTE: prisma/ and infra/nginx are intentionally NOT ignored — Dockerfile.api
+# and Dockerfile.worker COPY prisma/ for migrations, and Dockerfile.web COPYs
+# infra/nginx/lecrion.conf. Do not re-add blanket "infra/" or "prisma/" ignores.

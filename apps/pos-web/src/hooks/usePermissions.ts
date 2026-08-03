@@ -20,6 +20,7 @@
 //   if (!canVoid) return null; // hide the button
 
 import { useAuthStore } from "../store/auth.store";
+import { useSupportPreviewStore } from "../store/support-preview.store";
 
 const ROLE_LEVEL: Record<string, number> = {
   support: 120,
@@ -35,39 +36,39 @@ function level(role: string): number {
 
 export function usePermissions() {
   const user = useAuthStore((s) => s.user);
+  const isPreviewActive = useSupportPreviewStore((s) => s.isPreviewActive);
   const role = user?.role ?? "cashier";
   const userLevel = level(role);
   const isSupport = role === "support";
+  const isSupportInPreview = isSupport && isPreviewActive;
 
   return {
     role,
     isSupport,
+    isSupportInPreview,
 
     // ── Merchant operational actions ────────────────────────────────────────
-    // Support intentionally CANNOT do these — these belong to the merchant.
-    canOpenRegister: !isSupport && userLevel >= level("cashier"),
-    canCloseRegister: !isSupport && userLevel >= level("cashier"),
-    canSuspendRegister: !isSupport && userLevel >= level("cashier"),
-    canCreateSale: !isSupport && userLevel >= level("cashier"),
-    canVoid: !isSupport && userLevel >= level("cashier"),
-    canRefund: !isSupport && userLevel >= level("cashier"),
-    canReturnItems: !isSupport && userLevel >= level("cashier"),
-    canApplyDiscount: !isSupport && userLevel >= level("cashier"),
+    canOpenRegister: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canCloseRegister: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canSuspendRegister: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canCreateSale: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canVoid: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canRefund: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canReturnItems: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
+    canApplyDiscount: isSupportInPreview || (!isSupport && userLevel >= level("cashier")),
 
     // ── Merchant management actions ────────────────────────────────────────
-    // Support cannot view merchant-internal financials, but CAN manage products
-    // (e.g. when assisting onboarding) — gated case-by-case.
-    canApproveWithoutPin: !isSupport && userLevel >= level("manager"),
-    canViewAllReports: !isSupport && userLevel >= level("manager"),
-    canManageProducts: !isSupport && userLevel >= level("manager"),
+    canApproveWithoutPin: isSupportInPreview || (!isSupport && userLevel >= level("manager")),
+    canViewAllReports: isSupportInPreview || (!isSupport && userLevel >= level("manager")),
+    canManageProducts: isSupportInPreview || (!isSupport && userLevel >= level("manager")),
     canManageInventory:
-      !isSupport && ["owner", "manager", "inventory_staff"].includes(role),
-    canViewCashflow: !isSupport && userLevel >= level("manager"),
-    canViewAnalytics: !isSupport && userLevel >= level("manager"),
+      isSupportInPreview || (!isSupport && ["owner", "manager", "inventory_staff"].includes(role)),
+    canViewCashflow: isSupportInPreview || (!isSupport && userLevel >= level("manager")),
+    canViewAnalytics: isSupportInPreview || (!isSupport && userLevel >= level("manager")),
 
     // ── Merchant-owner actions ─────────────────────────────────────────────
-    canManageUsers: role === "owner",
-    canChangeSettings: role === "owner",
+    canManageUsers: isSupportInPreview || role === "owner",
+    canChangeSettings: isSupportInPreview || role === "owner",
 
     // ── Platform support actions (support-only) ───────────────────────────
     canVerifyStores: isSupport,

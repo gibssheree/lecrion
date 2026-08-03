@@ -1,0 +1,49 @@
+/* apps/pos-web/src/components/ui/GlassPanel.css */
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-panel-dark {
+  background: var(--glass-bg-dark);
+  border-color: var(--glass-border-dark);
+  color: white;
+}
+
+.glass-panel-hoverable {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-panel-hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.glass-panel-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Optional glow effect behind the panel */
+.glass-panel-glow::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(var(--hue-primary), 100%, 80%, 0.15) 0%,
+    transparent 50%
+  );
+  z-index: 0;
+  pointer-events: none;
+}

@@ -125,6 +125,18 @@ export class CreatePosSaleDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @IsOptional()
+  @IsString()
+  channel?: string;
+
+  @IsOptional()
+  @IsString()
+  externalOrderId?: string;
+
+  @IsOptional()
+  @IsString()
+  courierName?: string;
 }
 
 export interface PosSaleReceipt {
@@ -134,6 +146,9 @@ export interface PosSaleReceipt {
   registerSessionId: number;
   cashierId: string;
   customerName: string;
+  channel?: string;
+  externalOrderId?: string;
+  courierName?: string;
   subtotal: number;
   discountAmount: number;
   discountReason?: string;

@@ -70,14 +70,16 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   unverified: { label: "Belum Diverifikasi", color: "#94a3b8" },
 };
 
+import SupportPreviewBanner from "./SupportPreviewBanner";
+
 function canShowItem(
   item: NavigationItem,
   hasModule: (moduleKey: string) => boolean,
   permissions: ReturnType<typeof usePermissions>,
   businessPreset?: string | null,
 ) {
-  // Hide merchant nav items entirely for support users
-  if (permissions.isSupport && item.hideForSupport) return false;
+  // Hide merchant nav items entirely for support users UNLESS in Support Preview mode
+  if (permissions.isSupport && !permissions.isSupportInPreview && item.hideForSupport) return false;
 
   const preset = businessPreset as BusinessPresetKey | null | undefined;
   if (item.presets && (!preset || !item.presets.includes(preset))) {
@@ -341,11 +343,14 @@ export default function PosLayout({ children }: Props) {
   const pageTitle = usePageTitleValue();
 
   return (
-    <div
-      className={`pos-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
-      data-role={user?.role ?? undefined}
-    >
-      {/* ── Navbar — full width ── */}
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+      <SupportPreviewBanner />
+      <div
+        className={`pos-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
+        data-role={user?.role ?? undefined}
+        style={{ height: "100%", flex: 1 }}
+      >
+        {/* ── Navbar — full width ── */}
       <header className="pos-navbar">
         <img src={lecrionLogo} alt="Lecrion" className="pos-navbar-logo" />
 
@@ -593,7 +598,7 @@ export default function PosLayout({ children }: Props) {
 
           {/* Nav */}
           <nav className="pos-sidebar-nav" aria-label="POS navigation">
-            {permissions.isSupport ? (
+            {permissions.isSupport && !permissions.isSupportInPreview ? (
               <>
                 <div className="pos-sidebar-section">Platform</div>
                 {visibleSupportNav.map(renderNavItem)}
@@ -647,6 +652,7 @@ export default function PosLayout({ children }: Props) {
 
       {/* Command palette — Ctrl+K */}
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      </div>
     </div>
   );
 }

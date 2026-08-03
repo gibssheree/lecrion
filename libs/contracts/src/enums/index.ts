@@ -87,12 +87,31 @@ export const StockMovementType = {
 export type StockMovementTypeValue =
   (typeof StockMovementType)[keyof typeof StockMovementType];
 
+// ── Online Channels (Tablet Stacking & Integrations) ─────────────────────────
+export const OnlineChannel = {
+  IN_STORE: "in_store",
+  GOFOOD: "gofood",
+  GRABFOOD: "grabfood",
+  SHOPEEFOOD: "shopeefood",
+  TOKOPEDIA: "tokopedia",
+  TIKTOK: "tiktok",
+  DIRECT_COURIER: "direct_courier",
+  OTHER: "other",
+} as const;
+
+export type OnlineChannelValue =
+  (typeof OnlineChannel)[keyof typeof OnlineChannel];
+
 // ── Payment method ────────────────────────────────────────────────────────────
 export const PaymentMethod = {
   CASH: "Cash",
   TRANSFER: "Transfer",
   QRIS: "QRIS",
   GOPAY: "GoPay",
+  GOFOOD: "GoFood",
+  GRABFOOD: "GrabFood",
+  SHOPEEFOOD: "ShopeeFood",
+  COURIER_COD: "Courier COD",
 } as const;
 
 export type PaymentMethodValue =

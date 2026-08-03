@@ -366,6 +366,10 @@ model orders {
   table_id            Int?
   // ── Phase 7: customer link ────────────────────────────────────────────────
   customer_id         Int?
+  // ── Online Orders & Tablet Stacking ────────────────────────────────────────
+  channel             String?           @default("in_store")
+  external_order_id   String?
+  courier_name        String?
   // ─────────────────────────────────────────────────────────────────────────
   order_items         order_items[]
   order_ratings       order_ratings?
@@ -442,6 +446,10 @@ model pos_sales {
   voucher_code            String?
   loyalty_points_earned   Int               @default(0)
   loyalty_points_redeemed Int               @default(0)
+  // ── Online Orders & Tablet Stacking ────────────────────────────────────────
+  channel                 String?           @default("in_store")
+  external_order_id       String?
+  courier_name            String?
   // ─────────────────────────────────────────────────────────────────────────
   created_at              String            @default("datetime('now')")
   pos_sale_items          pos_sale_items[]

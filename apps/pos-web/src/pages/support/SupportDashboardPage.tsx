@@ -17,6 +17,7 @@ import {
   listAdminStores,
 } from "../../services/api";
 import { fmt } from "../../utils/fmt";
+import SupportVerticalExplorer from "../../components/support/SupportVerticalExplorer";
 
 /**
  * Support Dashboard — overview for the platform team.
@@ -129,6 +130,9 @@ export default function SupportDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Business Vertical Explorer (Support Preview Mode) */}
+      <SupportVerticalExplorer />
 
       {/* Two-column section */}
       <div

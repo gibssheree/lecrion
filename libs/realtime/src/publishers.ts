@@ -60,10 +60,16 @@ export function emitLowStockBatch(
 export function emitInboxEvent(inboxRow: {
   event_type: string;
   payload: string;
+  storeId?: string;
 }): void {
   try {
     const payload = JSON.parse(inboxRow.payload ?? "{}");
-    emit("sync.inbox", { event: inboxRow.event_type, ...payload });
+    const room = inboxRow.storeId ? `store:${inboxRow.storeId}` : undefined;
+    emit(
+      "sync.inbox",
+      { event: inboxRow.event_type, ...payload },
+      room,
+    );
   } catch {
     /* ignore malformed */
   }

@@ -9,3 +9,11 @@ database/canteen.db
 database/canteen.db-shm
 database/canteen.db-wal
 apps/*/dist/
+
+# Compiled output accidentally committed alongside libs/*/src TypeScript
+# sources in the past (Node/ts-node resolve .js before .ts, so a stale
+# compiled file silently shadows edits to its .ts source). Do not commit
+# compiled output here — libs/*/src should contain .ts sources only.
+libs/*/src/**/*.js
+libs/*/src/**/*.js.map
+libs/*/src/**/*.d.ts

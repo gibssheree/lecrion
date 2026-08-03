@@ -60,6 +60,9 @@ describe('PosSalesService', () => {
       orders: {
         create: jest.fn().mockResolvedValue({ id: 123 }),
       },
+      recipes: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       order_items: {
         create: jest.fn().mockResolvedValue({}),
       },

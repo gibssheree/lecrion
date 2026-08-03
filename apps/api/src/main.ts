@@ -42,12 +42,20 @@ async function bootstrap() {
     new TenantGuard(),
   );
 
-  // CORS — allow dashboard and pos-web origins
-  const allowedOrigins = [
-    'http://localhost:5173', // Vite dashboard dev
-    'http://localhost:3001', // dashboard prod
-    'http://localhost:3002', // pos-web
-  ];
+  // CORS — allow dashboard and pos-web origins.
+  // DASHBOARD_ORIGIN (same env var used by Socket.IO in libs/realtime/src/socket.ts)
+  // is a comma-separated list of allowed origins, or "*" to allow any origin.
+  // Falls back to local dev origins when unset.
+  const dashboardOrigin = process.env['DASHBOARD_ORIGIN'];
+  const allowedOrigins = dashboardOrigin
+    ? dashboardOrigin === '*'
+      ? '*'
+      : dashboardOrigin.split(',').map((s) => s.trim())
+    : [
+        'http://localhost:5173', // Vite dashboard dev
+        'http://localhost:3001', // dashboard prod
+        'http://localhost:3002', // pos-web
+      ];
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,

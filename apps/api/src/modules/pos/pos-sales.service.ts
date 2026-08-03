@@ -237,6 +237,9 @@ export class PosSalesService {
             address: '',
             payment_method: primaryPaymentMethod,
             status: OrderStatus.CONFIRMED,
+            channel: dto.channel ?? 'in_store',
+            external_order_id: dto.externalOrderId ?? null,
+            courier_name: dto.courierName ?? null,
             created_at: now,
           },
         });
@@ -292,6 +295,76 @@ export class PosSalesService {
               },
               { source: 'pos', storeId, correlationId: clientSaleId },
             );
+          }
+
+          // ── BOM (Recipe) ingredient auto-deduction ───────────────────────
+          const recipe = await tx.recipes.findUnique({
+            where: { menu_id: item.productId },
+            include: {
+              ingredients: {
+                include: {
+                  ingredient: {
+                    select: {
+                      id: true,
+                      name: true,
+                      stock: true,
+                      is_stock_tracked: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          if (recipe && recipe.is_active && recipe.ingredients.length > 0) {
+            const yieldQty = recipe.yield_qty > 0 ? recipe.yield_qty : 1;
+            for (const recipeIng of recipe.ingredients) {
+              const ingProduct = recipeIng.ingredient;
+              if (!ingProduct) continue;
+              const consumedQty = (recipeIng.qty / yieldQty) * item.qty;
+              if (consumedQty <= 0) continue;
+
+              const isIngTracked = ingProduct.is_stock_tracked ?? true;
+              if (isIngTracked) {
+                const ingQtyBefore = ingProduct.stock;
+                const ingQtyChange = -Math.abs(consumedQty);
+                const ingQtyAfter = ingQtyBefore + ingQtyChange;
+
+                await tx.menu.update({
+                  where: { id: recipeIng.ingredient_menu_id },
+                  data: { stock: { decrement: consumedQty } },
+                });
+
+                await tx.stock_change_logs.create({
+                  data: {
+                    menu_id: recipeIng.ingredient_menu_id,
+                    order_id: order.id,
+                    change_type: StockMovementType.SALE,
+                    qty_before: ingQtyBefore,
+                    qty_change: ingQtyChange,
+                    qty_after: ingQtyAfter,
+                    note: `BOM ingredient for POS item ${item.name} (${clientSaleId})`,
+                    store_id: storeId,
+                    operator_id: cashierId,
+                    source_ref: clientSaleId,
+                    created_at: now,
+                  },
+                });
+
+                await this.sync.writeOutboxInTx(
+                  tx,
+                  STOCK_EVENTS.ADJUSTED,
+                  {
+                    orderId: order.id,
+                    productId: recipeIng.ingredient_menu_id,
+                    qtyChange: ingQtyChange,
+                    qtyAfter: ingQtyAfter,
+                    reason: StockMovementType.SALE,
+                  },
+                  { source: 'pos', storeId, correlationId: clientSaleId },
+                );
+              }
+            }
           }
         }
 
@@ -425,6 +498,9 @@ export class PosSalesService {
             customer_phone: dto.customerPhone ?? null,
             order_type: dto.orderType,
             status: PosSaleStatus.PAID,
+            channel: dto.channel ?? 'in_store',
+            external_order_id: dto.externalOrderId ?? null,
+            courier_name: dto.courierName ?? null,
             subtotal: this.roundMoney(subtotal),
             discount_amount: discountAmount,
             discount_reason: discountReason ?? null,
@@ -484,6 +560,9 @@ export class PosSalesService {
               paymentMethods,
               paymentLines,
               registerSessionId: dto.registerSessionId,
+              channel: dto.channel,
+              externalOrderId: dto.externalOrderId,
+              courierName: dto.courierName,
             }),
             tenant_id: user?.tenantId ?? 'default',
             store_id: storeId,
@@ -499,6 +578,9 @@ export class PosSalesService {
           registerSessionId: dto.registerSessionId,
           cashierId,
           customerName,
+          channel: dto.channel ?? 'in_store',
+          externalOrderId: dto.externalOrderId ?? undefined,
+          courierName: dto.courierName ?? undefined,
           subtotal: this.roundMoney(subtotal),
           discountAmount,
           discountReason,

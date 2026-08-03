@@ -1,3 +1,4 @@
+import * as React from "react";
 import RegisterGatePage from "../../features/register/RegisterGatePage";
 import { useRegisterStore } from "../../store";
 import { useNavigate } from "react-router-dom";
@@ -19,10 +20,21 @@ export default function RegisterGuard({
   const status = useRegisterStore((s) => s.status);
   const session = useRegisterStore((s) => s.session);
   const initialized = useRegisterStore((s) => s.initialized);
+  const refresh = useRegisterStore((s) => s.refresh);
   const navigate = useNavigate();
+  const [timeoutReached, setTimeoutReached] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!initialized) {
+      refresh();
+      // Fail-safe in case refresh hangs
+      const timer = setTimeout(() => setTimeoutReached(true), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [initialized, refresh]);
 
   // Still waiting for first fetch — skeleton prevents flash of wrong branch.
-  if (!initialized) {
+  if (!initialized && !timeoutReached) {
     return (
       <div className="pos-shell">
         {/* Topbar skeleton */}

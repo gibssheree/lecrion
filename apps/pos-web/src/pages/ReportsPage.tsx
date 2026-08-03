@@ -20,6 +20,9 @@ import {
 } from "lucide-react";
 import PosAppShell from "../components/layout/PosAppShell";
 import { fmt, fmtPct } from "../utils/fmt";
+import GlassPanel from "../components/ui/GlassPanel";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 const BASE = "";
 function getToken() {
@@ -93,16 +96,16 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="summary-card">
-      <div className="summary-card-label">{label}</div>
+    <GlassPanel hoverable className="summary-card" style={{ padding: '16px' }}>
+      <div className="summary-card-label" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{label}</div>
       <div
         className="summary-card-value"
-        style={color ? { color } : undefined}
+        style={{ fontSize: '1.5rem', fontWeight: 700, color: color || 'var(--text-primary)' }}
       >
         {value}
       </div>
-      {sub && <div className="summary-card-sub">{sub}</div>}
-    </div>
+      {sub && <div className="summary-card-sub" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>{sub}</div>}
+    </GlassPanel>
   );
 }
 
@@ -446,22 +449,35 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Payment mix */}
+            {/* Payment mix & Online Channels */}
             <div className="dashboard-card">
               <div className="dashboard-card-header">
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <CreditCard size={14} /> Metode Pembayaran
+                  <CreditCard size={14} /> Metode & Channel Penjualan (Online/Offline)
                 </span>
               </div>
               <div className="dashboard-card-body">
-                {paymentMix.map((p: any, i: number) => (
-                  <div key={i} className="shift-row">
-                    <span className="shift-row-label">{p.method}</span>
-                    <span className="shift-row-value">
-                      {p.saleCount} · Rp{fmt(p.totalAmount)} ({fmtPct(p.percentage)})
-                    </span>
-                  </div>
-                ))}
+                {paymentMix.map((p: any, i: number) => {
+                  const m = String(p.method || "").toLowerCase();
+                  let icon = "💳";
+                  if (m.includes("shopee")) icon = "🧡";
+                  else if (m.includes("gofood") || m.includes("gojek")) icon = "🛵";
+                  else if (m.includes("grab")) icon = "💚";
+                  else if (m.includes("courier") || m.includes("kurir")) icon = "📦";
+                  else if (m.includes("cash") || m.includes("tunai")) icon = "💵";
+                  else if (m.includes("qris")) icon = "📱";
+
+                  return (
+                    <div key={i} className="shift-row">
+                      <span className="shift-row-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{icon}</span> {p.method}
+                      </span>
+                      <span className="shift-row-value">
+                        {p.saleCount} trx · Rp{fmt(p.totalAmount)} ({fmtPct(p.percentage)})
+                      </span>
+                    </div>
+                  );
+                })}
                 {!paymentMix.length && (
                   <div style={{ color: "var(--text-muted)", fontSize: 13 }}>
                     Belum ada data

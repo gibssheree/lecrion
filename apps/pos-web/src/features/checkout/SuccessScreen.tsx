@@ -209,6 +209,38 @@ export default function SuccessScreen({
               </span>
             </div>
           )}
+          {result.channel && result.channel !== "in_store" && (
+            <div
+              className="row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11,
+                color: "var(--text-muted)",
+              }}
+            >
+              <span>Channel Online</span>
+              <span style={{ fontWeight: 700, color: "var(--primary)", textTransform: "capitalize" }}>
+                {result.channel} {result.externalOrderId ? `(#${result.externalOrderId})` : ""}
+              </span>
+            </div>
+          )}
+          {result.courierName && (
+            <div
+              className="row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11,
+                color: "var(--text-muted)",
+              }}
+            >
+              <span>Kurir / Ekspedisi</span>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                {result.courierName}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Item lines */}

@@ -8,6 +8,7 @@ import { usePagination } from "../../hooks/usePagination";
 import { useApi } from "../../hooks/useApi";
 import { listAdminStores } from "../../services/api";
 import { BUSINESS_VERTICALS } from "../../constants/verticals";
+import SupportVerticalExplorer from "../../components/support/SupportVerticalExplorer";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua status" },
@@ -56,6 +57,9 @@ export default function SupportMerchantsPage() {
 
   return (
     <PosAppShell title="Merchant">
+      {/* Business Vertical Explorer (Support Preview Mode) */}
+      <SupportVerticalExplorer />
+
       <div className="dashboard-card" style={{ marginBottom: 0 }}>
         <div
           className="dashboard-card-header"

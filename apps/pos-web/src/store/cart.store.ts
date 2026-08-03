@@ -22,6 +22,9 @@ export interface HeldCart {
   label: string;
   items: CartItem[];
   orderType: OrderType;
+  channel?: string;
+  externalOrderId?: string;
+  courierName?: string;
   createdAt: string;
   updatedAt: string;
   isHeld: boolean;
@@ -34,6 +37,9 @@ interface CartState {
   subtotal: number;
   itemCount: number;
   orderType: OrderType;
+  channel?: string;
+  externalOrderId?: string;
+  courierName?: string;
   addItem: (product: {
     id: number;
     name: string;
@@ -45,6 +51,11 @@ interface CartState {
   updateQty: (productId: number, qty: number) => void;
   clear: () => void;
   setOrderType: (type: OrderType) => void;
+  setOnlineOrderDetails: (
+    channel?: string,
+    externalOrderId?: string,
+    courierName?: string,
+  ) => void;
   createCart: (label?: string) => void;
   switchCart: (cartId: string) => void;
   holdActiveCart: (label?: string) => void;
@@ -86,11 +97,15 @@ function activeOrderType(carts: HeldCart[], activeCartId: string): OrderType {
 
 function derive(carts: HeldCart[], activeCartId: string) {
   const items = activeItems(carts, activeCartId);
+  const activeCart = carts.find((cart) => cart.id === activeCartId);
   return {
     carts,
     activeCartId,
     items,
     orderType: activeOrderType(carts, activeCartId),
+    channel: activeCart?.channel,
+    externalOrderId: activeCart?.externalOrderId,
+    courierName: activeCart?.courierName,
     ...calcTotals(items),
   };
 }
@@ -201,6 +216,22 @@ export const useCartStore = create<CartState>((set, get) => ({
     const updatedCarts = carts.map((cart) =>
       cart.id === activeCartId
         ? { ...cart, orderType: type, updatedAt: new Date().toISOString() }
+        : cart,
+    );
+    set(derive(updatedCarts, activeCartId));
+  },
+
+  setOnlineOrderDetails: (channel, externalOrderId, courierName) => {
+    const { carts, activeCartId } = get();
+    const updatedCarts = carts.map((cart) =>
+      cart.id === activeCartId
+        ? {
+            ...cart,
+            channel,
+            externalOrderId,
+            courierName,
+            updatedAt: new Date().toISOString(),
+          }
         : cart,
     );
     set(derive(updatedCarts, activeCartId));

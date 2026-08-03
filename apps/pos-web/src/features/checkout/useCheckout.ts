@@ -46,6 +46,9 @@ export function useCheckout() {
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal);
   const orderType = useCartStore((s) => s.orderType);
+  const channel = useCartStore((s) => s.channel);
+  const externalOrderId = useCartStore((s) => s.externalOrderId);
+  const courierName = useCartStore((s) => s.courierName);
   const clear = useCartStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
   const registerSession = useRegisterStore((s) => s.session);
@@ -86,6 +89,9 @@ export function useCheckout() {
         storeId: registerSession.store_id,
         cashierId: user?.actor ?? "kasir",
         orderType,
+        channel: channel || undefined,
+        externalOrderId: externalOrderId || undefined,
+        courierName: courierName || undefined,
         customerName: customerName || undefined,
         note: note || undefined,
         items: items.map((i) => ({

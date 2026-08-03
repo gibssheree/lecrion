@@ -49,4 +49,7 @@ export default defineConfig({
       url: dbUrl,
     },
   },
+  migrations: {
+    seed: "npx tsx prisma/seed.ts",
+  },
 });

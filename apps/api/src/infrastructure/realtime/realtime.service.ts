@@ -80,7 +80,11 @@ export class RealtimeService {
   /**
    * Emit a sync inbox event (from outbox processor).
    */
-  emitInboxEvent(inboxRow: { event_type: string; payload: string }): void {
+  emitInboxEvent(inboxRow: {
+    event_type: string;
+    payload: string;
+    storeId?: string;
+  }): void {
     publishers.emitInboxEvent(inboxRow);
   }
 

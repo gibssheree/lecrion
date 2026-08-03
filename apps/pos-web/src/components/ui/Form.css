@@ -1,0 +1,82 @@
+/* apps/pos-web/src/components/ui/Form.css */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-icon-left {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  display: flex;
+}
+
+.form-icon-right {
+  position: absolute;
+  right: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+}
+
+.form-control {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(var(--hue-primary), 84%, 55%, 0.15);
+}
+
+.form-control:disabled {
+  background-color: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.form-control.has-icon-left {
+  padding-left: 2.5rem;
+}
+
+.form-control.has-icon-right {
+  padding-right: 2.5rem;
+}
+
+.form-control.is-invalid {
+  border-color: var(--danger);
+}
+.form-control.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.form-error {
+  font-size: 0.75rem;
+  color: var(--danger);
+  margin-top: -0.25rem;
+}

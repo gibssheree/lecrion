@@ -183,7 +183,30 @@ export default function OrdersPage() {
                         </button>
                       </span>
                     </td>
-                    <td style={{ fontWeight: 500 }}>{o.name || "—"}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      <div>{o.name || "—"}</div>
+                      {o.channel && o.channel !== "in_store" && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                          <span
+                            className="badge blue"
+                            style={{
+                              fontSize: 10,
+                              padding: "1px 6px",
+                              fontWeight: 700,
+                              textTransform: "capitalize",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {o.channel} {o.external_order_id ? `#${o.external_order_id}` : ""}
+                          </span>
+                          {o.courier_name && (
+                            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                              ({o.courier_name})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ color: "var(--text-muted)", fontSize: 12 }}>
                       {TYPE_LABEL[o.type] ?? o.type ?? "—"}
                     </td>

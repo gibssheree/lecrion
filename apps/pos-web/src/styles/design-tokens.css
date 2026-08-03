@@ -1,0 +1,85 @@
+/* apps/pos-web/src/styles/design-tokens.css */
+
+:root {
+  /* HSL Color Palette for Rich Aesthetics */
+  --hue-primary: 230; /* Indigo/Blue */
+  --primary-50: hsl(var(--hue-primary), 100%, 97%);
+  --primary-100: hsl(var(--hue-primary), 100%, 93%);
+  --primary-200: hsl(var(--hue-primary), 96%, 86%);
+  --primary-300: hsl(var(--hue-primary), 93%, 75%);
+  --primary-400: hsl(var(--hue-primary), 90%, 63%);
+  --primary-500: hsl(var(--hue-primary), 84%, 55%); /* Brand Main */
+  --primary-600: hsl(var(--hue-primary), 79%, 46%);
+  --primary-700: hsl(var(--hue-primary), 75%, 38%);
+  --primary-800: hsl(var(--hue-primary), 72%, 31%);
+  --primary-900: hsl(var(--hue-primary), 68%, 26%);
+  --primary-950: hsl(var(--hue-primary), 65%, 16%);
+
+  /* Neutrals */
+  --neutral-50: #f8fafc;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-400: #94a3b8;
+  --neutral-500: #64748b;
+  --neutral-600: #475569;
+  --neutral-700: #334155;
+  --neutral-800: #1e293b;
+  --neutral-900: #0f172a;
+  --neutral-950: #020617;
+
+  /* Glassmorphism Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-dark: rgba(15, 23, 42, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-border-dark: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --backdrop-blur: blur(12px);
+
+  /* Elevation (Shadows & Glows) */
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+  --shadow-float: 0 20px 40px -10px rgba(var(--hue-primary), 50%, 15%, 0.15);
+  --glow-primary: 0 0 20px 0 rgba(59, 130, 246, 0.4);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+
+  /* Aliasing for backward compatibility with existing index.css variables */
+  --primary: var(--primary-500);
+  --primary-light: var(--primary-100);
+  --primary-dark: var(--primary-700);
+  
+  --bg-base: var(--neutral-50);
+  --bg-surface: #ffffff;
+  --bg-elevated: var(--neutral-100);
+  
+  --border: var(--neutral-200);
+  --border-focus: var(--primary-500);
+
+  --text-primary: var(--neutral-900);
+  --text-secondary: var(--neutral-600);
+  --text-muted: var(--neutral-400);
+  
+  /* Semantic */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: var(--primary-500);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
