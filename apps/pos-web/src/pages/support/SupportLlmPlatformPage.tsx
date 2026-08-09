@@ -8,6 +8,7 @@ import {
   updateAdminLlmConfig,
 } from "../../services/api";
 import { useToast } from "../../store/toast.store";
+import Select from "../../components/ui/Select";
 
 const ROLES: Array<{ key: string; label: string; placeholder: string }> = [
   {
@@ -123,8 +124,7 @@ export default function SupportLlmPlatformPage() {
           <div className="dashboard-card-body">
             <div className="form-group">
               <label className="form-label">Model</label>
-              <select
-                className="form-select"
+              <Select
                 value={draft.model}
                 onChange={(e) => update("model", e.target.value)}
               >
@@ -133,7 +133,7 @@ export default function SupportLlmPlatformPage() {
                     {m}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">

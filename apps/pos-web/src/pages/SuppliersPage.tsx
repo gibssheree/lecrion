@@ -9,6 +9,8 @@ import {
   updateSupplier,
 } from "../services/api";
 import { useApi } from "../hooks/useApi";
+import { confirmDialog } from "../store/confirm.store";
+import Checkbox from "../components/ui/Checkbox";
 
 type SupplierForm = {
   name: string;
@@ -114,7 +116,7 @@ export default function SuppliersPage() {
   }
 
   async function deactivate(supplier: Supplier) {
-    if (!confirm(`Nonaktifkan supplier "${supplier.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Nonaktifkan supplier "${supplier.name}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await deactivateSupplier(supplier.id);
@@ -190,10 +192,11 @@ export default function SuppliersPage() {
               <label className="form-label">Catatan</label>
               <input className="form-input" value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))} />
-              <span className="form-label" style={{ margin: 0 }}>Aktif</span>
-            </label>
+            <Checkbox
+              checked={form.isActive}
+              onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
+              label="Aktif"
+            />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>
                 <X size={13} /> Batal

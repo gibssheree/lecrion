@@ -15,6 +15,7 @@ import {
   verifyStoreBusinessProfile,
 } from "../services/api";
 import { BUSINESS_VERTICALS } from "../constants/verticals";
+import Select from "../components/ui/Select";
 
 const BUSINESS_VERTICAL_OPTIONS = BUSINESS_VERTICALS.map((v) => ({
   value: v.key,
@@ -242,8 +243,7 @@ export default function SupportStoresPage() {
           <div className="dashboard-card-body">
             <div className="form-group">
               <label className="form-label">Business Vertical</label>
-              <select
-                className="form-select"
+              <Select
                 value={verifyVertical}
                 onChange={(event) => setVerifyVertical(event.target.value)}
               >
@@ -252,7 +252,7 @@ export default function SupportStoresPage() {
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Catatan</label>
@@ -287,8 +287,7 @@ export default function SupportStoresPage() {
           <div className="dashboard-card-body">
             <div className="form-group">
               <label className="form-label">Module Key</label>
-              <select
-                className="form-select"
+              <Select
                 value={moduleKey}
                 onChange={(event) => setModuleKey(event.target.value)}
               >
@@ -297,12 +296,11 @@ export default function SupportStoresPage() {
                     {key}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Status Modul</label>
-              <select
-                className="form-select"
+              <Select
                 value={moduleEnabled ? "enabled" : "disabled"}
                 onChange={(event) =>
                   setModuleEnabled(event.target.value === "enabled")
@@ -310,7 +308,7 @@ export default function SupportStoresPage() {
               >
                 <option value="enabled">Enabled</option>
                 <option value="disabled">Disabled</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Alasan</label>

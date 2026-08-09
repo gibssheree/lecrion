@@ -6,16 +6,23 @@ import {
   useSupportPreviewStore,
 } from "../../store/support-preview.store";
 import { useToast } from "../../store/toast.store";
+import { usePermissions } from "../../hooks/usePermissions";
+import Select from "../ui/Select";
 
 export default function SupportPreviewBanner() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { isSupport } = usePermissions();
   const isPreviewActive = useSupportPreviewStore((s) => s.isPreviewActive);
   const activeVerticalKey = useSupportPreviewStore((s) => s.activeVerticalKey);
   const enablePreview = useSupportPreviewStore((s) => s.enablePreview);
   const disablePreview = useSupportPreviewStore((s) => s.disablePreview);
 
-  if (!isPreviewActive) return null;
+  // Preview mode is a support-only affordance. The flag is persisted in
+  // localStorage (not scoped to a session), so a stale value must never be
+  // trusted for anyone but an actual support-role user — otherwise it leaks
+  // into real owner/manager/cashier logins on the same browser.
+  if (!isSupport || !isPreviewActive) return null;
 
   const currentVert =
     SUPPORT_VERTICALS.find((v) => v.key === activeVerticalKey) ??
@@ -85,7 +92,7 @@ export default function SupportPreviewBanner() {
 
         {/* Quick Vertical Switcher Dropdown */}
         <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-          <select
+          <Select
             value={currentVert.key}
             onChange={(e) => handleSwitch(e.target.value)}
             style={{
@@ -106,7 +113,7 @@ export default function SupportPreviewBanner() {
                 {v.icon} {v.name}
               </option>
             ))}
-          </select>
+          </Select>
           <ChevronDown
             size={12}
             style={{

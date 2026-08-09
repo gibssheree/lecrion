@@ -233,7 +233,7 @@ export default function ReportInventoryPage() {
               Tidak ada stok yang perlu diwaspadai.
             </div>
           ) : (
-            <table className="data-table" style={{ width: "100%" }}>
+            <table className="pos-data-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th>Produk</th>
@@ -346,7 +346,7 @@ export default function ReportInventoryPage() {
               Belum ada mutasi stok.
             </div>
           ) : (
-            <table className="data-table" style={{ width: "100%" }}>
+            <table className="pos-data-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th style={{ width: 150 }}>Waktu</th>

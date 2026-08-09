@@ -14,6 +14,7 @@ import {
   submitOperationDocument,
 } from "../services/api";
 import { useApi } from "../hooks/useApi";
+import Select from "../components/ui/Select";
 
 type OperationForm = {
   documentType: string;
@@ -190,17 +191,17 @@ export default function OperationsPage() {
 
       <div className="dashboard-card">
         <div className="dashboard-card-header" style={{ gap: 8 }}>
-          <select className="form-select" value={documentType} onChange={(event) => setDocumentType(event.target.value)} style={{ width: 190 }}>
+          <Select value={documentType} onChange={(event) => setDocumentType(event.target.value)} style={{ width: 190 }}>
             <option value="">Semua tipe</option>
             {DOC_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-          </select>
-          <select className="form-select" value={status} onChange={(event) => setStatus(event.target.value)} style={{ width: 150 }}>
+          </Select>
+          <Select value={status} onChange={(event) => setStatus(event.target.value)} style={{ width: 150 }}>
             <option value="">Semua status</option>
             <option value="draft">Draft</option>
             <option value="submitted">Submitted</option>
             <option value="posted">Posted</option>
             <option value="cancelled">Cancelled</option>
-          </select>
+          </Select>
           <button className="btn btn-primary btn-sm" onClick={() => setShowForm((value) => !value)} style={{ marginLeft: "auto" }}>
             <Plus size={13} /> Buat Dokumen
           </button>
@@ -210,28 +211,27 @@ export default function OperationsPage() {
           <form onSubmit={saveDocument} className="management-form">
             <div className="form-group">
               <label className="form-label">Tipe</label>
-              <select className="form-select" value={form.documentType} onChange={(event) => setForm((prev) => ({ ...prev, documentType: event.target.value }))}>
+              <Select value={form.documentType} onChange={(event) => setForm((prev) => ({ ...prev, documentType: event.target.value }))}>
                 {DOC_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Lokasi Asal</label>
-              <select className="form-select" value={form.sourceLocationId} onChange={(event) => setForm((prev) => ({ ...prev, sourceLocationId: event.target.value }))}>
+              <Select value={form.sourceLocationId} onChange={(event) => setForm((prev) => ({ ...prev, sourceLocationId: event.target.value }))}>
                 <option value="">-</option>
                 {(locations.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Lokasi Tujuan</label>
-              <select className="form-select" value={form.destinationLocationId} onChange={(event) => setForm((prev) => ({ ...prev, destinationLocationId: event.target.value }))}>
+              <Select value={form.destinationLocationId} onChange={(event) => setForm((prev) => ({ ...prev, destinationLocationId: event.target.value }))}>
                 <option value="">-</option>
                 {(locations.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Supplier</label>
-              <select
-                className="form-select"
+              <Select
                 value={form.supplierId}
                 onChange={(event) =>
                   setForm((prev) => {
@@ -242,7 +242,7 @@ export default function OperationsPage() {
               >
                 <option value="">Manual / kosong</option>
                 {(suppliers.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </div>
             {!form.supplierId && (
               <div className="form-group">
@@ -252,10 +252,10 @@ export default function OperationsPage() {
             )}
             <div className="form-group" style={{ gridColumn: "span 2" }}>
               <label className="form-label">Produk</label>
-              <select className="form-select" value={form.menuId} onChange={(event) => setForm((prev) => ({ ...prev, menuId: event.target.value }))}>
+              <Select value={form.menuId} onChange={(event) => setForm((prev) => ({ ...prev, menuId: event.target.value }))}>
                 <option value="">Pilih produk</option>
                 {((products.data?.products ?? []) as Array<{ id: number; name: string }>).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Qty</label>

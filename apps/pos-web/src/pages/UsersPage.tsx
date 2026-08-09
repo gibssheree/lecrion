@@ -6,13 +6,15 @@ import { useApi } from "../hooks/useApi";
 import { useAuthStore } from "../store/auth.store";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import Select from "../components/ui/Select";
 
+// 'support' is a platform-wide role (cross-tenant access) and is
+// intentionally not assignable here — see auth.controller.ts VALID_ROLES.
 const VALID_ROLES = [
   "owner",
   "manager",
   "cashier",
   "inventory_staff",
-  "support",
 ] as const;
 
 type UserRole = (typeof VALID_ROLES)[number];
@@ -155,13 +157,12 @@ export default function UsersPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Role</label>
-              <select
-                className="form-select"
+              <Select
                 value={createForm.role}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
               >
                 {VALID_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
-              </select>
+              </Select>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCreate(false)}>
@@ -196,9 +197,9 @@ export default function UsersPage() {
                     <td><strong>{user.email}</strong></td>
                     <td>
                       {editingId === user.id ? (
-                        <select className="form-select" value={editRole} onChange={(event) => setEditRole(event.target.value as UserRole)}>
+                        <Select value={editRole} onChange={(event) => setEditRole(event.target.value as UserRole)}>
                           {VALID_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
-                        </select>
+                        </Select>
                       ) : (
                         <span className={`stock-badge ${roleClass(user.role)}`}>{ROLE_LABELS[user.role] ?? user.role}</span>
                       )}

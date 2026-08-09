@@ -3,6 +3,8 @@ import { CheckCircle, RotateCcw, Save, Settings } from "lucide-react";
 import PosAppShell from "../../components/layout/PosAppShell";
 import { useApi } from "../../hooks/useApi";
 import { getSettings, saveSettings } from "../../services/api";
+import Select from "../../components/ui/Select";
+import Checkbox from "../../components/ui/Checkbox";
 
 interface FieldDef {
   key: string;
@@ -149,6 +151,7 @@ export default function ChatbotSettingsPage() {
             </div>
           )}
 
+          <div className="chatbot-settings-sections">
           {FIELDS.map(({ section, fields }) => (
             <div className="dashboard-card" key={section}>
               <div className="dashboard-card-header">
@@ -168,36 +171,30 @@ export default function ChatbotSettingsPage() {
                       key={key}
                     >
                       {type === "checkbox" ? (
-                        <>
-                          <input
-                            type="checkbox"
-                            id={key}
-                            name={key}
-                            checked={form[key] === "true"}
-                            onChange={onChange}
-                          />
-                          <label htmlFor={key} className="form-label">
-                            {label}
-                          </label>
-                        </>
+                        <Checkbox
+                          id={key}
+                          name={key}
+                          checked={form[key] === "true"}
+                          onChange={onChange}
+                          label={label}
+                        />
                       ) : type === "select" ? (
                         <>
                           <label className="form-label" htmlFor={key}>
                             {label}
                           </label>
-                          <select
+                          <Select
                             id={key}
                             name={key}
-                            className="form-select"
                             value={form[key] ?? ""}
-                            onChange={onChange}
+                            onChange={(e) => onChange(e as unknown as ChangeEvent<HTMLSelectElement>)}
                           >
                             {options?.map((option) => (
                               <option key={option} value={option}>
                                 {option}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         </>
                       ) : (
                         <>
@@ -220,6 +217,7 @@ export default function ChatbotSettingsPage() {
               </div>
             </div>
           ))}
+          </div>
 
           <div className="chatbot-form-actions">
             <button

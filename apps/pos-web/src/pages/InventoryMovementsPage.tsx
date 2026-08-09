@@ -18,6 +18,7 @@ import {
 import { fmt, fmtDateTime } from "../utils/fmt";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import Select from "../components/ui/Select";
 
 const CHANGE_TYPE_META: Record<
   string,
@@ -195,8 +196,7 @@ export default function InventoryMovementsPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: 260 }}
           />
-          <select
-            className="form-select"
+          <Select
             value={changeType}
             onChange={(e) => setChangeType(e.target.value)}
             style={{ width: 180 }}
@@ -207,9 +207,8 @@ export default function InventoryMovementsPage() {
                 {meta.label}
               </option>
             ))}
-          </select>
-          <select
-            className="form-select"
+          </Select>
+          <Select
             value={locationId}
             onChange={(e) => setLocationId(e.target.value)}
             style={{ width: 200 }}
@@ -220,7 +219,7 @@ export default function InventoryMovementsPage() {
                 {loc.name}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => {

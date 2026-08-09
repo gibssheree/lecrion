@@ -385,6 +385,11 @@ export class AuthService {
   /**
    * List users belonging to a specific store.
    * Passwords are never returned.
+   *
+   * 'support' accounts are always excluded, even if one happens to share
+   * store_id with this store (e.g. stale/shared seed data) — support is a
+   * platform-wide role, not a store member, and must never appear in a
+   * merchant's own user management list.
    */
   async listUsers(storeId: string): Promise<
     Array<{
@@ -396,7 +401,7 @@ export class AuthService {
     }>
   > {
     const users = await this.prisma.users.findMany({
-      where: { store_id: storeId } as any,
+      where: { store_id: storeId, role: { not: 'support' } } as any,
       orderBy: { created_at: 'asc' },
     });
 

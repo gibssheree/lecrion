@@ -8,6 +8,7 @@ import { useCategories, useProducts } from "../hooks/useProducts";
 import { fmt } from "../utils/fmt";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import Select from "../components/ui/Select";
 
 export default function ProductsPage() {
   const navigate = useNavigate();
@@ -61,8 +62,7 @@ export default function ProductsPage() {
             onChange={(event) => setSearch(event.target.value)}
             style={{ width: 260 }}
           />
-          <select
-            className="form-select"
+          <Select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             style={{ width: 180 }}
@@ -73,7 +73,7 @@ export default function ProductsPage() {
                 {item.name}
               </option>
             ))}
-          </select>
+          </Select>
           <button className="btn btn-ghost btn-sm" onClick={products.reload}>
             <RefreshCw size={13} />
           </button>

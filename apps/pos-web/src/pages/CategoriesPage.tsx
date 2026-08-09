@@ -9,6 +9,9 @@ import {
   updateCategory,
 } from "../services/api";
 import { useApi } from "../hooks/useApi";
+import Select from "../components/ui/Select";
+import Checkbox from "../components/ui/Checkbox";
+import { confirmDialog } from "../store/confirm.store";
 
 type CategoryForm = {
   name: string;
@@ -110,7 +113,7 @@ export default function CategoriesPage() {
   }
 
   async function deactivate(category: ProductCategory) {
-    if (!confirm(`Nonaktifkan kategori "${category.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Nonaktifkan kategori "${category.name}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await deactivateCategory(category.id);
@@ -170,8 +173,7 @@ export default function CategoriesPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Parent</label>
-              <select
-                className="form-select"
+              <Select
                 value={form.parentId}
                 onChange={(event) => setForm((prev) => ({ ...prev, parentId: event.target.value }))}
               >
@@ -181,7 +183,7 @@ export default function CategoriesPage() {
                   .map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Urutan</label>
@@ -200,14 +202,11 @@ export default function CategoriesPage() {
                 onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
               />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
-              />
-              <span className="form-label" style={{ margin: 0 }}>Aktif</span>
-            </label>
+            <Checkbox
+              checked={form.isActive}
+              onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
+              label="Aktif"
+            />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>
                 <X size={13} /> Batal

@@ -30,6 +30,8 @@ import {
 } from "../services/api";
 import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
+import Select from "../components/ui/Select";
+import { confirmDialog } from "../store/confirm.store";
 
 interface IngredientLine {
   ingredientMenuId: number | "";
@@ -229,7 +231,7 @@ export default function RecipesPage() {
   }
 
   async function handleDelete(recipe: Recipe) {
-    if (!confirm(`Hapus resep "${recipe.menuName}"?`)) return;
+    if (!(await confirmDialog({ title: `Hapus resep "${recipe.menuName}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await deleteRecipe(recipe.menuId);
@@ -342,9 +344,8 @@ export default function RecipesPage() {
             >
               <div className="form-group">
                 <label className="form-label">Menu Jadi *</label>
-                <select
-                  className="form-input"
-                  value={form.menuId}
+                <Select
+                  value={String(form.menuId)}
                   onChange={(e) =>
                     setForm((p) => ({
                       ...p,
@@ -360,7 +361,7 @@ export default function RecipesPage() {
                       {m.sku ? ` (${m.sku})` : ""}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label className="form-label">Yield (qty)</label>
@@ -408,7 +409,7 @@ export default function RecipesPage() {
               </button>
             </div>
 
-            <table className="data-table" style={{ width: "100%" }}>
+            <table className="pos-data-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th style={{ width: "35%" }}>Bahan</th>
@@ -431,9 +432,8 @@ export default function RecipesPage() {
                   return (
                     <tr key={index}>
                       <td>
-                        <select
-                          className="form-input form-input-sm"
-                          value={line.ingredientMenuId}
+                        <Select
+                          value={String(line.ingredientMenuId)}
                           onChange={(e) =>
                             updateLine(index, {
                               ingredientMenuId: Number(e.target.value) || "",
@@ -447,7 +447,7 @@ export default function RecipesPage() {
                               {m.unit_code ? ` (${m.unit_code})` : ""}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </td>
                       <td>
                         <input
@@ -592,7 +592,7 @@ export default function RecipesPage() {
                 : 'Belum ada resep. Klik "Resep Baru" untuk mulai.'}
             </div>
           ) : (
-            <table className="data-table" style={{ width: "100%" }}>
+            <table className="pos-data-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th>Menu</th>

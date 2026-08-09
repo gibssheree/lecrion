@@ -84,13 +84,43 @@ async function main() {
     },
   });
 
+  // ── Operator & manager accounts ──────────────────────────────────────────
+  // "Operator" here maps to the "cashier" role (the till/POS operator role
+  // in UserRole — see libs/contracts/src/enums/index.ts). There is no
+  // separate "operator" role in the schema.
+  const operatorPassword = await bcrypt.hash("operator123", 10);
+  await prisma.users.upsert({
+    where: { email: "operator@lecrion.com" },
+    update: { password_hash: operatorPassword, role: "cashier" },
+    create: {
+      email: "operator@lecrion.com",
+      password_hash: operatorPassword,
+      role: "cashier",
+      store_id: "default-store",
+    },
+  });
+
+  const managerPassword = await bcrypt.hash("manager123", 10);
+  await prisma.users.upsert({
+    where: { email: "manager@lecrion.com" },
+    update: { password_hash: managerPassword, role: "manager" },
+    create: {
+      email: "manager@lecrion.com",
+      password_hash: managerPassword,
+      role: "manager",
+      store_id: "default-store",
+    },
+  });
+
   console.log("✅ Users seeded:");
-  console.log("   Owner:   admin@lecrion.com   / admin123");
-  console.log("   Support: support@lecrion.com / admin123");
-  console.log("   Support: exel@lecrion.com    / exeltest123");
-  console.log("   Support: jasson@lecrion.com  / jassontest123");
-  console.log("   Owner:   exel@support.com    / exel123");
-  console.log("   Owner:   jasson@support.com  / jasson123");
+  console.log("   Owner:    admin@lecrion.com    / admin123");
+  console.log("   Support:  support@lecrion.com  / admin123");
+  console.log("   Support:  exel@lecrion.com     / exeltest123");
+  console.log("   Support:  jasson@lecrion.com   / jassontest123");
+  console.log("   Owner:    exel@support.com     / exel123");
+  console.log("   Owner:    jasson@support.com   / jasson123");
+  console.log("   Operator: operator@lecrion.com / operator123");
+  console.log("   Manager:  manager@lecrion.com  / manager123");
 }
 
 main()

@@ -9,6 +9,7 @@ import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import Select from "../components/ui/Select";
 
 const STATUSES = ["all", "Not Ready", "confirmed", "completed", "cancelled"] as const;
 type OrderStatus = (typeof STATUSES)[number];
@@ -236,8 +237,7 @@ export default function OrdersPage() {
                       })}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className="form-select"
+                      <Select
                         style={{ width: "auto", padding: "4px 8px", fontSize: 12 }}
                         value={displayStatus}
                         disabled={updating === o.id}
@@ -246,7 +246,7 @@ export default function OrdersPage() {
                         {["Not Ready", "confirmed", "completed", "cancelled"].map(
                           (s) => <option key={s} value={s}>{STATUS_LABEL[s] ?? s}</option>,
                         )}
-                      </select>
+                      </Select>
                     </td>
                   </tr>
 

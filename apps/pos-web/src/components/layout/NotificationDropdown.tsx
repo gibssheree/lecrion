@@ -115,11 +115,13 @@ export default function NotificationDropdown({
         )}
       </div>
 
-      <footer className="pos-notif-footer">
-        <button type="button" className="pos-notif-all">
-          Lihat semua notifikasi
-        </button>
-      </footer>
+      {notifications.length > 0 && (
+        <footer className="pos-notif-footer">
+          <button type="button" className="pos-notif-all">
+            Lihat semua notifikasi
+          </button>
+        </footer>
+      )}
     </div>
   );
 }

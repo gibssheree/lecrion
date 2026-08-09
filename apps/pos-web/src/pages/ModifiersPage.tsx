@@ -34,6 +34,8 @@ import {
 } from "../services/api";
 import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
+import Select from "../components/ui/Select";
+import { confirmDialog } from "../store/confirm.store";
 
 interface GroupForm {
   name: string;
@@ -178,7 +180,7 @@ export default function ModifiersPage() {
   }
 
   async function deactivateGroup(group: ModifierGroup) {
-    if (!confirm(`Nonaktifkan grup "${group.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Nonaktifkan grup "${group.name}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await deactivateModifierGroup(group.id);
@@ -246,7 +248,7 @@ export default function ModifiersPage() {
   }
 
   async function deleteOption(option: ModifierOption) {
-    if (!confirm(`Hapus opsi "${option.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Hapus opsi "${option.name}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await removeModifierOption(option.id);
@@ -339,8 +341,7 @@ export default function ModifiersPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Tipe Pilihan</label>
-              <select
-                className="form-input"
+              <Select
                 value={groupForm.selectionType}
                 onChange={(e) =>
                   setGroupForm((p) => ({
@@ -351,12 +352,11 @@ export default function ModifiersPage() {
               >
                 <option value="single">Pilih satu (radio)</option>
                 <option value="multiple">Pilih banyak (checkbox)</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Wajib Pilih</label>
-              <select
-                className="form-input"
+              <Select
                 value={groupForm.isRequired ? "yes" : "no"}
                 onChange={(e) =>
                   setGroupForm((p) => ({
@@ -367,7 +367,7 @@ export default function ModifiersPage() {
               >
                 <option value="no">Tidak</option>
                 <option value="yes">Ya</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group" style={{ gridColumn: "span 3" }}>
               <label className="form-label">Deskripsi</label>
@@ -681,7 +681,7 @@ export default function ModifiersPage() {
                           </div>
                         ) : (
                           <table
-                            className="data-table"
+                            className="pos-data-table"
                             style={{ width: "100%" }}
                           >
                             <thead>

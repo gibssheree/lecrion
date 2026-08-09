@@ -70,12 +70,16 @@ class RegisterDto {
   serviceChargeRate?: number;
 }
 
+// Roles a store owner may assign via POST/PATCH /auth/users. 'support' is
+// deliberately excluded: it is a platform-wide role with cross-tenant access
+// (see SupportModule / usePermissions.isSupport) and must never be grantable
+// by a merchant — only provisioned directly (seed/ops), never through this
+// store-scoped endpoint.
 const VALID_ROLES: UserRole[] = [
   'owner',
   'manager',
   'cashier',
   'inventory_staff',
-  'support',
 ];
 
 class CreateUserDto {

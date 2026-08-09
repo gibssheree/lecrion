@@ -8,11 +8,11 @@ import {
 } from "../../components/chatbot/ChatbotUi";
 import { useApi } from "../../hooks/useApi";
 import { clearHistory, getHistory } from "../../services/api";
+import { confirmDialog } from "../../store/confirm.store";
 
 export default function ChatbotChatPage() {
   const [filter, setFilter] = useState("");
   const [clearingFor, setClearingFor] = useState<string | null>(null);
-  const [confirmSender, setConfirmSender] = useState<string | null>(null);
   const history = useApi(getHistory, [], { autoRefreshMs: 10_000 });
 
   const entries = ((history.data?.history ?? []) as any[]).filter(
@@ -28,13 +28,19 @@ export default function ChatbotChatPage() {
   }, {});
 
   async function handleClear(sender: string) {
+    const ok = await confirmDialog({
+      title: "Hapus History",
+      message: `Hapus semua history percakapan untuk "${sender}"? Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus",
+      danger: true,
+    });
+    if (!ok) return;
     setClearingFor(sender);
     try {
       await clearHistory(sender);
       history.reload();
     } finally {
       setClearingFor(null);
-      setConfirmSender(null);
     }
   }
 
@@ -53,51 +59,6 @@ export default function ChatbotChatPage() {
         <div className="alert alert-error">{history.error}</div>
       )}
 
-      {confirmSender && (
-        <div
-          className="chatbot-modal-backdrop"
-          onClick={() => setConfirmSender(null)}
-        >
-          <div
-            className="chatbot-confirm"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="chatbot-confirm-title">Hapus History</div>
-            <p>
-              Hapus semua history percakapan untuk{" "}
-              <strong>{confirmSender}</strong>? Tindakan ini tidak dapat
-              dibatalkan.
-            </p>
-            <div className="chatbot-confirm-actions">
-              <button
-                className="btn btn-ghost btn-sm"
-                type="button"
-                onClick={() => setConfirmSender(null)}
-              >
-                Batal
-              </button>
-              <button
-                className="btn btn-danger btn-sm"
-                type="button"
-                disabled={clearingFor === confirmSender}
-                onClick={() => handleClear(confirmSender)}
-              >
-                {clearingFor === confirmSender ? (
-                  <>
-                    <div className="spinner chatbot-button-spinner" />
-                    Menghapus...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={13} /> Hapus
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {Object.entries(bySender).map(([sender, messages]) => (
         <div className="dashboard-card" key={sender}>
           <div className="dashboard-card-header">
@@ -108,9 +69,19 @@ export default function ChatbotChatPage() {
             <button
               className="btn btn-danger btn-sm"
               type="button"
-              onClick={() => setConfirmSender(sender)}
+              disabled={clearingFor === sender}
+              onClick={() => handleClear(sender)}
             >
-              <Trash2 size={13} /> Hapus History
+              {clearingFor === sender ? (
+                <>
+                  <div className="spinner chatbot-button-spinner" />
+                  Menghapus...
+                </>
+              ) : (
+                <>
+                  <Trash2 size={13} /> Hapus History
+                </>
+              )}
             </button>
           </div>
           <div className="dashboard-card-body">

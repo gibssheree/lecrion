@@ -25,6 +25,8 @@ import {
   updateDiningTable,
 } from "../services/api";
 import { useToast } from "../store/toast.store";
+import Select from "../components/ui/Select";
+import { confirmDialog } from "../store/confirm.store";
 
 const STATUS_META: Record<
   DiningTable["status"],
@@ -161,7 +163,7 @@ export default function TablesPage() {
   }
 
   async function deactivateArea(area: DiningArea) {
-    if (!confirm(`Nonaktifkan area "${area.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Nonaktifkan area "${area.name}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await deactivateDiningArea(area.id);
@@ -347,8 +349,7 @@ export default function TablesPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Area</label>
-              <select
-                className="form-select"
+              <Select
                 value={tableForm.areaId}
                 onChange={(e) =>
                   setTableForm((prev) => ({ ...prev, areaId: e.target.value }))
@@ -360,7 +361,7 @@ export default function TablesPage() {
                     {area.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div
               style={{
@@ -461,8 +462,7 @@ export default function TablesPage() {
                         {table.area.name}
                       </div>
                     )}
-                    <select
-                      className="form-select"
+                    <Select
                       value={table.status}
                       onChange={(e) =>
                         changeStatus(
@@ -478,7 +478,7 @@ export default function TablesPage() {
                           {STATUS_META[status].label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={() => openTableForm(table)}

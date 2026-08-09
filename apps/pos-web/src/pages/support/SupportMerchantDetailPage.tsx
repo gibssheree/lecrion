@@ -21,6 +21,7 @@ import {
 import { fmt } from "../../utils/fmt";
 import { useToast } from "../../store/toast.store";
 import { BUSINESS_VERTICALS } from "../../constants/verticals";
+import Select from "../../components/ui/Select";
 
 const VERTICAL_OPTIONS = BUSINESS_VERTICALS.map((v) => ({
   value: v.key,
@@ -221,8 +222,7 @@ export default function SupportMerchantDetailPage() {
           <div className="dashboard-card-body">
             <div className="form-group">
               <label className="form-label">Business Vertical</label>
-              <select
-                className="form-select"
+              <Select
                 value={verifyVertical}
                 onChange={(e) => setVerifyVertical(e.target.value)}
               >
@@ -231,7 +231,7 @@ export default function SupportMerchantDetailPage() {
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Catatan (opsional)</label>
@@ -275,8 +275,7 @@ export default function SupportMerchantDetailPage() {
             <div className="dashboard-card-body">
               <div className="form-group">
                 <label className="form-label">Module Key</label>
-                <select
-                  className="form-select"
+                <Select
                   value={moduleKey}
                   onChange={(e) => setModuleKey(e.target.value)}
                 >
@@ -285,12 +284,11 @@ export default function SupportMerchantDetailPage() {
                       {m}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label className="form-label">Status</label>
-                <select
-                  className="form-select"
+                <Select
                   value={moduleEnabled ? "enabled" : "disabled"}
                   onChange={(e) =>
                     setModuleEnabled(e.target.value === "enabled")
@@ -298,7 +296,7 @@ export default function SupportMerchantDetailPage() {
                 >
                   <option value="enabled">Enabled</option>
                   <option value="disabled">Disabled</option>
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label className="form-label">Alasan</label>

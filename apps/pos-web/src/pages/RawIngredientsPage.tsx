@@ -40,6 +40,7 @@ import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import { confirmDialog } from "../store/confirm.store";
 
 interface MaterialFormState {
   id: number | null;
@@ -203,7 +204,7 @@ export default function RawIngredientsPage() {
   }
 
   async function deactivateMaterial(material: any) {
-    if (!confirm(`Nonaktifkan bahan "${material.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Nonaktifkan bahan "${material.name}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await updateProduct(material.id, { isActive: false });
@@ -542,7 +543,7 @@ export default function RawIngredientsPage() {
             </div>
           ) : (
             <>
-              <table className="data-table" style={{ width: "100%" }}>
+              <table className="pos-data-table" style={{ width: "100%" }}>
                 <thead>
                   <tr>
                     <th>Nama Bahan</th>

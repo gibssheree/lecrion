@@ -36,6 +36,7 @@ import {
   updateStockOpnameLine,
 } from "../services/api";
 import { useToast } from "../store/toast.store";
+import { confirmDialog } from "../store/confirm.store";
 import { fmt, fmtDateTime } from "../utils/fmt";
 
 const STATUS_META: Record<
@@ -288,7 +289,7 @@ export default function StockOpnamePage() {
               Belum ada sesi opname.
             </div>
           ) : (
-            <table className="data-table" style={{ width: "100%" }}>
+            <table className="pos-data-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th>No. Sesi</th>
@@ -491,9 +492,10 @@ function SessionDetail({ sessionId, onBack }: DetailProps) {
       return;
     }
     if (
-      !confirm(
-        "Ajukan sesi ini ke manager untuk di-post? Setelah diajukan, baris tidak bisa diedit.",
-      )
+      !(await confirmDialog({
+        title: "Ajukan sesi ini ke manager untuk di-post? Setelah diajukan, baris tidak bisa diedit.",
+        danger: true,
+      }))
     )
       return;
     setSaving(true);
@@ -511,9 +513,10 @@ function SessionDetail({ sessionId, onBack }: DetailProps) {
   async function handlePost() {
     if (!data) return;
     if (
-      !confirm(
-        "Posting sesi ini akan mengubah stok produk sesuai variance. Lanjutkan?",
-      )
+      !(await confirmDialog({
+        title: "Posting sesi ini akan mengubah stok produk sesuai variance. Lanjutkan?",
+        danger: true,
+      }))
     )
       return;
     setSaving(true);
@@ -669,7 +672,7 @@ function SessionDetail({ sessionId, onBack }: DetailProps) {
           />
         </div>
         <div className="dashboard-card-body" style={{ padding: 0 }}>
-          <table className="data-table" style={{ width: "100%" }}>
+          <table className="pos-data-table" style={{ width: "100%" }}>
             <thead>
               <tr>
                 <th>Produk</th>

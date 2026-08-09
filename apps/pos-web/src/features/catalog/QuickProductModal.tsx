@@ -6,6 +6,8 @@ import {
   updateProduct,
 } from "../../services/api";
 import { Product } from "../../hooks/useProducts";
+import Select from "../../components/ui/Select";
+import Checkbox from "../../components/ui/Checkbox";
 
 type FormState = {
   mode: "create" | "edit";
@@ -163,8 +165,7 @@ export default function QuickProductModal({
         {form.mode === "edit" && (
           <div className="form-group">
             <label className="form-label">Pilih Produk</label>
-            <select
-              className="form-select"
+            <Select
               value={form.productId}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, productId: event.target.value }))
@@ -176,7 +177,7 @@ export default function QuickProductModal({
                   {product.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
@@ -244,8 +245,7 @@ export default function QuickProductModal({
         >
           <div className="form-group">
             <label className="form-label">Kategori</label>
-            <select
-              className="form-select"
+            <Select
               value={form.categoryId}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, categoryId: event.target.value }))
@@ -257,7 +257,7 @@ export default function QuickProductModal({
                   {category.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="form-group">
             <label className="form-label">SKU</label>
@@ -282,29 +282,23 @@ export default function QuickProductModal({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={form.isStockTracked}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  isStockTracked: event.target.checked,
-                }))
-              }
-            />
-            <span className="form-label">Stok dilacak</span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, isActive: event.target.checked }))
-              }
-            />
-            <span className="form-label">Aktif</span>
-          </label>
+          <Checkbox
+            checked={form.isStockTracked}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                isStockTracked: event.target.checked,
+              }))
+            }
+            label="Stok dilacak"
+          />
+          <Checkbox
+            checked={form.isActive}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, isActive: event.target.checked }))
+            }
+            label="Aktif"
+          />
           <button
             className="btn btn-primary btn-sm"
             disabled={saving || (form.mode === "edit" && !form.productId)}

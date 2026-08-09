@@ -34,6 +34,7 @@ import { useAuthStore } from "../store/auth.store";
 import Pagination from "../components/ui/Pagination";
 import { usePagination } from "../hooks/usePagination";
 import { BUSINESS_VERTICALS, VERTICAL_LABELS } from "../constants/verticals";
+import Select from "../components/ui/Select";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -51,12 +52,13 @@ const PAYMENT_METHODS = [
   { key: "komplimen", label: "Komplimen" },
 ];
 
+// 'support' is a platform-wide role (cross-tenant access) and is
+// intentionally not assignable here — see auth.controller.ts VALID_ROLES.
 const VALID_ROLES = [
   "owner",
   "manager",
   "cashier",
   "inventory_staff",
-  "support",
 ] as const;
 type UserRole = (typeof VALID_ROLES)[number];
 
@@ -453,8 +455,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Kategori Bisnis</label>
-                    <select
-                      className="form-input"
+                    <Select
                       value={form.businessType ?? "general"}
                       onChange={(e) => setField("businessType", e.target.value)}
                     >
@@ -463,12 +464,11 @@ export default function SettingsPage() {
                           {o.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipe Pesanan Default</label>
-                    <select
-                      className="form-input"
+                    <Select
                       value={form.defaultOrderType ?? "pickup"}
                       onChange={(e) =>
                         setField("defaultOrderType", e.target.value)
@@ -476,7 +476,7 @@ export default function SettingsPage() {
                     >
                       <option value="pickup">Pickup</option>
                       <option value="delivery">Delivery</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -787,8 +787,7 @@ export default function SettingsPage() {
                 <div className="settings-request-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label className="form-label">Ajukan Kategori Bisnis</label>
-                    <select
-                      className="form-input"
+                    <Select
                       value={requestedVertical}
                       onChange={(e) => setRequestedVertical(e.target.value)}
                     >
@@ -797,7 +796,7 @@ export default function SettingsPage() {
                           {o.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <button
                     type="button"
@@ -920,8 +919,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Role</label>
-                    <select
-                      className="form-select"
+                    <Select
                       value={createForm.role}
                       onChange={(e) =>
                         setCreateForm((p) => ({
@@ -935,7 +933,7 @@ export default function SettingsPage() {
                           {ROLE_LABELS[r]}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div
                     style={{
@@ -987,8 +985,7 @@ export default function SettingsPage() {
                           </td>
                           <td>
                             {editingId === user.id ? (
-                              <select
-                                className="form-select"
+                              <Select
                                 value={editRole}
                                 onChange={(e) =>
                                   setEditRole(e.target.value as UserRole)
@@ -999,7 +996,7 @@ export default function SettingsPage() {
                                     {ROLE_LABELS[r]}
                                   </option>
                                 ))}
-                              </select>
+                              </Select>
                             ) : (
                               <span
                                 className={`stock-badge ${roleClass(user.role)}`}

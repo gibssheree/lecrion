@@ -10,6 +10,8 @@ import {
   getProducts,
 } from "../services/api";
 import { fmt } from "../utils/fmt";
+import Select from "../components/ui/Select";
+import Checkbox from "../components/ui/Checkbox";
 
 const LOCATION_TYPES = [
   { value: "warehouse", label: "Gudang" },
@@ -182,8 +184,7 @@ export default function InventoryLocationsPage() {
               </div>
               <div className="form-group" style={{ gridColumn: "1 / -1" }}>
                 <label className="form-label">Tipe</label>
-                <select
-                  className="form-select"
+                <Select
                   value={form.type}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, type: e.target.value }))
@@ -194,30 +195,19 @@ export default function InventoryLocationsPage() {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  gridColumn: "1 / -1",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={form.isDefault}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      isDefault: e.target.checked,
-                    }))
-                  }
-                />
-                <span className="form-label" style={{ margin: 0 }}>
-                  Jadikan default
-                </span>
-              </label>
+              <Checkbox
+                checked={form.isDefault}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    isDefault: e.target.checked,
+                  }))
+                }
+                label="Jadikan default"
+                style={{ gridColumn: "1 / -1" }}
+              />
               <div
                 style={{
                   display: "flex",

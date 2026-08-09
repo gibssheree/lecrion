@@ -9,6 +9,7 @@ import { useApi } from "../../hooks/useApi";
 import { listAdminStores } from "../../services/api";
 import { BUSINESS_VERTICALS } from "../../constants/verticals";
 import SupportVerticalExplorer from "../../components/support/SupportVerticalExplorer";
+import Select from "../../components/ui/Select";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua status" },
@@ -86,8 +87,7 @@ export default function SupportMerchantsPage() {
               style={{ paddingLeft: 30 }}
             />
           </div>
-          <select
-            className="form-select"
+          <Select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             style={{ width: 180 }}
@@ -97,9 +97,8 @@ export default function SupportMerchantsPage() {
                 {o.label}
               </option>
             ))}
-          </select>
-          <select
-            className="form-select"
+          </Select>
+          <Select
             value={vertical}
             onChange={(e) => setVertical(e.target.value)}
             style={{ width: 200 }}
@@ -109,7 +108,7 @@ export default function SupportMerchantsPage() {
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
           <button className="btn btn-ghost btn-sm" onClick={stores.reload}>
             <RefreshCw size={13} />
           </button>

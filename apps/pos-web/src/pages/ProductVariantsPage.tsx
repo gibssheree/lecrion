@@ -11,6 +11,8 @@ import {
 } from "../services/api";
 import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
+import Select from "../components/ui/Select";
+import { confirmDialog } from "../store/confirm.store";
 
 const VARIANT_TYPES = [
   { value: "size", label: "Ukuran" },
@@ -108,7 +110,7 @@ export default function ProductVariantsPage() {
   }
 
   async function remove(variant: ProductVariant) {
-    if (!confirm(`Hapus link varian "${variant.variantValue}"?`)) return;
+    if (!(await confirmDialog({ title: `Hapus link varian "${variant.variantValue}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await removeProductVariant(variant.id);
@@ -232,8 +234,7 @@ export default function ProductVariantsPage() {
             <form onSubmit={submit} className="management-form">
               <div className="form-group" style={{ gridColumn: "span 2" }}>
                 <label className="form-label">Produk Varian (child) *</label>
-                <select
-                  className="form-select"
+                <Select
                   value={form.variantProductId}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -248,12 +249,11 @@ export default function ProductVariantsPage() {
                       {product.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label className="form-label">Tipe</label>
-                <select
-                  className="form-select"
+                <Select
                   value={form.variantType}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -267,7 +267,7 @@ export default function ProductVariantsPage() {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label className="form-label">Nilai *</label>

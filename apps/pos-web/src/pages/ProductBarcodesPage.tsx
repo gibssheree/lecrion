@@ -10,6 +10,9 @@ import {
   removeProductBarcode,
 } from "../services/api";
 import { useToast } from "../store/toast.store";
+import Select from "../components/ui/Select";
+import Checkbox from "../components/ui/Checkbox";
+import { confirmDialog } from "../store/confirm.store";
 
 const BARCODE_TYPES = [
   { value: "ean13", label: "EAN-13" },
@@ -99,7 +102,7 @@ export default function ProductBarcodesPage() {
   }
 
   async function remove(barcode: ProductBarcode) {
-    if (!confirm(`Hapus barcode "${barcode.barcode}"?`)) return;
+    if (!(await confirmDialog({ title: `Hapus barcode "${barcode.barcode}"?`, danger: true }))) return;
     setSaving(true);
     try {
       await removeProductBarcode(barcode.id);
@@ -257,8 +260,7 @@ export default function ProductBarcodesPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Tipe</label>
-                <select
-                  className="form-select"
+                <Select
                   value={form.barcodeType}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -272,30 +274,19 @@ export default function ProductBarcodesPage() {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  alignSelf: "flex-end",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={form.isPrimary}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      isPrimary: e.target.checked,
-                    }))
-                  }
-                />
-                <span className="form-label" style={{ margin: 0 }}>
-                  Primer
-                </span>
-              </label>
+              <Checkbox
+                checked={form.isPrimary}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    isPrimary: e.target.checked,
+                  }))
+                }
+                label="Primer"
+                style={{ alignSelf: "flex-end" }}
+              />
               <div
                 style={{
                   display: "flex",

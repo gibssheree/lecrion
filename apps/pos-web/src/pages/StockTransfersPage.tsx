@@ -14,6 +14,7 @@ import {
 import { useApi } from "../hooks/useApi";
 import { fmtDateTime } from "../utils/fmt";
 import { useToast } from "../store/toast.store";
+import Select from "../components/ui/Select";
 
 interface TransferLine {
   menuId: string;
@@ -244,8 +245,7 @@ export default function StockTransfersPage() {
         >
           <ArrowRightLeft size={14} color="var(--text-muted)" />
           <strong style={{ fontSize: 13 }}>Daftar Transfer Stok</strong>
-          <select
-            className="form-select"
+          <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{ width: 160, marginLeft: 12 }}
@@ -256,7 +256,7 @@ export default function StockTransfersPage() {
                 {meta.label}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             className="btn btn-primary btn-sm"
             onClick={() => setShowForm((value) => !value)}
@@ -270,8 +270,7 @@ export default function StockTransfersPage() {
           <form onSubmit={submit} className="management-form">
             <div className="form-group">
               <label className="form-label">Lokasi Asal *</label>
-              <select
-                className="form-select"
+              <Select
                 value={form.sourceLocationId}
                 onChange={(e) =>
                   setForm((prev) => ({
@@ -286,12 +285,11 @@ export default function StockTransfersPage() {
                     {loc.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Lokasi Tujuan *</label>
-              <select
-                className="form-select"
+              <Select
                 value={form.destinationLocationId}
                 onChange={(e) =>
                   setForm((prev) => ({
@@ -306,7 +304,7 @@ export default function StockTransfersPage() {
                     {loc.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Catatan</label>
@@ -332,8 +330,7 @@ export default function StockTransfersPage() {
               >
                 {form.lines.map((line, index) => (
                   <div key={index} style={{ display: "contents" }}>
-                    <select
-                      className="form-select"
+                    <Select
                       value={line.menuId}
                       onChange={(e) =>
                         updateLine(index, { menuId: e.target.value })
@@ -345,7 +342,7 @@ export default function StockTransfersPage() {
                           {product.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <input
                       className="form-input"
                       type="number"

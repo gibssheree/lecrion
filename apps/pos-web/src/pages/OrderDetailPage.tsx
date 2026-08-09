@@ -10,6 +10,7 @@ import { getOrderById, getPosSaleReceipt, updateOrderStatus } from "../services/
 import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
 import OrderStatusBadge from "../features/orders/OrderStatusBadge";
+import Select from "../components/ui/Select";
 
 const STATUS_LABEL: Record<string, string> = {
   "Not Ready": "Baru",
@@ -198,8 +199,7 @@ export default function OrderDetailPage() {
               <div className="detail-card">
                 <div className="detail-card-title">Update Status</div>
                 <div style={{ padding: "12px 16px", display: "flex", gap: 8, alignItems: "center" }}>
-                  <select
-                    className="form-select"
+                  <Select
                     value={order.status}
                     disabled={updating}
                     onChange={(e) => handleStatusChange(e.target.value)}
@@ -208,7 +208,7 @@ export default function OrderDetailPage() {
                     {["Not Ready", "confirmed", "completed", "cancelled"].map((s) => (
                       <option key={s} value={s}>{STATUS_LABEL[s] ?? s}</option>
                     ))}
-                  </select>
+                  </Select>
                   {updating && <div className="spinner" style={{ width: 14, height: 14 }} />}
                 </div>
               </div>

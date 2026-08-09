@@ -7,6 +7,7 @@ import {
   login as apiLogin,
   setSharedAuthToken,
 } from "../services/api";
+import { useSupportPreviewStore } from "./support-preview.store";
 
 export interface AuthUser {
   actor: string;
@@ -51,6 +52,12 @@ export const useAuthStore = create<AuthState>()(
           const res = await apiLogin(email, password, loginMode);
           setSharedAuthToken(res.accessToken);
           set({ token: res.accessToken, user: res.user, isLoading: false });
+          // A stale Support Preview flag from a previous session on this
+          // browser must never carry into a new login — only a support-role
+          // user is allowed to (re-)enable it, and only from the Support Console.
+          if (res.user.role !== "support") {
+            useSupportPreviewStore.getState().disablePreview();
+          }
         } catch (err: unknown) {
           set({
             error: err instanceof Error ? err.message : "Login gagal",
@@ -62,6 +69,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearSharedAuthToken();
+        useSupportPreviewStore.getState().disablePreview();
         set({ user: null, token: null });
       },
 

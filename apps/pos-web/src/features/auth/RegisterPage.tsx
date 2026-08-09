@@ -16,6 +16,7 @@ import {
   Store,
   User,
 } from "lucide-react";
+import Radio from "../../components/ui/Radio";
 const lecrionLogo = "/Lecrion.png";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -711,16 +712,15 @@ function Step3Form({
               <label>Mode Pajak</label>
               <div className="reg-radio-group">
                 {(["inclusive", "exclusive"] as const).map((m) => (
-                  <label key={m} className="reg-radio-label">
-                    <input
-                      type="radio"
-                      name="taxMode"
-                      value={m}
-                      checked={data.taxMode === m}
-                      onChange={() => onChange({ ...data, taxMode: m })}
-                    />
-                    {m === "inclusive" ? "Sudah termasuk harga" : "Ditambah ke harga"}
-                  </label>
+                  <Radio
+                    key={m}
+                    className="reg-radio-label"
+                    name="taxMode"
+                    value={m}
+                    checked={data.taxMode === m}
+                    onChange={() => onChange({ ...data, taxMode: m })}
+                    label={m === "inclusive" ? "Sudah termasuk harga" : "Ditambah ke harga"}
+                  />
                 ))}
               </div>
             </div>

@@ -1,0 +1,141 @@
+/* apps/pos-web/src/components/ui/Controls.css — Checkbox, Radio, Switch */
+
+.ctl-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.ctl-row--disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ctl-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Checkbox */
+.checkbox-box {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ctl-native:focus-visible + .checkbox-box {
+  box-shadow: 0 0 0 3px hsla(var(--hue-primary), 84%, 55%, 0.2);
+  border-color: var(--primary-500);
+}
+
+.ctl-native:checked + .checkbox-box,
+.checkbox-box--indeterminate {
+  background: var(--primary-500);
+  border-color: var(--primary-500);
+}
+
+.checkbox-box svg {
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+
+.ctl-native:checked + .checkbox-box svg,
+.checkbox-box--indeterminate svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Radio */
+.radio-dot {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ctl-native:focus-visible + .radio-dot {
+  box-shadow: 0 0 0 3px hsla(var(--hue-primary), 84%, 55%, 0.2);
+}
+
+.ctl-native:checked + .radio-dot {
+  border-color: var(--primary-500);
+}
+
+.radio-dot::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--primary-500);
+  transform: scale(0);
+  transition: transform 0.12s ease;
+}
+
+.ctl-native:checked + .radio-dot::after {
+  transform: scale(1);
+}
+
+/* Switch */
+.switch-track {
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-300);
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.ctl-native:focus-visible + .switch-track {
+  box-shadow: 0 0 0 3px hsla(var(--hue-primary), 84%, 55%, 0.2);
+}
+
+.ctl-native:checked + .switch-track {
+  background: var(--primary-500);
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.ctl-native:checked + .switch-track .switch-thumb {
+  transform: translateX(14px);
+}
+
+.ctl-label {
+  line-height: 1.3;
+}

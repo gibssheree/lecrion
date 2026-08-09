@@ -21,6 +21,7 @@ import {
 import PosAppShell from "../components/layout/PosAppShell";
 import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
+import Select from "../components/ui/Select";
 
 const BASE = "";
 function getToken() {
@@ -379,15 +380,14 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <label className="form-label">Syarat Pembayaran</label>
-                  <select
-                    className="form-input"
+                  <Select
                     value={form.paymentTerms}
                     onChange={(e) => setForm((f) => ({ ...f, paymentTerms: e.target.value }))}
                   >
                     {Object.entries(PAYMENT_TERMS_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>{v}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className="form-label">Tanggal Faktur *</label>

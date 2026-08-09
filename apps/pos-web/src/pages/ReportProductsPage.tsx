@@ -260,7 +260,7 @@ export default function ReportProductsPage({ flavor = "products" }: Props) {
               Belum ada penjualan pada periode ini.
             </div>
           ) : (
-            <table className="data-table" style={{ width: "100%" }}>
+            <table className="pos-data-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th style={{ width: 60, textAlign: "center" }}>#</th>

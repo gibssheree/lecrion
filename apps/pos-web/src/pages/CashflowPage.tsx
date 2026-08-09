@@ -15,6 +15,7 @@ import { useToast } from "../store/toast.store";
 import { fmt } from "../utils/fmt";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import Select from "../components/ui/Select";
 
 const ADJUSTMENT_OPTIONS: { value: CashAdjustmentType; label: string }[] = [
   { value: "cash_in", label: "Kas Masuk" },
@@ -320,15 +321,14 @@ export default function CashflowPage() {
               >
                 <div>
                   <label className="form-label" style={{ fontSize: 11 }}>Tipe</label>
-                  <select
-                    className="form-select"
+                  <Select
                     value={entryType}
                     onChange={(e) => setEntryType(e.target.value as CashAdjustmentType)}
                   >
                     {ADJUSTMENT_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className="form-label" style={{ fontSize: 11 }}>Jumlah (Rp)</label>
