@@ -7,11 +7,12 @@
 import { BadRequestException } from '@nestjs/common';
 import { ParsedGrid } from './import.types';
 import { parseSpreadsheet } from './spreadsheet-parser';
-import { parseSqliteFile } from './sqlite-parser';
+import { parseSqliteFile, parseSqlDumpFile } from './sqlite-parser';
 
 const CSV_EXTENSIONS = ['.csv'];
 const XLSX_EXTENSIONS = ['.xlsx'];
 const SQLITE_EXTENSIONS = ['.db', '.sqlite', '.sqlite3'];
+const SQL_DUMP_EXTENSIONS = ['.sql'];
 const REJECTED_XLS = ['.xls'];
 
 export function extensionOf(filename: string): string {
@@ -35,6 +36,9 @@ export async function parseUploadedFile(
   if (SQLITE_EXTENSIONS.includes(ext)) {
     return parseSqliteFile(buffer, sourceOverride);
   }
+  if (SQL_DUMP_EXTENSIONS.includes(ext)) {
+    return parseSqlDumpFile(buffer, sourceOverride);
+  }
   if (REJECTED_XLS.includes(ext)) {
     throw new BadRequestException(
       'Legacy .xls files are not supported — please save as .xlsx or .csv and try again.',
@@ -42,6 +46,6 @@ export async function parseUploadedFile(
   }
 
   throw new BadRequestException(
-    `Unsupported file type "${ext || filename}". Supported formats: .csv, .xlsx, .db, .sqlite, .sqlite3.`,
+    `Unsupported file type "${ext || filename}". Supported formats: .csv, .xlsx, .db, .sqlite, .sqlite3, .sql.`,
   );
 }

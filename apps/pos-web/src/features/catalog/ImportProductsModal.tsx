@@ -50,7 +50,7 @@ const FIELD_ORDER: ImportField[] = [
 ];
 
 const PREVIEW_ROW_LIMIT = 200;
-const ACCEPTED_EXTENSIONS = ".csv,.xlsx,.db,.sqlite,.sqlite3";
+const ACCEPTED_EXTENSIONS = ".csv,.xlsx,.db,.sqlite,.sqlite3,.sql";
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
@@ -203,7 +203,7 @@ export default function ImportProductsModal({ onClose, onImported }: Props) {
       title={title}
       description={
         step === "pick"
-          ? "Unggah file CSV, XLSX, atau database SQLite (.db) berisi daftar produk."
+          ? "Unggah file CSV, XLSX, database SQLite (.db), atau SQL dump (.sql) berisi daftar produk."
           : undefined
       }
       footer={renderFooter()}
@@ -256,7 +256,7 @@ export default function ImportProductsModal({ onClose, onImported }: Props) {
               Klik atau seret file ke sini
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Mendukung .csv, .xlsx, .db, .sqlite — maksimal 10.000 baris
+              Mendukung .csv, .xlsx, .db, .sqlite, .sql — maksimal 10.000 baris
             </div>
           </>
         )}

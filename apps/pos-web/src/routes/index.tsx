@@ -85,6 +85,8 @@ const ChatbotSettingsPage = lazy(
 const OrderDetailPage = lazy(() => import("../pages/OrderDetailPage"));
 const ProductDetailPage = lazy(() => import("../pages/ProductDetailPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
+const PrivacyPolicyPage = lazy(() => import("../pages/legal/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("../pages/legal/TermsPage"));
 
 /** Thin fallback shown while a lazy chunk is downloading. */
 function PageFallback() {
@@ -172,6 +174,22 @@ export const router = createBrowserRouter([
   },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
+  {
+    path: "/kebijakan-privasi",
+    element: (
+      <S>
+        <PrivacyPolicyPage />
+      </S>
+    ),
+  },
+  {
+    path: "/syarat-ketentuan",
+    element: (
+      <S>
+        <TermsPage />
+      </S>
+    ),
+  },
 
   // POS Kasir — full-screen, no shell
   {
