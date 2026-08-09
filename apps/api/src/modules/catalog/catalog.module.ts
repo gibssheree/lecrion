@@ -19,6 +19,8 @@ import { ModifiersController } from './modifiers.controller';
 import { ModifiersService } from './modifiers.service';
 import { RecipesController } from './recipes.controller';
 import { RecipesService } from './recipes.service';
+import { ImportController } from './import/import.controller';
+import { ImportService } from './import/import.service';
 import { AuditModule } from '../audit/audit.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { AuthModule } from '../auth/auth.module';
@@ -30,6 +32,7 @@ import { AuthModule } from '../auth/auth.module';
     CategoriesController,
     ModifiersController,
     RecipesController,
+    ImportController,
   ],
   providers: [
     CatalogService,
@@ -38,6 +41,7 @@ import { AuthModule } from '../auth/auth.module';
     ProductBarcodesService,
     ModifiersService,
     RecipesService,
+    ImportService,
   ],
   exports: [
     CatalogService,

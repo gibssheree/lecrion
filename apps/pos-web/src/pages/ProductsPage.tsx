@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Edit3, ExternalLink, Package, PackageSearch, Plus, RefreshCw } from "lucide-react";
+import { Edit3, ExternalLink, Package, PackageSearch, Plus, RefreshCw, Upload } from "lucide-react";
 import EmptyState from "../components/ui/EmptyState";
 import PosAppShell from "../components/layout/PosAppShell";
 import QuickProductModal from "../features/catalog/QuickProductModal";
+import ImportProductsModal from "../features/catalog/ImportProductsModal";
 import { useCategories, useProducts } from "../hooks/useProducts";
 import { fmt } from "../utils/fmt";
 import { usePagination } from "../hooks/usePagination";
@@ -15,6 +16,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Semua");
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const products = useProducts(search, category);
   const { categories } = useCategories();
 
@@ -78,9 +80,15 @@ export default function ProductsPage() {
             <RefreshCw size={13} />
           </button>
           <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowImportModal(true)}
+            style={{ marginLeft: "auto" }}
+          >
+            <Upload size={13} /> Import Produk
+          </button>
+          <button
             className="btn btn-primary btn-sm"
             onClick={() => setShowModal(true)}
-            style={{ marginLeft: "auto" }}
           >
             <Plus size={13} /> Tambah / Edit Produk
           </button>
@@ -162,6 +170,13 @@ export default function ProductsPage() {
           categories={categories}
           onClose={() => setShowModal(false)}
           onSaved={products.reload}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportProductsModal
+          onClose={() => setShowImportModal(false)}
+          onImported={products.reload}
         />
       )}
 

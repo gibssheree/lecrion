@@ -5,6 +5,12 @@ const BASE = "";
 const POS_TOKEN_KEY = "pos_token";
 const DASHBOARD_TOKEN_KEY = "lecrion_access_token";
 const SHARED_TOKEN_COOKIE = "lecrion_auth_token";
+const POS_REFRESH_TOKEN_KEY = "pos_refresh_token";
+const SHARED_REFRESH_COOKIE = "lecrion_refresh_token";
+
+// Paths that must never trigger the refresh-and-retry flow — refreshing on
+// a failed login/refresh/register call would either be meaningless or loop.
+const AUTH_BOOTSTRAP_PATHS = ["/api/auth/login", "/api/auth/refresh", "/api/auth/register"];
 
 function readCookie(name: string): string | null {
   const prefix = `${name}=`;
@@ -27,6 +33,7 @@ export function clearSharedAuthToken(): void {
   sessionStorage.removeItem(POS_TOKEN_KEY);
   sessionStorage.removeItem(DASHBOARD_TOKEN_KEY);
   document.cookie = `${SHARED_TOKEN_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`;
+  clearStoredRefreshToken();
 }
 
 export function getStoredPosToken(): string | null {
@@ -50,6 +57,71 @@ export function getStoredPosToken(): string | null {
   }
 }
 
+export function setStoredRefreshToken(token: string): void {
+  sessionStorage.setItem(POS_REFRESH_TOKEN_KEY, token);
+  document.cookie = `${SHARED_REFRESH_COOKIE}=${encodeURIComponent(
+    token,
+  )}; Max-Age=2592000; Path=/; SameSite=Lax`; // 30 days
+}
+
+export function clearStoredRefreshToken(): void {
+  sessionStorage.removeItem(POS_REFRESH_TOKEN_KEY);
+  document.cookie = `${SHARED_REFRESH_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`;
+}
+
+export function getStoredRefreshToken(): string | null {
+  const sessionToken = sessionStorage.getItem(POS_REFRESH_TOKEN_KEY);
+  if (sessionToken) return sessionToken;
+
+  const cookieToken = readCookie(SHARED_REFRESH_COOKIE);
+  if (cookieToken) {
+    sessionStorage.setItem(POS_REFRESH_TOKEN_KEY, cookieToken);
+    return cookieToken;
+  }
+
+  try {
+    const persisted = JSON.parse(localStorage.getItem("pos-auth") ?? "{}");
+    return persisted?.state?.refreshToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Concurrent 401s share a single in-flight refresh instead of each firing
+// their own — dedupes the request and avoids any race on writing the new token.
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = getStoredRefreshToken();
+    if (!refreshToken) return null;
+    try {
+      const res = await fetch(`${BASE}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) {
+        clearSharedAuthToken();
+        return null;
+      }
+      const data = await res.json();
+      setSharedAuthToken(data.accessToken);
+      return data.accessToken as string;
+    } catch {
+      return null; // network error — leave tokens as-is, let the caller retry later
+    }
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
 async function request<T = unknown>(
   path: string,
   opts: RequestInit = {},
@@ -58,14 +130,29 @@ async function request<T = unknown>(
   if (token && !sessionStorage.getItem(POS_TOKEN_KEY)) {
     setSharedAuthToken(token);
   }
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opts.headers as Record<string, string>),
-    },
-    ...opts,
-  });
+
+  async function doFetch(bearer: string | null): Promise<Response> {
+    return fetch(`${BASE}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+        ...(opts.headers as Record<string, string>),
+      },
+      ...opts,
+    });
+  }
+
+  let res = await doFetch(token);
+
+  // Access token expired mid-session — silently refresh and retry once,
+  // rather than surfacing a 401 and bouncing the user to the login screen.
+  if (res.status === 401 && !AUTH_BOOTSTRAP_PATHS.some((p) => path.startsWith(p))) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      res = await doFetch(newToken);
+    }
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).message || `HTTP ${res.status}`);
   return data as T;
@@ -143,6 +230,92 @@ export const updateProduct = (id: number, data: Record<string, unknown>) =>
     method: "PATCH",
     body: JSON.stringify(data),
   });
+
+// ── Product import (CSV / XLSX / SQLite .db) ─────────────────────────────
+export type ImportField =
+  | "name"
+  | "price"
+  | "costPrice"
+  | "stock"
+  | "sku"
+  | "barcode"
+  | "category"
+  | "unit"
+  | "description";
+
+export type ImportColumnMapping = Partial<Record<ImportField, number>>;
+
+export interface ImportRowData {
+  name: string;
+  price: number | null;
+  costPrice: number | null;
+  stock: number | null;
+  sku: string | null;
+  barcode: string | null;
+  categoryName: string | null;
+  unit: string | null;
+  description: string | null;
+}
+
+export interface ImportRowResult {
+  rowIndex: number;
+  status: "ok" | "warning" | "error";
+  messages: string[];
+  action: "create" | "update" | "skip";
+  data: ImportRowData;
+  matchedProductId?: number;
+}
+
+export interface ImportPreview {
+  sourceFormat: "csv" | "xlsx" | "sqlite";
+  sourceName: string;
+  alternateSources?: string[];
+  headers: string[];
+  mapping: ImportColumnMapping;
+  totalRows: number;
+  okCount: number;
+  warningCount: number;
+  errorCount: number;
+  rows: ImportRowResult[];
+  committed: boolean;
+  result?: {
+    created: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+    failures: Array<{ rowIndex: number; message: string }>;
+  };
+}
+
+export async function importProducts(
+  file: File,
+  opts: {
+    mapping?: ImportColumnMapping;
+    sourceOverride?: string;
+    commit?: boolean;
+  } = {},
+): Promise<ImportPreview> {
+  const token = getStoredPosToken();
+  const form = new FormData();
+  form.append("file", file);
+  if (opts.mapping) form.append("mapping", JSON.stringify(opts.mapping));
+  if (opts.sourceOverride) form.append("sourceOverride", opts.sourceOverride);
+  form.append("commit", opts.commit ? "true" : "false");
+
+  const res = await fetch(`${BASE}/api/products/import`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = Array.isArray((data as any)?.message)
+      ? (data as any).message.join("; ")
+      : (data as any)?.message || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return data as ImportPreview;
+}
 
 export const getLowStock = () => request<any[]>("/api/inventory/low-stock");
 export const getOutOfStock = () =>

@@ -6,6 +6,7 @@ import {
   getStoredPosToken,
   login as apiLogin,
   setSharedAuthToken,
+  setStoredRefreshToken,
 } from "../services/api";
 import { useSupportPreviewStore } from "./support-preview.store";
 
@@ -19,6 +20,7 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   token: string | null;
+  refreshToken: string | null;
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string, loginMode?: string) => Promise<void>;
@@ -43,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isLoading: false,
       error: null,
 
@@ -51,7 +54,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const res = await apiLogin(email, password, loginMode);
           setSharedAuthToken(res.accessToken);
-          set({ token: res.accessToken, user: res.user, isLoading: false });
+          setStoredRefreshToken(res.refreshToken);
+          set({
+            token: res.accessToken,
+            refreshToken: res.refreshToken,
+            user: res.user,
+            isLoading: false,
+          });
           // A stale Support Preview flag from a previous session on this
           // browser must never carry into a new login — only a support-role
           // user is allowed to (re-)enable it, and only from the Support Console.
@@ -68,9 +77,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        clearSharedAuthToken();
+        clearSharedAuthToken(); // also clears the refresh token — see services/api.ts
         useSupportPreviewStore.getState().disablePreview();
-        set({ user: null, token: null });
+        set({ user: null, token: null, refreshToken: null });
       },
 
       restore: async () => {
@@ -105,6 +114,9 @@ export const useAuthStore = create<AuthState>()(
         return (ROLE_HIERARCHY[user.role] ?? 0) >= ROLE_HIERARCHY.cashier;
       },
     }),
-    { name: "pos-auth", partialize: (s) => ({ token: s.token, user: s.user }) },
+    {
+      name: "pos-auth",
+      partialize: (s) => ({ token: s.token, refreshToken: s.refreshToken, user: s.user }),
+    },
   ),
 );

@@ -15,7 +15,11 @@
 //   • getProductsByCategoryId() for category-filtered listing.
 //   • createProduct / updateProduct accept categoryId.
 
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from '@libs/db/src/prisma';
 import {
   menu as Menu,
@@ -273,7 +277,124 @@ export class CatalogService {
 
   // ── Product create/update foundation ────────────────────────────────────────
 
+  /**
+   * Field-level validation shared by the single-product endpoints and the
+   * bulk import pipeline — one source of truth so the two paths can never
+   * disagree on what a "valid" product looks like.
+   *
+   * Returns a list of human-readable problems; empty means valid. Does not
+   * throw so bulk import can collect per-row errors instead of aborting.
+   */
+  validateProductInput(
+    dto: Partial<CreateProductDto>,
+    { requireCore = true }: { requireCore?: boolean } = {},
+  ): string[] {
+    const problems: string[] = [];
+
+    if (dto.name !== undefined || requireCore) {
+      if (!dto.name || !String(dto.name).trim()) {
+        problems.push('name is required');
+      } else if (String(dto.name).trim().length > 200) {
+        problems.push('name must be 200 characters or fewer');
+      }
+    }
+
+    if (dto.price !== undefined || requireCore) {
+      if (dto.price === undefined || dto.price === null) {
+        problems.push('price is required');
+      } else if (!Number.isFinite(Number(dto.price)) || Number(dto.price) < 0) {
+        problems.push('price must be a non-negative number');
+      }
+    }
+
+    if (
+      dto.costPrice !== undefined &&
+      dto.costPrice !== null &&
+      (!Number.isFinite(Number(dto.costPrice)) || Number(dto.costPrice) < 0)
+    ) {
+      problems.push('costPrice must be a non-negative number');
+    }
+
+    if (
+      dto.stock !== undefined &&
+      dto.stock !== null &&
+      (!Number.isFinite(Number(dto.stock)) || Number(dto.stock) < 0)
+    ) {
+      problems.push('stock must be a non-negative number');
+    }
+
+    if (dto.sku !== undefined && dto.sku !== null && String(dto.sku).length > 100) {
+      problems.push('sku must be 100 characters or fewer');
+    }
+
+    if (
+      dto.barcode !== undefined &&
+      dto.barcode !== null &&
+      String(dto.barcode).length > 100
+    ) {
+      problems.push('barcode must be 100 characters or fewer');
+    }
+
+    return problems;
+  }
+
+  assertValidProductInput(
+    dto: Partial<CreateProductDto>,
+    opts?: { requireCore?: boolean },
+  ): void {
+    const problems = this.validateProductInput(dto, opts);
+    if (problems.length) {
+      throw new BadRequestException(problems);
+    }
+  }
+
+  /**
+   * Checks whether `sku`/`barcode` already belong to a different product.
+   * There is no DB-level unique constraint on menu.sku/menu.barcode (only an
+   * index), so this must be enforced here — checked by both the single
+   * create/update endpoints and the bulk import commit path.
+   */
+  async findSkuOrBarcodeConflict(
+    sku: string | null | undefined,
+    barcode: string | null | undefined,
+    excludeId?: number,
+  ): Promise<{ field: 'sku' | 'barcode'; value: string } | null> {
+    const trimmedSku = sku?.trim();
+    if (trimmedSku) {
+      const conflict = await this.prisma.menu.findFirst({
+        where: {
+          sku: trimmedSku,
+          ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true },
+      });
+      if (conflict) return { field: 'sku', value: trimmedSku };
+    }
+
+    const trimmedBarcode = barcode?.trim();
+    if (trimmedBarcode) {
+      const conflict = await this.prisma.menu.findFirst({
+        where: {
+          barcode: trimmedBarcode,
+          ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true },
+      });
+      if (conflict) return { field: 'barcode', value: trimmedBarcode };
+    }
+
+    return null;
+  }
+
   async createProduct(dto: CreateProductDto): Promise<NormalizedProduct> {
+    this.assertValidProductInput(dto);
+    const conflict = await this.findSkuOrBarcodeConflict(dto.sku, dto.barcode);
+    if (conflict) {
+      throw new ConflictException(
+        `${conflict.field} "${conflict.value}" is already used by another product`,
+      );
+    }
+
     const row = await this.prisma.menu.create({
       data: {
         name: dto.name,
@@ -308,6 +429,20 @@ export class CatalogService {
   ): Promise<NormalizedProduct | null> {
     const existing = await this.prisma.menu.findUnique({ where: { id } });
     if (!existing) return null;
+
+    this.assertValidProductInput(dto, { requireCore: false });
+    if (dto.sku !== undefined || dto.barcode !== undefined) {
+      const conflict = await this.findSkuOrBarcodeConflict(
+        dto.sku !== undefined ? dto.sku : existing.sku,
+        dto.barcode !== undefined ? dto.barcode : existing.barcode,
+        id,
+      );
+      if (conflict) {
+        throw new ConflictException(
+          `${conflict.field} "${conflict.value}" is already used by another product`,
+        );
+      }
+    }
 
     const row = await this.prisma.menu.update({
       where: { id },
