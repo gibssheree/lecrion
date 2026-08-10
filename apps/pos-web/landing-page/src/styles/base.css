@@ -1,3 +1,7 @@
+/* The landing page is its own scroll container: pos-web sets
+ * html/body/#root { height:100%; overflow:hidden } for the app shell, so the
+ * document itself never scrolls. Everything here scrolls inside .landing-page. */
+
 .landing-page {
   height: 100vh;
   overflow-x: hidden;
@@ -5,18 +9,18 @@
   scroll-behavior: smooth;
   background: var(--lp-bg);
   color: var(--lp-ink);
-  font-family:
-    "Plus Jakarta Sans",
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 15px;
-  font-weight: 400;
   line-height: 1.55;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* Set while the mobile menu is open — body-level locking does nothing here. */
+.landing-page.is-locked {
+  overflow: hidden;
 }
 
 .landing-page *,
@@ -25,46 +29,58 @@
   box-sizing: border-box;
 }
 
-.landing-page a {
+/* Every reset below is wrapped in :where() so it carries zero specificity.
+ * A plain `.landing-page p` rule is (0,1,1) — that outranks any single-class
+ * component rule like `.lp-hero__sub` (0,1,0), so `margin-top` set there
+ * would be silently defeated by this file's `margin: 0`. Same story for
+ * `.landing-page ul` vs `.lp-hero__points`. Zero-specificity resets mean a
+ * component class always wins, which is what a reset is supposed to do. */
+:where(.landing-page a) {
   color: inherit;
   text-decoration: none;
 }
 
-.landing-page h1,
-.landing-page h2,
-.landing-page h3,
-.landing-page h4,
-.landing-page p {
+:where(.landing-page h1, .landing-page h2, .landing-page h3, .landing-page h4, .landing-page p, .landing-page figure) {
   margin: 0;
-  font-family: inherit;
 }
 
-.landing-page h1 {
+:where(.landing-page h1, .landing-page h2, .landing-page h3, .landing-page h4) {
   font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
+  letter-spacing: -0.028em;
+  line-height: 1.08;
+  text-wrap: balance;
 }
 
-.landing-page h2 {
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+:where(.landing-page ul, .landing-page ol) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.landing-page h3 {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.landing-page p {
-  font-weight: 400;
-}
-
-.landing-page strong {
+:where(.landing-page strong) {
   font-weight: 600;
 }
 
-.landing-page img {
-  max-width: 100%;
+.landing-page img,
+.landing-page svg {
   display: block;
+  max-width: 100%;
+}
+
+.landing-page :focus-visible {
+  outline: 2px solid var(--lp-brand);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Numbers in product mocks and stats must not jitter or misalign. */
+.landing-page .lp-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.landing-page .lp-mono {
+  font-family: var(--lp-mono);
+  font-size: 0.85em;
+  letter-spacing: 0;
 }

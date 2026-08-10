@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { useState } from "react";
 import Section from "../layout/Section";
 import Button from "../ui/Button";
@@ -7,27 +8,27 @@ const PLANS = [
     name: "Starter",
     monthly: 299_000,
     yearly: 249_000,
-    description: "Untuk outlet kecil yang butuh kasir dan stok dasar.",
+    description: "Satu outlet yang butuh kasir dan stok yang benar.",
     features: [
-      "1 outlet",
-      "POS kasir & register shift",
-      "Inventory dasar",
+      "1 outlet, 3 pengguna",
+      "Kasir POS & register shift",
+      "Katalog, stok, dan supplier",
       "Laporan harian",
-      "Support email",
+      "Dukungan email",
     ],
   },
   {
     name: "Growth",
     monthly: 699_000,
     yearly: 579_000,
-    description: "Untuk bisnis yang mulai memakai WhatsApp dan multi-role.",
+    description: "Saat pelanggan mulai memesan lewat WhatsApp.",
     features: [
-      "Multi-user & role",
-      "WhatsApp bot",
-      "Cashflow & invoice",
-      "KDS F&B",
-      "Realtime sync",
-      "Loyalty & promo",
+      "3 outlet, pengguna tanpa batas",
+      "Semua fitur Starter",
+      "Chatbot WhatsApp & dashboard percakapan",
+      "Kitchen display & manajemen meja",
+      "Cashflow, invoice, dan sinkronisasi realtime",
+      "Dukungan prioritas",
     ],
     featured: true,
   },
@@ -35,44 +36,39 @@ const PLANS = [
     name: "Scale",
     monthly: null,
     yearly: null,
-    description: "Untuk multi-outlet dengan workflow yang lebih dalam.",
+    description: "Jaringan outlet dengan aturan operasional sendiri.",
     features: [
-      "Multi-outlet",
-      "Permission advanced",
-      "Dedicated onboarding",
+      "Outlet tanpa batas",
+      "Permission tingkat lanjut",
+      "Onboarding & migrasi data",
       "Integrasi khusus",
-      "SLA support",
+      "SLA dan kanal dukungan khusus",
     ],
   },
 ];
 
 function fmt(n: number) {
-  return "Rp " + (n / 1000).toFixed(0) + "rb";
+  return "Rp " + n.toLocaleString("id-ID");
 }
 
 export default function PricingSection() {
   const [yearly, setYearly] = useState(false);
 
   return (
-    <Section id="pricing" tone="light">
+    <Section id="harga" tone="paper">
       <div className="lp-section-heading">
-        <span>Harga</span>
         <h2>
           Mulai dari kasir,
           <br />
-          <em>tambah saat outlet berkembang.</em>
+          <em>naik saat outlet bertambah.</em>
         </h2>
-        <p>Semua paket bisa dicoba 14 hari tanpa kartu kredit.</p>
+        <p>Coba 14 hari tanpa kartu kredit. Tidak ada batas transaksi di semua paket.</p>
       </div>
 
-      <div
-        className="lp-billing-toggle"
-        role="group"
-        aria-label="Pilih siklus tagihan"
-      >
+      <div className="lp-billing" role="group" aria-label="Siklus tagihan">
         <button
           type="button"
-          className={`lp-billing-btn${!yearly ? " is-active" : ""}`}
+          className={`lp-billing__btn${!yearly ? " is-active" : ""}`}
           onClick={() => setYearly(false)}
           aria-pressed={!yearly}
         >
@@ -80,12 +76,12 @@ export default function PricingSection() {
         </button>
         <button
           type="button"
-          className={`lp-billing-btn${yearly ? " is-active" : ""}`}
+          className={`lp-billing__btn${yearly ? " is-active" : ""}`}
           onClick={() => setYearly(true)}
           aria-pressed={yearly}
         >
           Tahunan
-          <span className="lp-billing-save">Hemat 17%</span>
+          <span className="lp-billing__save">−17%</span>
         </button>
       </div>
 
@@ -96,35 +92,49 @@ export default function PricingSection() {
           return (
             <article
               key={plan.name}
-              className={`lp-pricing-card${plan.featured ? " is-featured" : ""}`}
+              className={`lp-plan${plan.featured ? " is-featured" : ""}`}
             >
-              {plan.featured && (
-                <span className="lp-pricing-flag">Populer</span>
-              )}
-              <h3>{plan.name}</h3>
-              <p>{plan.description}</p>
-              <strong className="lp-price">
-                {price === null ? "Custom" : fmt(price)}
-                {price !== null && <small> / bulan</small>}
-              </strong>
-              <ul>
+              <div className="lp-plan__head">
+                <h3>{plan.name}</h3>
+                {plan.featured && <span className="lp-plan__flag">Paling banyak dipakai</span>}
+              </div>
+
+              <p className="lp-plan__desc">{plan.description}</p>
+
+              <div className="lp-plan__price">
+                {price === null ? (
+                  <strong>Hubungi kami</strong>
+                ) : (
+                  <>
+                    <strong className="lp-num">{fmt(price)}</strong>
+                    <span>/ outlet / bulan</span>
+                  </>
+                )}
+              </div>
+
+              <Button
+                href={plan.monthly === null ? "#kontak" : "/register"}
+                variant={plan.featured ? "primary" : "secondary"}
+                className="lp-plan__cta"
+              >
+                {plan.monthly === null ? "Bicara dengan kami" : "Coba 14 hari gratis"}
+              </Button>
+
+              <ul className="lp-plan__features">
                 {plan.features.map((f) => (
-                  <li key={f}>{f}</li>
+                  <li key={f}>
+                    <Check size={15} strokeWidth={2.5} />
+                    {f}
+                  </li>
                 ))}
               </ul>
-              <Button
-                href={plan.monthly === null ? "#contact" : "/register"}
-                variant={plan.featured ? "primary" : "secondary"}
-              >
-                {plan.monthly === null ? "Hubungi kami" : "Coba gratis 14 hari"}
-              </Button>
             </article>
           );
         })}
       </div>
 
       <p className="lp-pricing-note">
-        Belum termasuk PPN. Tidak ada biaya setup. Batalkan kapan saja.
+        Harga belum termasuk PPN. Tanpa biaya setup. Berhenti kapan saja.
       </p>
     </Section>
   );

@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-// Adds an `is-visible` class once the element scrolls into view.
-// Respects prefers-reduced-motion by showing content immediately.
+/**
+ * Adds `is-visible` once the element scrolls into view.
+ *
+ * The reveal styles start at opacity 0, so anything that stops this hook from
+ * resolving leaves a blank page. Both escape hatches below therefore fail
+ * open — show the content, drop the animation.
+ */
 export function useReveal<T extends HTMLElement = HTMLDivElement>() {
   const ref = useRef<T>(null);
   const [visible, setVisible] = useState(false);
@@ -10,7 +15,10 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>() {
     const el = ref.current;
     if (!el) return;
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (
+      typeof IntersectionObserver === "undefined" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
       setVisible(true);
       return;
     }

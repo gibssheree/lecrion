@@ -4,25 +4,31 @@ import Button from "../ui/Button";
 
 export default function CtaSection() {
   return (
-    <Section id="contact" className="lp-cta-section">
-      <div className="lp-cta-panel">
-        <div>
+    <Section id="kontak" tone="dark" className="lp-cta-section">
+      <div className="lp-cta">
+        <div className="lp-cta__text">
           <h2>
-            Lihat Lecrion sebagai sistem,
+            Mulai dari satu kasir.
             <br />
-            bukan mockup.
+            <em>Tambah chatbot saat Anda siap.</em>
           </h2>
           <p>
-            Mulai dari kasir, stok, order WhatsApp, sampai laporan owner dalam
-            satu alur yang bisa diuji langsung.
+            Kami bantu siapkan katalog produk, atur hak akses staf, dan
+            hubungkan nomor WhatsApp bisnis Anda. Outlet pertama bisa mulai
+            bertransaksi di hari yang sama.
           </p>
         </div>
-        <div className="lp-cta-actions">
-          <Button href="/login">
-            Buka POS <ArrowRight size={15} />
+
+        <div className="lp-cta__actions">
+          <Button href="/login" className="lp-button--lg">
+            Buka dashboard <ArrowRight size={16} />
           </Button>
-          <Button href="mailto:hello@lecrion.id" variant="secondary">
-            Minta demo
+          <Button
+            href="mailto:halo@lecrion.id?subject=Permintaan%20demo%20Lecrion"
+            variant="secondary"
+            className="lp-button--lg"
+          >
+            Jadwalkan demo
           </Button>
         </div>
       </div>

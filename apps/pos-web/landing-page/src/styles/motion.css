@@ -1,14 +1,13 @@
-/* Motion — minimal, subtle. Gated by prefers-reduced-motion. */
+/* Motion is structural only: reveal on scroll, hover feedback, disclosure.
+ * Nothing loops, nothing floats, nothing pulses for decoration. */
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Scroll reveal */
   .lp-reveal {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
     transition:
-      opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: opacity, transform;
+      opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .lp-reveal.is-visible {
@@ -16,32 +15,21 @@
     transform: none;
   }
 
-  /* Hero entrance */
-  .lp-hero__content > * {
+  .lp-hero__text > *,
+  .lp-hero__media {
     opacity: 0;
-    animation: lp-hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: lp-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
+  .lp-hero__text > *:nth-child(1) { animation-delay: 0.04s; }
+  .lp-hero__text > *:nth-child(2) { animation-delay: 0.1s; }
+  .lp-hero__text > *:nth-child(3) { animation-delay: 0.16s; }
+  .lp-hero__text > *:nth-child(4) { animation-delay: 0.22s; }
+  .lp-hero__media { animation-delay: 0.14s; }
 
-  .lp-hero__content > *:nth-child(1) {
-    animation-delay: 0.05s;
-  }
-  .lp-hero__content > *:nth-child(2) {
-    animation-delay: 0.13s;
-  }
-  .lp-hero__content > *:nth-child(3) {
-    animation-delay: 0.21s;
-  }
-  .lp-hero__content > *:nth-child(4) {
-    animation-delay: 0.29s;
-  }
-  .lp-hero__content > *:nth-child(5) {
-    animation-delay: 0.37s;
-  }
-
-  @keyframes lp-hero-in {
+  @keyframes lp-rise {
     from {
       opacity: 0;
-      transform: translateY(14px);
+      transform: translateY(12px);
     }
     to {
       opacity: 1;
@@ -50,24 +38,16 @@
   }
 }
 
-/* Always-on micro-interactions */
-.lp-bento-card,
+.lp-button,
 .lp-vertical-card,
-.lp-pricing-card {
-  transition: border-color 0.2s ease;
-}
-
-.lp-button {
+.lp-tab,
+.lp-billing__btn,
+.lp-site-nav a,
+.lp-login-link,
+.lp-footer__nav a,
+.lp-faq__item summary {
   transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.lp-faq-item {
-  transition: background 0.15s ease;
-}
-
-.lp-faq-item summary {
-  transition: color 0.15s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }

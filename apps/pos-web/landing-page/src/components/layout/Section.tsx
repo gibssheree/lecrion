@@ -6,11 +6,13 @@ export default function Section({
   className = "",
   id,
   tone = "light",
+  wide = false,
 }: {
   children: ReactNode;
   className?: string;
   id?: string;
-  tone?: "light" | "soft" | "dark";
+  tone?: "light" | "paper" | "dark";
+  wide?: boolean;
 }) {
   const { ref, visible } = useReveal<HTMLDivElement>();
 
@@ -18,7 +20,9 @@ export default function Section({
     <section id={id} className={`lp-section lp-section--${tone} ${className}`.trim()}>
       <div
         ref={ref}
-        className={`lp-container lp-reveal${visible ? " is-visible" : ""}`}
+        className={`lp-container${wide ? " lp-container--wide" : ""} lp-reveal${
+          visible ? " is-visible" : ""
+        }`}
       >
         {children}
       </div>

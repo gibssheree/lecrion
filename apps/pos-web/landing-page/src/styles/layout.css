@@ -1,71 +1,75 @@
-/* Container & section rhythm — generous whitespace, calm. */
+/* Container, section rhythm, section headings. */
 
 .lp-container {
-  width: min(1200px, calc(100% - 48px));
+  width: min(1160px, calc(100% - 48px));
   margin: 0 auto;
 }
 
+.lp-container--wide {
+  width: min(1320px, calc(100% - 48px));
+}
+
 .lp-section {
-  padding: 96px 0;
+  padding: 104px 0;
 }
 
 .lp-section--light {
   background: var(--lp-bg);
 }
-.lp-section--soft {
-  background: var(--lp-soft);
-}
 .lp-section--paper {
   background: var(--lp-paper);
+  border-block: 1px solid var(--lp-line);
+}
+.lp-section--dark {
+  background: var(--lp-ink);
+  color: #fff;
 }
 
-/* Section heading — small kicker, big-but-restrained title */
+/* Adjacent sections of the same tone should not double up their borders. */
+.lp-section--paper + .lp-section--paper {
+  border-top: 0;
+}
+
+/* ── Section heading ─────────────────────────────────── */
 .lp-section-heading {
-  max-width: 720px;
+  max-width: 760px;
   margin-bottom: 56px;
 }
 
-.lp-kicker,
-.lp-section-heading > span:first-child {
-  display: inline-block;
-  margin-bottom: 16px;
-  color: var(--lp-muted);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 .lp-section-heading h2 {
-  color: var(--lp-ink);
-  font-size: clamp(28px, 3.4vw, 44px);
-  font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  font-size: clamp(29px, 3.5vw, 46px);
+  line-height: 1.06;
 }
 
 .lp-section-heading h2 em {
   font-style: normal;
   color: var(--lp-muted);
-  font-weight: 600;
 }
 
 .lp-section-heading p {
-  margin-top: 16px;
-  max-width: 580px;
+  margin-top: 18px;
+  max-width: 600px;
   color: var(--lp-text);
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 16.5px;
+  line-height: 1.62;
+}
+
+.lp-section--dark .lp-section-heading h2 em {
+  color: var(--lp-dark-dim);
+}
+.lp-section--dark .lp-section-heading p {
+  color: var(--lp-dark-text);
 }
 
 @media (max-width: 640px) {
-  .lp-container {
-    width: min(100% - 32px, 1200px);
+  .lp-container,
+  .lp-container--wide {
+    width: min(100% - 32px, 1320px);
   }
   .lp-section {
-    padding: 64px 0;
+    padding: 68px 0;
   }
   .lp-section-heading {
-    margin-bottom: 40px;
+    margin-bottom: 36px;
   }
 }

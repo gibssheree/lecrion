@@ -3,15 +3,15 @@ import { useEffect, useState } from "react";
 export function useMobileMenu() {
   const [open, setOpen] = useState(false);
 
-  // Lock body scroll when menu is open
+  // The landing root is the scroll container, not <body> — pos-web keeps
+  // html/body/#root at overflow:hidden. Locking body here would be a no-op.
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    const root = document.querySelector(".landing-page");
+    if (!root) return;
+    root.classList.toggle("is-locked", open);
+    return () => root.classList.remove("is-locked");
   }, [open]);
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);

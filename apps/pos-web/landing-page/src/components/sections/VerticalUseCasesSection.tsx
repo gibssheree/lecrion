@@ -2,42 +2,52 @@ import Section from "../layout/Section";
 
 const VERTICALS = [
   {
-    title: "Cafe dan resto",
+    title: "Cafe & resto",
     description:
-      "Kasir, dapur, order WhatsApp, dan stok bahan dalam satu alur.",
+      "Kasir, dapur, order WhatsApp, dan stok bahan baku dalam satu alur.",
+    modules: ["KDS", "Meja", "Resep", "Chatbot"],
   },
   {
-    title: "Retail kecil",
+    title: "Retail",
     description:
-      "Transaksi cepat, stok terpantau, dan laporan harian mudah dibaca.",
+      "Transaksi cepat dengan barcode, varian produk, dan kartu stok rapi.",
+    modules: ["Barcode", "Varian", "Opname"],
   },
   {
-    title: "Booth multi-cabang",
+    title: "Multi-cabang",
     description:
-      "Owner melihat performa setiap outlet tanpa menunggu rekap manual.",
+      "Owner membaca performa tiap outlet dan memindahkan stok antar lokasi.",
+    modules: ["Multi-outlet", "Transfer", "Laporan"],
   },
   {
-    title: "Laundry dan jasa",
-    description: "Order, invoice, pembayaran, dan status pekerjaan terpantau.",
+    title: "Laundry & jasa",
+    description:
+      "Order, invoice, pembayaran, dan status pengerjaan terpantau per pelanggan.",
+    modules: ["Invoice", "Pelanggan", "Status"],
   },
 ];
 
 export default function VerticalUseCasesSection() {
   return (
-    <Section tone="light">
+    <Section id="solusi" tone="paper">
       <div className="lp-section-heading">
-        <span>Use case</span>
         <h2>
-          Cocok untuk bisnis yang
+          Satu platform,
           <br />
-          <em>butuh transaksi dan kontrol outlet.</em>
+          <em>dikonfigurasi per jenis usaha.</em>
         </h2>
       </div>
+
       <div className="lp-vertical-grid">
         {VERTICALS.map((v) => (
           <article className="lp-vertical-card" key={v.title}>
             <h3>{v.title}</h3>
             <p>{v.description}</p>
+            <div className="lp-vertical-card__tags">
+              {v.modules.map((m) => (
+                <span key={m}>{m}</span>
+              ))}
+            </div>
           </article>
         ))}
       </div>

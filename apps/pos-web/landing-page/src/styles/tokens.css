@@ -1,30 +1,50 @@
-/* Design tokens — minimal, warm, refined.
- * Inspired by Ramp / Linear / Vercel — single accent, restrained type. */
+/* Lecrion brand tokens.
+ * Built on the mark's own indigo (#1C05B3) — one accent, used with intent.
+ * The font is @imported here (not in index.html) so it ships with the landing
+ * chunk only, and does not load for cashiers using the POS every day. */
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
 
 .landing-page {
-  /* Surfaces */
-  --lp-bg: #faf9f5;
-  --lp-paper: #ffffff;
-  --lp-soft: #f4f3ee;
+  /* Brand */
+  --lp-brand: #1c05b3;
+  --lp-brand-deep: #150489;
+  --lp-brand-lift: #2a12d6;
+  --lp-brand-wash: #f1efff;
+  --lp-brand-line: #d9d3ff;
 
-  /* Type */
-  --lp-ink: #0a0a0a;
-  --lp-text: #525252;
-  --lp-muted: #8a8a8a;
-  --lp-faint: #b5b5b5;
+  /* Surfaces */
+  --lp-paper: #ffffff;
+  --lp-bg: #f7f7fa;
+  --lp-ink: #0b0b14;
+  --lp-ink-soft: #14141f;
+
+  /* Type — every step below clears WCAG AA (4.5:1) on its own surface, so
+   * secondary copy stays readable instead of decorative. */
+  --lp-text: #4a4a58; /* 8.1:1 on --lp-bg */
+  --lp-muted: #62626f; /* 5.6:1 */
+  --lp-faint: #6c6c7a; /* lightest text tone: still ≥4.5:1 on the tinted
+                        * panel backgrounds inside the product mocks */
 
   /* Lines */
-  --lp-line: #e8e7e0;
-  --lp-line-strong: #d6d4cb;
+  --lp-line: #e7e7ee;
+  --lp-line-strong: #d5d5e0;
 
-  /* Accent — used very sparingly */
-  --lp-accent: #0a0a0a;
-  --lp-accent-hover: #1f1f1f;
-  --lp-link: #1e40af;
-  --lp-success: #15803d;
+  /* On dark */
+  --lp-dark-text: #a9a9bd; /* 8.5:1 on --lp-ink */
+  --lp-dark-dim: #777792; /* 4.5:1 on --lp-ink */
+  --lp-dark-line: #23232f;
+
+  /* Signal */
+  --lp-ok: #058043;
+  --lp-warn: #ad6500;
 
   /* Geometry */
-  --lp-radius: 10px;
-  --lp-radius-sm: 6px;
-  --lp-header-height: 60px;
+  --lp-r-sm: 6px;
+  --lp-r: 10px;
+  --lp-r-lg: 16px;
+  --lp-header-h: 60px;
+
+  --lp-mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo,
+    Consolas, monospace;
 }

@@ -1,51 +1,54 @@
 import { Menu, X } from "lucide-react";
 import { useMobileMenu } from "../../hooks/useMobileMenu";
+import { useScrolled } from "../../hooks/useScrolled";
 import Button from "../ui/Button";
 import Logo from "../ui/Logo";
 
 const NAV_LINKS = [
-  { href: "#product", label: "Produk" },
-  { href: "#features", label: "Fitur" },
-  { href: "#pricing", label: "Harga" },
-  { href: "#contact", label: "Demo" },
+  { href: "#produk", label: "Produk" },
+  { href: "#platform", label: "Platform" },
+  { href: "#solusi", label: "Solusi" },
+  { href: "#harga", label: "Harga" },
+  { href: "#perusahaan", label: "Perusahaan" },
 ];
 
 export default function SiteHeader() {
   const { open, toggle, setOpen } = useMobileMenu();
+  const scrolled = useScrolled();
 
   return (
     <>
-      <header className="lp-site-header">
-        <a className="lp-site-brand" href="/" aria-label="Lecrion">
-          <Logo />
-        </a>
-
-        <nav className="lp-site-nav" aria-label="Navigasi utama">
-          {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href}>
-              {link.label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="lp-header-actions">
-          <a className="lp-login-link" href="/login">
-            Masuk
+      <header className={`lp-site-header${scrolled ? " is-scrolled" : ""}`}>
+        <div className="lp-container lp-container--wide lp-site-header__inner">
+          <a className="lp-site-brand" href="/" aria-label="Lecrion, beranda">
+            <Logo />
           </a>
-          <Button href="/login" className="lp-header-cta">
-            Buka POS
-          </Button>
-        </div>
 
-        <button
-          className="lp-mobile-menu"
-          type="button"
-          aria-label={open ? "Tutup menu" : "Buka menu"}
-          aria-expanded={open}
-          onClick={toggle}
-        >
-          {open ? <X size={18} /> : <Menu size={18} />}
-        </button>
+          <nav className="lp-site-nav" aria-label="Navigasi utama">
+            {NAV_LINKS.map((link) => (
+              <a key={link.href} href={link.href}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="lp-header-actions">
+            <a className="lp-login-link" href="/login">
+              Masuk
+            </a>
+            <Button href="/login">Buka dashboard</Button>
+          </div>
+
+          <button
+            className="lp-mobile-menu"
+            type="button"
+            aria-label={open ? "Tutup menu" : "Buka menu"}
+            aria-expanded={open}
+            onClick={toggle}
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
       </header>
 
       {open && (
@@ -57,11 +60,7 @@ export default function SiteHeader() {
         >
           <nav className="lp-mobile-nav">
             {NAV_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-              >
+              <a key={link.href} href={link.href} onClick={() => setOpen(false)}>
                 {link.label}
               </a>
             ))}
@@ -74,7 +73,7 @@ export default function SiteHeader() {
                 Masuk
               </a>
               <Button href="/login" onClick={() => setOpen(false)}>
-                Buka POS
+                Buka dashboard
               </Button>
             </div>
           </nav>

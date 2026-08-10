@@ -1,14 +1,14 @@
 import SiteFooter from "./components/layout/SiteFooter";
 import SiteHeader from "./components/layout/SiteHeader";
+import CompanySection from "./components/sections/CompanySection";
 import CtaSection from "./components/sections/CtaSection";
 import FaqSection from "./components/sections/FaqSection";
-import FeatureGridSection from "./components/sections/FeatureGridSection";
 import HeroSection from "./components/sections/HeroSection";
+import ModulesSection from "./components/sections/ModulesSection";
+import PlatformSection from "./components/sections/PlatformSection";
 import PricingSection from "./components/sections/PricingSection";
-import ProblemSection from "./components/sections/ProblemSection";
-import ProductPreviewSection from "./components/sections/ProductPreviewSection";
+import ProductSurfacesSection from "./components/sections/ProductSurfacesSection";
 import VerticalUseCasesSection from "./components/sections/VerticalUseCasesSection";
-import WhatsAppBotSection from "./components/sections/WhatsAppBotSection";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/layout.css";
@@ -16,28 +16,28 @@ import "./styles/components.css";
 import "./styles/landing.css";
 import "./styles/motion.css";
 
-// Section order:
-// 1. Hero (outcome headline + live ticker + stat strip)
-// 2. ProductPreview (screenshot + live feed panel)
-// 3. Problem (before/after)
-// 4. FeatureGrid (bento layout)
-// 5. VerticalUseCases (use cases)
-// 6. WhatsAppBot (flow diagram + chat)
-// 7. Pricing (with billing toggle, moved after features)
-// 8. FAQ
-// 9. CTA
-
+/**
+ * Company site for Lecrion — one narrative, no repeated claims:
+ *   Hero            what the company makes
+ *   ProductSurfaces the two products, drawn as real UI
+ *   Platform        why one data core matters
+ *   Modules         what actually ships
+ *   Verticals       who it fits
+ *   Pricing         what it costs
+ *   Company         who is behind it
+ *   FAQ / CTA       objections, then the ask
+ */
 export default function App() {
   return (
     <main className="landing-page">
       <SiteHeader />
       <HeroSection />
-      <ProductPreviewSection />
-      <ProblemSection />
-      <FeatureGridSection />
+      <ProductSurfacesSection />
+      <PlatformSection />
+      <ModulesSection />
       <VerticalUseCasesSection />
-      <WhatsAppBotSection />
       <PricingSection />
+      <CompanySection />
       <FaqSection />
       <CtaSection />
       <SiteFooter />
