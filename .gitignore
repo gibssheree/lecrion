@@ -17,3 +17,5 @@ apps/*/dist/
 libs/*/src/**/*.js
 libs/*/src/**/*.js.map
 libs/*/src/**/*.d.ts
+ngrok.exe
+login_resp.json
