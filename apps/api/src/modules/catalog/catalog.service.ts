@@ -26,6 +26,9 @@ import {
   product_categories as CategoryRow,
 } from '@prisma/client';
 import { ProductType, ProductTypeValue } from '@libs/contracts/src/enums';
+import { CreateProductDto, UpdateProductDto } from './catalog.dto';
+
+export { CreateProductDto, UpdateProductDto };
 
 // ── Normalized product shape returned by all catalog queries ──────────────────
 export interface NormalizedProduct {
@@ -149,19 +152,30 @@ export class CatalogService {
     };
   }
 
-  async getAllProducts(includeInactive = false): Promise<NormalizedProduct[]> {
-    const where = includeInactive ? {} : { is_active: true };
+  async getAllProducts(
+    storeId: string,
+    includeInactive = false,
+  ): Promise<NormalizedProduct[]> {
     const rows = await this.prisma.menu.findMany({
-      where,
+      where: { store_id: storeId, ...(includeInactive ? {} : { is_active: true }) },
       include: { category: true },
       orderBy: { name: 'asc' },
     });
     return rows.map((r) => this.normalizeProduct(r));
   }
 
-  async getProductById(id: number): Promise<NormalizedProduct | null> {
-    const row = await this.prisma.menu.findUnique({
-      where: { id },
+  /**
+   * `storeId` is required (SEC-05) — a product id alone is not enough to
+   * decide whether the caller may see it. Returns null (not found) rather
+   * than a distinct "forbidden" so a store can't probe which ids belong to
+   * another store.
+   */
+  async getProductById(
+    id: number,
+    storeId: string,
+  ): Promise<NormalizedProduct | null> {
+    const row = await this.prisma.menu.findFirst({
+      where: { id, store_id: storeId },
       include: { category: true },
     });
     return row ? this.normalizeProduct(row) : null;
@@ -173,11 +187,13 @@ export class CatalogService {
    */
   async getProductsByCategoryId(
     categoryId: number,
+    storeId: string,
     includeInactive = false,
   ): Promise<NormalizedProduct[]> {
     const rows = await this.prisma.menu.findMany({
       where: {
         category_id: categoryId,
+        store_id: storeId,
         ...(includeInactive ? {} : { is_active: true }),
       },
       include: { category: true },
@@ -186,11 +202,15 @@ export class CatalogService {
     return rows.map((r) => this.normalizeProduct(r));
   }
 
-  async findProductByName(keyword: string): Promise<NormalizedProduct | null> {
+  async findProductByName(
+    keyword: string,
+    storeId: string,
+  ): Promise<NormalizedProduct | null> {
     if (!keyword?.trim()) return null;
     const rows = await this.prisma.menu.findMany({
       where: {
         name: { contains: keyword.trim() },
+        store_id: storeId,
       },
       include: { category: true },
       orderBy: [{ stock: 'desc' }, { id: 'asc' }],
@@ -209,6 +229,7 @@ export class CatalogService {
    */
   async searchProducts(
     keyword: string,
+    storeId: string,
     limit = 8,
   ): Promise<NormalizedProduct[]> {
     const q = (keyword || '').trim();
@@ -220,7 +241,7 @@ export class CatalogService {
     let extraProductIds: number[] = [];
     if (looksLikeBarcode) {
       const barcodeRows = await this.prisma.product_barcodes.findMany({
-        where: { barcode: q },
+        where: { barcode: q, menu: { store_id: storeId } },
         select: { menu_id: true },
       });
       extraProductIds = barcodeRows.map((r) => r.menu_id);
@@ -229,6 +250,7 @@ export class CatalogService {
     const rows = await this.prisma.menu.findMany({
       where: {
         is_active: true,
+        store_id: storeId,
         OR: [
           { name: { contains: q } },
           { description: { contains: q } },
@@ -244,9 +266,9 @@ export class CatalogService {
     return rows.map((r) => this.normalizeProduct(r));
   }
 
-  async getCatalogContext(limit = 25): Promise<string> {
+  async getCatalogContext(storeId: string, limit = 25): Promise<string> {
     const rows = await this.prisma.menu.findMany({
-      where: { is_active: true },
+      where: { is_active: true, store_id: storeId },
       orderBy: [{ stock: 'desc' }, { name: 'asc' }],
       take: Number(limit) || 25,
     });
@@ -264,10 +286,11 @@ export class CatalogService {
       .join('\n');
   }
 
-  async getCatalogForStore(): Promise<NormalizedProduct[]> {
-    return this.getAllProducts();
+  async getCatalogForStore(storeId: string): Promise<NormalizedProduct[]> {
+    return this.getAllProducts(storeId);
   }
 
+  /** Caller must have already verified `id` belongs to the caller's store. */
   async updateStock(id: number, stock: number): Promise<Menu> {
     return this.prisma.menu.update({
       where: { id },
@@ -349,14 +372,17 @@ export class CatalogService {
   }
 
   /**
-   * Checks whether `sku`/`barcode` already belong to a different product.
-   * There is no DB-level unique constraint on menu.sku/menu.barcode (only an
-   * index), so this must be enforced here — checked by both the single
-   * create/update endpoints and the bulk import commit path.
+   * Checks whether `sku`/`barcode` already belong to a different product
+   * IN THE SAME STORE. There is no DB-level unique constraint on
+   * menu.sku/menu.barcode (only an index), so this must be enforced here —
+   * checked by both the single create/update endpoints and the bulk import
+   * commit path. Scoped per store so two different merchants can each use
+   * "COFFEE-001" without colliding.
    */
   async findSkuOrBarcodeConflict(
     sku: string | null | undefined,
     barcode: string | null | undefined,
+    storeId: string,
     excludeId?: number,
   ): Promise<{ field: 'sku' | 'barcode'; value: string } | null> {
     const trimmedSku = sku?.trim();
@@ -364,6 +390,7 @@ export class CatalogService {
       const conflict = await this.prisma.menu.findFirst({
         where: {
           sku: trimmedSku,
+          store_id: storeId,
           ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
         },
         select: { id: true },
@@ -376,6 +403,7 @@ export class CatalogService {
       const conflict = await this.prisma.menu.findFirst({
         where: {
           barcode: trimmedBarcode,
+          store_id: storeId,
           ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
         },
         select: { id: true },
@@ -386,9 +414,16 @@ export class CatalogService {
     return null;
   }
 
-  async createProduct(dto: CreateProductDto): Promise<NormalizedProduct> {
+  async createProduct(
+    dto: CreateProductDto,
+    storeId: string,
+  ): Promise<NormalizedProduct> {
     this.assertValidProductInput(dto);
-    const conflict = await this.findSkuOrBarcodeConflict(dto.sku, dto.barcode);
+    const conflict = await this.findSkuOrBarcodeConflict(
+      dto.sku,
+      dto.barcode,
+      storeId,
+    );
     if (conflict) {
       throw new ConflictException(
         `${conflict.field} "${conflict.value}" is already used by another product`,
@@ -403,6 +438,7 @@ export class CatalogService {
         stock: dto.stock ?? 0,
         description: dto.description ?? null,
         image_url: dto.imageUrl ?? null,
+        store_id: storeId,
         sku: dto.sku ?? null,
         barcode: dto.barcode ?? null,
         product_type: dto.productType ?? ProductType.SIMPLE,
@@ -426,8 +462,11 @@ export class CatalogService {
   async updateProduct(
     id: number,
     dto: UpdateProductDto,
+    storeId: string,
   ): Promise<NormalizedProduct | null> {
-    const existing = await this.prisma.menu.findUnique({ where: { id } });
+    const existing = await this.prisma.menu.findFirst({
+      where: { id, store_id: storeId },
+    });
     if (!existing) return null;
 
     this.assertValidProductInput(dto, { requireCore: false });
@@ -435,6 +474,7 @@ export class CatalogService {
       const conflict = await this.findSkuOrBarcodeConflict(
         dto.sku !== undefined ? dto.sku : existing.sku,
         dto.barcode !== undefined ? dto.barcode : existing.barcode,
+        storeId,
         id,
       );
       if (conflict) {
@@ -479,30 +519,3 @@ export class CatalogService {
     return this.normalizeProduct(row);
   }
 }
-
-// ── DTOs ─────────────────────────────────────────────────────────────────────
-
-export interface CreateProductDto {
-  name: string;
-  price: number;
-  costPrice?: number | null;
-  stock?: number;
-  description?: string;
-  imageUrl?: string;
-  sku?: string;
-  barcode?: string;
-  productType?: ProductTypeValue;
-  unitName?: string;
-  unitCode?: string;
-  brand?: string;
-  supplierName?: string;
-  supplierId?: string;
-  attributes?: string;
-  parentProductId?: number;
-  isStockTracked?: boolean;
-  isActive?: boolean;
-  // Phase 6A
-  categoryId?: number | null;
-}
-
-export interface UpdateProductDto extends Partial<CreateProductDto> {}

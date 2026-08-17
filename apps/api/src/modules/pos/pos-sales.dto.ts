@@ -108,19 +108,12 @@ export class CreatePosSaleDto {
   @IsString()
   discountReason?: string;
 
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  taxAmount?: number;
-
-  @IsOptional()
-  @IsIn(POS_TAX_MODES)
-  taxMode?: PosTaxModeDto;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  serviceChargeAmount?: number;
+  // taxAmount / taxMode / serviceChargeAmount removed (SEC-09): the server is
+  // the sole authority on tax and service charge, always computed from the
+  // store's calc policy. A client-supplied override here let any cashier
+  // submit e.g. taxAmount: 0 and have it accepted as-is. The POS web client
+  // still shows a live preview (GET /api/stores/calc-policy), it just no
+  // longer sends the computed number back on submit.
 
   @IsOptional()
   @IsString()

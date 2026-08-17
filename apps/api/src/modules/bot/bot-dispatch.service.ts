@@ -282,7 +282,7 @@ export class BotDispatchService {
   // ─── Catalog handlers ──────────────────────────────────────────────────────
 
   private async handleMenu(): Promise<DispatchResult> {
-    const products = await this.catalog.getAllProducts();
+    const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
     return { reply: formatMenuList(products), entryType: 'catalog' };
   }
 
@@ -307,7 +307,7 @@ export class BotDispatchService {
   private async handleIngredientsAll(
     category: string | null,
   ): Promise<DispatchResult> {
-    const products = await this.catalog.getAllProducts();
+    const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
     return {
       reply: formatAllIngredientsReply(products, category),
       entryType: 'nutrition',
@@ -322,13 +322,13 @@ export class BotDispatchService {
     let product = await this.resolveProductRef(productRef);
     if (!product) {
       // Fuzzy match from full catalog
-      const products = await this.catalog.getAllProducts();
+      const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
       const lowered = userMessage.toLowerCase();
       product =
         products.find((p) => lowered.includes(p.name.toLowerCase())) ?? null;
     }
     if (!product) {
-      const products = await this.catalog.getAllProducts();
+      const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
       const examples = products
         .slice(0, 6)
         .map((p) => p.name)
@@ -690,7 +690,7 @@ export class BotDispatchService {
 
     const [historyTurns, catalogContext, cartData] = await Promise.all([
       this.history.getHistoryBySender(conversationSender, 10),
-      this.catalog.getCatalogContext(),
+      this.catalog.getCatalogContext(this.config.defaultStoreId),
       this.cart.getCart(conversationSender),
     ]);
 
@@ -791,8 +791,11 @@ export class BotDispatchService {
   private async resolveProductRef(productRef: string | number): Promise<any> {
     const maybeId = Number(productRef);
     if (Number.isInteger(maybeId) && maybeId > 0)
-      return this.catalog.getProductById(maybeId);
-    return this.catalog.findProductByName(String(productRef));
+      return this.catalog.getProductById(maybeId, this.config.defaultStoreId);
+    return this.catalog.findProductByName(
+      String(productRef),
+      this.config.defaultStoreId,
+    );
   }
 
   private isValidYear(year: number): boolean {

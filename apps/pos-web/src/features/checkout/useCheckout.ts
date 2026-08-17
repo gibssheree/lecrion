@@ -103,8 +103,10 @@ export function useCheckout() {
         payments,
         discountAmount: adjustments.discountAmount || undefined,
         discountReason: adjustments.discountReason || undefined,
-        taxAmount: adjustments.taxAmount || undefined,
-        serviceChargeAmount: adjustments.serviceChargeAmount || undefined,
+        // taxAmount / serviceChargeAmount intentionally NOT sent (SEC-09) —
+        // the server always computes these from the store's calc policy now.
+        // adjustments.taxAmount/serviceChargeAmount are still used below for
+        // the offline local receipt preview, and by ConfirmModal for display.
       };
 
       let receipt: PosSaleReceipt;

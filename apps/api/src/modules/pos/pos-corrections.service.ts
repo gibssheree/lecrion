@@ -523,9 +523,18 @@ export class PosCorrectionsService {
             if (activeSession) {
               sessionId = activeSession.id;
             } else {
-              this.logger.warn(
-                `Refund order #${orderId}: no active session for cash refund entry. ` +
-                  `Payment #${payment.id} refunded but cashflow entry skipped.`,
+              // FIN-02: this used to log a warning and silently continue,
+              // completing the refund with no offsetting cashflow entry.
+              // Cash physically leaves the drawer either way — recording
+              // nowhere means the next shift-close's expected-cash is
+              // overstated by exactly this amount, surfacing later as an
+              // unexplained variance. Fail the whole refund (transaction
+              // rolls back) instead, so the operator opens a session first.
+              throw new BadRequestException(
+                `Cannot process cash refund for order #${orderId}: no open ` +
+                  `register session for store ${payment.store_id} and no ` +
+                  `original sale entry to attribute it to. Open a register ` +
+                  `session before refunding cash for this order.`,
               );
             }
           }

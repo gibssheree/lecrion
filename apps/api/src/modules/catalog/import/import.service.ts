@@ -221,9 +221,12 @@ export class ImportService {
 
     // Prisma treats `{ in: [] }` as an always-empty match, so it's simpler
     // (and avoids a TS empty-array inference quirk) to always query.
+    // Scoped by store_id: an unscoped match here would let a bulk import for
+    // one store silently overwrite another store's product on a coincidental
+    // SKU/barcode collision (SEC-05).
     const [existingBySku, existingByBarcode, existingCategories] = await Promise.all([
-      this.prisma.menu.findMany({ where: { sku: { in: skus } } }),
-      this.prisma.menu.findMany({ where: { barcode: { in: barcodes } } }),
+      this.prisma.menu.findMany({ where: { sku: { in: skus }, store_id: storeId } }),
+      this.prisma.menu.findMany({ where: { barcode: { in: barcodes }, store_id: storeId } }),
       this.categories.getFlat(storeId, true),
     ]);
 
@@ -288,12 +291,15 @@ export class ImportService {
               };
 
               if (row.action === 'update' && row.matchedProductId) {
+                // matchedProductId came from a store_id-scoped lookup above,
+                // so this row is already confirmed to belong to `storeId`.
                 await tx.menu.update({ where: { id: row.matchedProductId }, data });
                 batchUpdated++;
               } else {
                 await tx.menu.create({
                   data: {
                     ...data,
+                    store_id: storeId,
                     product_type: ProductType.SIMPLE,
                     is_stock_tracked: true,
                     is_active: true,

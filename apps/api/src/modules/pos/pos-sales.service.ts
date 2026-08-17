@@ -72,7 +72,15 @@ export class PosSalesService {
     if (cached) return cached;
 
     // Load store calculation policy BEFORE the transaction (async-safe).
-    const storeId = dto.storeId ?? user?.storeId ?? 'default-store';
+    //
+    // user.storeId takes precedence over dto.storeId (SEC-05/06 sibling bug,
+    // found while fixing SEC-09) — the reverse order let an authenticated
+    // cashier submit an arbitrary dto.storeId and, if they also had a valid
+    // register session id for that store, create sales / deduct stock /
+    // post cashflow entries into a store they don't belong to. dto.storeId
+    // still applies when there's no authenticated user (tests, internal
+    // callers) — the HTTP endpoint always provides one via @CurrentUser().
+    const storeId = user?.storeId ?? dto.storeId ?? 'default-store';
     const storePolicy = await this.calc.getPolicy(storeId);
 
     // Validate payment methods against store's kasirPaymentMethods setting.
@@ -123,7 +131,7 @@ export class PosSalesService {
         }
 
         const products = await tx.menu.findMany({
-          where: { id: { in: productIds } },
+          where: { id: { in: productIds }, store_id: storeId },
           select: {
             id: true,
             name: true,
@@ -157,6 +165,10 @@ export class PosSalesService {
 
         // ── Centralized calculation (DB prices, discount/tax/sc policy) ────
         // Price override is blocked: unitPrice from DTO is ignored.
+        // Tax/service-charge override is blocked too (SEC-09): no
+        // taxAmountOverride/serviceChargeAmountOverride/taxModeOverride here
+        // — those fields no longer exist on CreatePosSaleDto, so tax and
+        // service charge are always computed from storePolicy below.
         const calcResult = this.calc.calculateWithPolicy(
           {
             lines: dto.items.map((item) => {
@@ -171,9 +183,6 @@ export class PosSalesService {
             }),
             orderDiscountAmount: dto.discountAmount,
             discountReason: dto.discountReason,
-            taxAmountOverride: dto.taxAmount,
-            serviceChargeAmountOverride: dto.serviceChargeAmount,
-            taxModeOverride: dto.taxMode,
           },
           // Policy is loaded outside the transaction; pass defaults here.
           // The policy was already loaded before the transaction started.

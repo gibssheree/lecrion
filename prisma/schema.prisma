@@ -240,8 +240,10 @@ model product_barcodes {
 }
 
 // ── Product catalog (menu) ────────────────────────────────────────────────────
-// NOTE: No store_id column — catalog is currently global (single-store schema).
-// Add store_id when multi-store catalog isolation is required.
+// store_id added (SEC-05) — catalog was previously global across all stores;
+// every store shared one product table. Existing rows backfill to
+// "default-store" via the column default, matching every other store-scoped
+// table in this schema (cash_register_sessions, cashflow_entries, etc.).
 //
 // ── Generalization columns (Phase 4 – 2026-05-15) ────────────────────────────
 // All new columns use safe defaults so existing rows need no backfill:
@@ -263,6 +265,7 @@ model menu {
   stock                    Int                        @default(0)
   description              String?
   image_url                String?
+  store_id                 String                     @default("default-store")
   // ── Generalization fields ─────────────────────────────────────────────────
   sku                      String?
   barcode                  String?
@@ -300,6 +303,7 @@ model menu {
   @@index([product_type], map: "idx_menu_product_type")
   @@index([is_active, is_stock_tracked], map: "idx_menu_active_tracked")
   @@index([category_id], map: "idx_menu_category_id")
+  @@index([store_id, is_active], map: "idx_menu_store_active")
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -348,6 +352,10 @@ model order_ratings {
 //
 // Phase 6D: table_id — FK to dining_tables (nullable, F&B only)
 // Phase 7:  customer_id — FK to customers (nullable)
+// store_id added (SEC-05) — this table (the chatbot/checkout order flow, as
+// opposed to pos_sales) had no store scoping at all; any authenticated user
+// could read/cancel/update any order by guessing its id. Existing rows
+// backfill to "default-store" via the column default.
 model orders {
   id                  Int               @id @default(autoincrement())
   user_id             Int
@@ -362,6 +370,7 @@ model orders {
   estimated_time      Int?              @default(15)
   cancelled_at        String?
   cancellation_reason String?
+  store_id            String            @default("default-store")
   // ── Phase 6D: F&B table ───────────────────────────────────────────────────
   table_id            Int?
   // ── Phase 7: customer link ────────────────────────────────────────────────
@@ -384,6 +393,7 @@ model orders {
   @@index([status], map: "idx_orders_status")
   @@index([table_id], map: "idx_orders_table")
   @@index([customer_id], map: "idx_orders_customer")
+  @@index([store_id, status], map: "idx_orders_store_status")
 }
 
 // ── Payments ──────────────────────────────────────────────────────────────────

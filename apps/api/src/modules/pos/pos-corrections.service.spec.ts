@@ -473,6 +473,25 @@ describe('PosCorrectionsService.refundOrder — partial refund', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  // FIN-02: a cash refund with no original sale entry and no open register
+  // session used to complete silently with zero cashflow entries, quietly
+  // overstating expected cash at the next shift close. It must now fail the
+  // whole refund instead of losing the entry.
+  it('rejects a cash refund with no session to attribute it to (FIN-02)', async () => {
+    const { service, tx } = makeHarness();
+    tx.cashflow_entries.findFirst.mockResolvedValue(null); // no original entry
+    tx.cash_register_sessions.findFirst.mockResolvedValue(null); // no open session
+
+    await expect(
+      service.refundOrder(1, { reason: 'test' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // The transaction must not have committed any writes for this refund.
+    expect(tx.cashflow_entries.create).not.toHaveBeenCalled();
+    expect(tx.payments.update).not.toHaveBeenCalled();
+    expect(tx.pos_corrections.create).not.toHaveBeenCalled();
+  });
+
   it('rejects refund when no paid payments exist', async () => {
     const order = makeOrder({
       payments: [

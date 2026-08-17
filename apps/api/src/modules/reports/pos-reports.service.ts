@@ -84,10 +84,11 @@ export class PosReportsService {
   }) {
     const { storeId, dateFrom, dateTo } = params;
     const dateFilter = this.buildDateFilter('ps.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
     // ── Sales totals from pos_sales ──────────────────────────────────────────
-    const salesRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const salesRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         COUNT(ps.id) AS sale_count,
         COALESCE(SUM(CASE WHEN ps.status IN (${ACTIVE_STATUSES}) THEN ps.total ELSE 0 END), 0) AS gross_sales,
@@ -97,8 +98,10 @@ export class PosReportsService {
         COALESCE(SUM(CASE WHEN ps.status = ${VOIDED_STATUS} THEN ps.total ELSE 0 END), 0) AS void_amount,
         COUNT(CASE WHEN ps.status = ${VOIDED_STATUS} THEN 1 END) AS void_count_from_status
       FROM pos_sales ps
-      WHERE 1=1 ${dateFilter} ${storeFilter}
-    `);
+      WHERE 1=1 ${dateFilter} ${storeFilter.clause}
+    `,
+      ...storeFilter.params,
+    );
 
     // ── Correction totals from pos_corrections ───────────────────────────────
     const correctionDateFilter = this.buildDateFilter(
@@ -106,11 +109,10 @@ export class PosReportsService {
       dateFrom,
       dateTo,
     );
-    const correctionStoreFilter = storeId
-      ? `AND ps2.store_id = '${storeId}'`
-      : '';
+    const correctionStoreFilter = this.buildStoreFilter('ps2.store_id', storeId);
 
-    const correctionRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const correctionRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         COALESCE(SUM(CASE WHEN pc.type = 'refund' THEN pc.amount ELSE 0 END), 0) AS refund_total,
         COUNT(CASE WHEN pc.type = 'refund' THEN 1 END) AS refund_count,
@@ -120,8 +122,10 @@ export class PosReportsService {
         COUNT(CASE WHEN pc.type = 'return' THEN 1 END) AS return_count
       FROM pos_corrections pc
       LEFT JOIN pos_sales ps2 ON ps2.id = pc.sale_id
-      WHERE 1=1 ${correctionDateFilter} ${correctionStoreFilter}
-    `);
+      WHERE 1=1 ${correctionDateFilter} ${correctionStoreFilter.clause}
+    `,
+      ...correctionStoreFilter.params,
+    );
 
     const s = salesRows[0] ?? {};
     const c = correctionRows[0] ?? {};
@@ -160,7 +164,7 @@ export class PosReportsService {
   async getPosDaily(params: { storeId?: string; limit?: number }) {
     const { storeId, limit } = params;
     const safeL = safeLimit(limit, 30);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `
@@ -173,11 +177,12 @@ export class PosReportsService {
         COALESCE(SUM(CASE WHEN ps.status IN (${ACTIVE_STATUSES}) THEN ps.service_charge_amount ELSE 0 END), 0) AS service_charge_total,
         COUNT(CASE WHEN ps.status = ${VOIDED_STATUS} THEN 1 END) AS void_count
       FROM pos_sales ps
-      WHERE 1=1 ${storeFilter}
+      WHERE 1=1 ${storeFilter.clause}
       GROUP BY DATE(ps.created_at)
       ORDER BY sales_date DESC
       LIMIT ?
     `,
+      ...storeFilter.params,
       safeL,
     );
 
@@ -231,15 +236,18 @@ export class PosReportsService {
   }) {
     const { storeId, dateFrom, dateTo } = params;
     const dateFilter = this.buildDateFilter('ps.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
     // Fetch all active sales with their payment_lines JSON
-    const salesRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const salesRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT ps.id, ps.payment_lines, ps.total, ps.status
       FROM pos_sales ps
       WHERE ps.status IN (${ACTIVE_STATUSES})
-        ${dateFilter} ${storeFilter}
-    `);
+        ${dateFilter} ${storeFilter.clause}
+    `,
+      ...storeFilter.params,
+    );
 
     // Aggregate payment mix from JSON payment_lines
     const mixMap = new Map<
@@ -321,20 +329,23 @@ export class PosReportsService {
     const { storeId, dateFrom, dateTo, limit } = params;
     const safeL = safeLimit(limit, 50);
     const dateFilter = this.buildDateFilter('pc.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
     // Summary by type
-    const summaryRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const summaryRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         pc.type,
         COUNT(pc.id) AS count,
         COALESCE(SUM(pc.amount), 0) AS total_amount
       FROM pos_corrections pc
       LEFT JOIN pos_sales ps ON ps.id = pc.sale_id
-      WHERE 1=1 ${dateFilter} ${storeFilter}
+      WHERE 1=1 ${dateFilter} ${storeFilter.clause}
       GROUP BY pc.type
       ORDER BY pc.type
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     // Individual correction records
     const recordRows = await this.prisma.$queryRawUnsafe<any[]>(
@@ -353,10 +364,11 @@ export class PosReportsService {
         ps.store_id
       FROM pos_corrections pc
       LEFT JOIN pos_sales ps ON ps.id = pc.sale_id
-      WHERE 1=1 ${dateFilter} ${storeFilter}
+      WHERE 1=1 ${dateFilter} ${storeFilter.clause}
       ORDER BY pc.created_at DESC
       LIMIT ?
     `,
+      ...storeFilter.params,
       safeL,
     );
 
@@ -550,7 +562,7 @@ export class PosReportsService {
     const { storeId, dateFrom, dateTo, limit } = params;
     const safeL = safeLimit(limit, 10);
     const dateFilter = this.buildDateFilter('ps.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `
@@ -562,11 +574,12 @@ export class PosReportsService {
       FROM pos_sale_items psi
       JOIN pos_sales ps ON ps.id = psi.sale_id
       WHERE ps.status IN (${ACTIVE_STATUSES})
-        ${dateFilter} ${storeFilter}
+        ${dateFilter} ${storeFilter.clause}
       GROUP BY psi.product_id, psi.name
       ORDER BY units_sold DESC, revenue DESC
       LIMIT ?
     `,
+      ...storeFilter.params,
       safeL,
     );
 
@@ -598,6 +611,23 @@ export class PosReportsService {
     return parts.join(' ');
   }
 
+  /**
+   * Builds a parameterized store_id filter fragment.
+   *
+   * storeId flows in directly from a request query param — it was previously
+   * interpolated straight into raw SQL (`= '${storeId}'`), which let any
+   * authenticated caller inject arbitrary SQL through the storeId query
+   * string. Always bind it as a `?` parameter instead; never interpolate it.
+   */
+  private buildStoreFilter(
+    column: string,
+    storeId?: string,
+  ): { clause: string; params: string[] } {
+    return storeId
+      ? { clause: `AND ${column} = ?`, params: [storeId] }
+      : { clause: '', params: [] };
+  }
+
   // ─── 7. Hourly Sales ───────────────────────────────────────────────────────
 
   /**
@@ -609,9 +639,10 @@ export class PosReportsService {
   async getPosHourly(params: { storeId?: string; date?: string }) {
     const { storeId, date } = params;
     const targetDate = date ?? new Date().toISOString().slice(0, 10);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
-    const rows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         CAST(strftime('%H', ps.created_at) AS INTEGER) AS hour,
         COUNT(ps.id) AS sale_count,
@@ -619,10 +650,12 @@ export class PosReportsService {
         COALESCE(SUM(CASE WHEN ps.status IN (${ACTIVE_STATUSES}) THEN ps.discount_amount ELSE 0 END), 0) AS discount_total
       FROM pos_sales ps
       WHERE DATE(ps.created_at) = '${targetDate.replace(/[^0-9\-]/g, '').slice(0, 10)}'
-        ${storeFilter}
+        ${storeFilter.clause}
       GROUP BY strftime('%H', ps.created_at)
       ORDER BY hour ASC
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     // Fill in missing hours with zeros for a complete 0-23 chart
     const byHour = new Map<number, any>();
@@ -655,9 +688,10 @@ export class PosReportsService {
   }) {
     const { storeId, dateFrom, dateTo } = params;
     const dateFilter = this.buildDateFilter('ps.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
-    const rows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         ps.cashier_id,
         COUNT(ps.id) AS sale_count,
@@ -669,10 +703,12 @@ export class PosReportsService {
         MIN(ps.created_at) AS first_sale_at,
         MAX(ps.created_at) AS last_sale_at
       FROM pos_sales ps
-      WHERE 1=1 ${dateFilter} ${storeFilter}
+      WHERE 1=1 ${dateFilter} ${storeFilter.clause}
       GROUP BY ps.cashier_id
       ORDER BY gross_sales DESC
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     return rows.map((r) => ({
       cashierId: r.cashier_id,
@@ -702,9 +738,10 @@ export class PosReportsService {
   }) {
     const { storeId, dateFrom, dateTo } = params;
     const dateFilter = this.buildDateFilter('ps.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
 
-    const rows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         COALESCE(p.name, 'Manual Discount') AS promo_name,
         ps.voucher_code,
@@ -715,10 +752,12 @@ export class PosReportsService {
       LEFT JOIN promotions p ON p.id = ps.promotion_id
       WHERE ps.discount_amount > 0
         AND ps.status IN (${ACTIVE_STATUSES})
-        ${dateFilter} ${storeFilter}
+        ${dateFilter} ${storeFilter.clause}
       GROUP BY ps.promotion_id, ps.voucher_code
       ORDER BY total_discount DESC
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     return rows.map((r) => ({
       promoName: r.promo_name,
@@ -744,10 +783,14 @@ export class PosReportsService {
   }) {
     const { storeId, dateFrom, dateTo } = params;
     const dateFilter = this.buildDateFilter('ps.created_at', dateFrom, dateTo);
-    const storeFilter = storeId ? `AND ps.store_id = '${storeId}'` : '';
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
+    // storeFilter.clause is interpolated twice below (subquery + outer WHERE),
+    // so its bound param must be supplied twice too, in the order it appears.
+    const outerStoreFilter = this.buildStoreFilter('ps.store_id', storeId);
 
     // Customers with multiple purchases
-    const repeatRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const repeatRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         COUNT(DISTINCT ps.customer_id) AS customers_with_purchase,
         COUNT(DISTINCT CASE WHEN purchase_counts.cnt > 1 THEN ps.customer_id END) AS repeat_customers
@@ -757,16 +800,20 @@ export class PosReportsService {
         FROM pos_sales
         WHERE customer_id IS NOT NULL
           AND status IN (${ACTIVE_STATUSES})
-          ${dateFilter} ${storeFilter}
+          ${dateFilter} ${storeFilter.clause}
         GROUP BY customer_id
       ) purchase_counts ON purchase_counts.customer_id = ps.customer_id
       WHERE ps.customer_id IS NOT NULL
         AND ps.status IN (${ACTIVE_STATUSES})
-        ${dateFilter} ${storeFilter}
-    `);
+        ${dateFilter} ${outerStoreFilter.clause}
+    `,
+      ...storeFilter.params,
+      ...outerStoreFilter.params,
+    );
 
     // Top repeat customers
-    const topRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const topRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         c.name AS customer_name,
         c.phone AS customer_phone,
@@ -778,11 +825,13 @@ export class PosReportsService {
       JOIN customers c ON c.id = ps.customer_id
       WHERE ps.customer_id IS NOT NULL
         AND ps.status IN (${ACTIVE_STATUSES})
-        ${dateFilter} ${storeFilter}
+        ${dateFilter} ${storeFilter.clause}
       GROUP BY ps.customer_id
       ORDER BY purchase_count DESC, total_spent DESC
       LIMIT 20
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     const r = repeatRows[0] ?? {};
     const customersWithPurchase = n(r.customers_with_purchase);
@@ -880,23 +929,28 @@ export class PosReportsService {
    */
   async getForecast(params: { storeId?: string }) {
     const storeId = params.storeId ?? 'default-store';
-    const storeFilter = `AND ps.store_id = '${storeId}'`;
+    const storeFilter = this.buildStoreFilter('ps.store_id', storeId);
+    const cashflowStoreFilter = this.buildStoreFilter('ce.store_id', storeId);
 
     // Revenue per month (last 6 months + current)
-    const revenueRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const revenueRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         strftime('%Y-%m', ps.created_at) AS month,
         COALESCE(SUM(ps.total), 0) AS revenue
       FROM pos_sales ps
       WHERE ps.status IN (${ACTIVE_STATUSES})
-        ${storeFilter}
+        ${storeFilter.clause}
         AND ps.created_at >= date('now', '-6 months')
       GROUP BY strftime('%Y-%m', ps.created_at)
       ORDER BY month ASC
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     // COGS per month (cost_price × qty from sale items)
-    const cogsRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const cogsRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         strftime('%Y-%m', ps.created_at) AS month,
         COALESCE(SUM(COALESCE(m.cost_price, 0) * psi.qty), 0) AS cogs
@@ -904,24 +958,29 @@ export class PosReportsService {
       JOIN pos_sale_items psi ON psi.sale_id = ps.id
       JOIN menu m ON m.id = psi.product_id
       WHERE ps.status IN (${ACTIVE_STATUSES})
-        ${storeFilter}
+        ${storeFilter.clause}
         AND ps.created_at >= date('now', '-6 months')
       GROUP BY strftime('%Y-%m', ps.created_at)
       ORDER BY month ASC
-    `);
+    `,
+      ...storeFilter.params,
+    );
 
     // Expenses per month from cashflow entries
-    const expenseRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const expenseRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT
         strftime('%Y-%m', ce.created_at) AS month,
         COALESCE(SUM(ce.amount), 0) AS expenses
       FROM cashflow_entries ce
       WHERE ce.entry_type = 'expense'
-        AND ce.store_id = '${storeId}'
+        ${cashflowStoreFilter.clause}
         AND ce.created_at >= date('now', '-6 months')
       GROUP BY strftime('%Y-%m', ce.created_at)
       ORDER BY month ASC
-    `);
+    `,
+      ...cashflowStoreFilter.params,
+    );
 
     // Build month keys for the last 6 months
     const monthKeys: string[] = [];

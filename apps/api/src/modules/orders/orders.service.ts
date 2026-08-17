@@ -28,11 +28,14 @@ export class OrdersService {
    * List orders with optional status filter.
    * Includes computed total from order_items.
    */
-  async listOrders(statusFilter = 'all', limit = 50) {
+  async listOrders(storeId: string, statusFilter = 'all', limit = 50) {
     const safeLimit = Math.min(Number(limit) || 50, 200);
 
     const orders = await this.prisma.orders.findMany({
-      where: statusFilter !== 'all' ? { status: statusFilter } : undefined,
+      where: {
+        store_id: storeId,
+        ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+      },
       orderBy: { created_at: 'desc' },
       take: safeLimit,
       select: {
@@ -66,10 +69,12 @@ export class OrdersService {
 
   /**
    * Get a single order with its items.
+   * storeId required (SEC-05) — an order id alone is not enough to decide
+   * whether the caller may see it.
    */
-  async getOrderById(id: number) {
-    const order = await this.prisma.orders.findUnique({
-      where: { id },
+  async getOrderById(id: number, storeId: string) {
+    const order = await this.prisma.orders.findFirst({
+      where: { id, store_id: storeId },
       include: { order_items: true },
     });
     if (!order) throw new NotFoundException(`Order #${id} not found`);
@@ -82,6 +87,7 @@ export class OrdersService {
    */
   async updateOrderStatus(
     id: number,
+    storeId: string,
     newStatus: OrderStatusValue,
     operatorId = 'system',
   ): Promise<boolean> {
@@ -91,8 +97,8 @@ export class OrdersService {
       );
     }
 
-    const order = await this.prisma.orders.findUnique({
-      where: { id },
+    const order = await this.prisma.orders.findFirst({
+      where: { id, store_id: storeId },
       select: { status: true },
     });
     if (!order) throw new NotFoundException(`Order #${id} not found`);
@@ -138,9 +144,14 @@ export class OrdersService {
   /**
    * Cancel an order — domain write + outbox write in one transaction.
    */
-  async cancelOrder(id: number, reason: string, operatorId = 'system') {
-    const order = await this.prisma.orders.findUnique({
-      where: { id },
+  async cancelOrder(
+    id: number,
+    storeId: string,
+    reason: string,
+    operatorId = 'system',
+  ) {
+    const order = await this.prisma.orders.findFirst({
+      where: { id, store_id: storeId },
       select: { status: true },
     });
     if (!order) throw new NotFoundException(`Order #${id} not found`);
@@ -184,9 +195,9 @@ export class OrdersService {
   /**
    * Get orders for a specific user.
    */
-  async getOrdersByUser(userId: number, limit = 20) {
+  async getOrdersByUser(userId: number, storeId: string, limit = 20) {
     return this.prisma.orders.findMany({
-      where: { user_id: userId },
+      where: { user_id: userId, store_id: storeId },
       orderBy: { created_at: 'desc' },
       take: limit,
       include: { order_items: true },

@@ -12,36 +12,11 @@ import {
   RegisterSessionStatus,
 } from '@libs/contracts/src/enums';
 import { CASHFLOW_EVENTS, REGISTER_EVENTS } from '@libs/contracts/src/events';
+import { OpenSessionDto, CloseSessionDto, RecordEntryDto } from './cashflow.dto';
 
 // Re-export the type so register.service and controller can import from here
 export type { CashflowEntryTypeValue as CashflowEntryType };
-
-export interface OpenSessionDto {
-  storeId?: string;
-  cashierId: string;
-  openingCash?: number;
-  notes?: string;
-}
-
-export interface CloseSessionDto {
-  sessionId: number;
-  countedCash: number;
-  notes?: string;
-  operatorId: string;
-}
-
-export interface RecordEntryDto {
-  entryType: CashflowEntryTypeValue;
-  amount: number;
-  operatorId: string;
-  storeId?: string;
-  sessionId?: number;
-  referenceType?: string;
-  referenceId?: string;
-  category?: string;
-  note?: string;
-  paymentMethod?: string;
-}
+export { OpenSessionDto, CloseSessionDto, RecordEntryDto };
 
 /**
  * CashflowService
@@ -64,14 +39,13 @@ export class CashflowService {
   /**
    * Open a new cash register session.
    * Only one active session per store is allowed.
+   *
+   * `storeId` is a required argument, not read from `dto` (SEC-06) — the
+   * caller's store must come from the authenticated request (@StoreId()),
+   * never from a value the client typed into the request body.
    */
-  async openSession(dto: OpenSessionDto) {
-    const {
-      storeId = 'default-store',
-      cashierId,
-      openingCash = 0,
-      notes = '',
-    } = dto;
+  async openSession(storeId: string, dto: OpenSessionDto) {
+    const { cashierId, openingCash = 0, notes = '' } = dto;
 
     const existing = await this.prisma.cash_register_sessions.findFirst({
       where: { store_id: storeId, status: RegisterSessionStatus.OPEN },
@@ -109,12 +83,16 @@ export class CashflowService {
 
   /**
    * Close a register session. Computes variance = counted - expected.
+   *
+   * `storeId` required (SEC-06) — previously this looked the session up by
+   * id alone, so any authenticated user of any store could close (and
+   * finalize the cash count of) another store's register session.
    */
-  async closeSession(dto: CloseSessionDto) {
+  async closeSession(storeId: string, dto: CloseSessionDto) {
     const { sessionId, countedCash, notes = '', operatorId } = dto;
 
-    const session = await this.prisma.cash_register_sessions.findUnique({
-      where: { id: sessionId },
+    const session = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
     });
     if (!session)
       throw new NotFoundException(`Session #${sessionId} not found`);
@@ -124,7 +102,7 @@ export class CashflowService {
       );
     }
 
-    const balance = await this.getSessionBalance(sessionId);
+    const balance = await this.getSessionBalance(sessionId, storeId);
     const expected = balance + Number(session.opening_cash);
     const variance = Number(countedCash) - expected;
 
@@ -166,13 +144,15 @@ export class CashflowService {
 
   /**
    * Record a cash-in or cash-out entry (append-only ledger).
+   *
+   * `storeId` is a required argument, not read from `dto` (SEC-06) — see
+   * openSession() for why.
    */
-  async recordEntry(dto: RecordEntryDto) {
+  async recordEntry(storeId: string, dto: RecordEntryDto) {
     const {
       entryType,
       amount,
       operatorId,
-      storeId = 'default-store',
       sessionId,
       referenceType,
       referenceId,
@@ -202,6 +182,20 @@ export class CashflowService {
         );
       }
       resolvedSessionId = active.id;
+    } else {
+      // A sessionId was supplied explicitly — verify it's actually this
+      // store's session (SEC-06) before writing an entry into it. Without
+      // this check a caller could pass any session id and post cashflow
+      // entries into another store's ledger.
+      const owned = await this.prisma.cash_register_sessions.findFirst({
+        where: { id: resolvedSessionId, store_id: storeId },
+        select: { id: true },
+      });
+      if (!owned) {
+        throw new BadRequestException(
+          `Session #${resolvedSessionId} not found for this store`,
+        );
+      }
     }
 
     const entry = await this.prisma.cashflow_entries.create({
@@ -241,8 +235,17 @@ export class CashflowService {
   /**
    * Get running balance for a session.
    * Income is positive, expense/refund is negative.
+   *
+   * `storeId` required (SEC-06) — verifies the session belongs to the
+   * caller's store before reading its ledger.
    */
-  async getSessionBalance(sessionId: number): Promise<number> {
+  async getSessionBalance(sessionId: number, storeId: string): Promise<number> {
+    const owned = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
+      select: { id: true },
+    });
+    if (!owned) throw new NotFoundException(`Session #${sessionId} not found`);
+
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{ entry_type: string; total: number }>
     >(
@@ -272,8 +275,17 @@ export class CashflowService {
 
   /**
    * List cashflow entries for a session.
+   *
+   * `storeId` required (SEC-06) — verifies the session belongs to the
+   * caller's store before reading its ledger.
    */
-  async listEntries(sessionId: number, limit = 100) {
+  async listEntries(sessionId: number, storeId: string, limit = 100) {
+    const owned = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
+      select: { id: true },
+    });
+    if (!owned) throw new NotFoundException(`Session #${sessionId} not found`);
+
     return this.prisma.cashflow_entries.findMany({
       where: { session_id: sessionId },
       orderBy: { created_at: 'desc' },

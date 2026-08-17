@@ -1,4 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { AppModule } from './app.module';
 import { AppLoggerService } from './infrastructure/logging/app-logger.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -18,6 +20,41 @@ async function bootstrap() {
     logger,
     bufferLogs: true,
   });
+
+  // Security headers (SEC-08) — X-Frame-Options, HSTS, X-Content-Type-Options, etc.
+  app.use(helmet());
+
+  // Rate limiting (SEC-07) — a generous baseline everywhere, plus a tight
+  // limit on the two endpoints that are actually brute-forceable: login and
+  // register. Keyed by IP; counts reset every window.
+  app.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: 300,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
+  app.use(
+    '/api/auth/login',
+    rateLimit({
+      windowMs: 60_000,
+      limit: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { status: 'error', message: 'Too many login attempts. Try again in a minute.' },
+    }),
+  );
+  app.use(
+    '/api/auth/register',
+    rateLimit({
+      windowMs: 60 * 60_000,
+      limit: 3,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { status: 'error', message: 'Too many registration attempts. Try again later.' },
+    }),
+  );
 
   // Global prefix
   app.setGlobalPrefix('api');

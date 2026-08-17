@@ -72,12 +72,17 @@ export class CheckoutService {
       ? orderType
       : this.configService.defaultOrderType;
 
+    // The WhatsApp bot is single-tenant today (see SEC-11 in the roadmap —
+    // per-merchant bot routing is separate, larger future work), so every
+    // bot-originated order/menu-lookup uses the configured default store.
+    const storeId = this.configService.defaultStoreId;
+
     const result = await this.prisma.$transaction(async (tx) => {
       const { userId } = await this.usersService.ensureUserByPhone(sender, tx);
 
       const menuIds = cart.items.map((item) => item.productId);
       const menuRows = await tx.menu.findMany({
-        where: { id: { in: menuIds } },
+        where: { id: { in: menuIds }, store_id: storeId },
       });
 
       if (menuRows.length !== cart.items.length)
@@ -106,6 +111,7 @@ export class CheckoutService {
           payment_method: this.configService.defaultPaymentMethod,
           status: OrderStatus.PENDING,
           created_at: new Date().toISOString(),
+          store_id: storeId,
         },
       });
 

@@ -39,18 +39,30 @@ export class AppConfigService {
     return this.configService.get<string>('DEFAULT_TENANT_ID') || 'default';
   }
 
+  /**
+   * No fallback on purpose (see SEC-02). A hardcoded default secret here
+   * means anyone who reads this source can forge a valid token for any
+   * account in any environment that forgets to set JWT_SECRET. Fail fast at
+   * boot instead of silently signing with a known, guessable secret.
+   */
   get jwtSecret(): string {
-    return (
-      this.configService.get<string>('JWT_SECRET') ||
-      'lecrion_jwt_secret_change_in_production'
-    );
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is not set. Set a real random value in .env — refusing to start with a default secret.',
+      );
+    }
+    return secret;
   }
 
   get jwtRefreshSecret(): string {
-    return (
-      this.configService.get<string>('JWT_REFRESH_SECRET') ||
-      'lecrion_refresh_secret_change_in_production'
-    );
+    const secret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_REFRESH_SECRET is not set. Set a real random value in .env — refusing to start with a default secret.',
+      );
+    }
+    return secret;
   }
 
   get jwtExpiresIn(): string {

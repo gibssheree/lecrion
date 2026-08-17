@@ -9,6 +9,7 @@ import {
   OpenSessionDto,
   CloseSessionDto,
 } from '../cashflow/cashflow.service';
+import { CashAdjustmentDto } from '../cashflow/cashflow.dto';
 import { PrismaService } from '@libs/db/src/prisma';
 import {
   CashflowEntryType,
@@ -16,16 +17,8 @@ import {
 } from '@libs/contracts/src/enums';
 import { REGISTER_EVENTS } from '@libs/contracts/src/events';
 
-// ── DTOs ──────────────────────────────────────────────────────────────────────
-
-export interface CashAdjustmentDto {
-  /** 'cash_in' | 'cash_out' | 'expense' | 'refund' */
-  adjustmentType: 'cash_in' | 'cash_out' | 'expense' | 'refund';
-  amount: number;
-  operatorId: string;
-  note?: string;
-  category?: string;
-}
+// Re-export so the controller can keep importing from register.service
+export { CashAdjustmentDto };
 
 // ── Response shapes ───────────────────────────────────────────────────────────
 
@@ -104,25 +97,26 @@ export class RegisterService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async openSession(dto: OpenSessionDto) {
+  async openSession(storeId: string, dto: OpenSessionDto) {
     this.logger.log(
-      `Opening register session for store=${dto.storeId ?? 'default-store'} cashier=${dto.cashierId}`,
+      `Opening register session for store=${storeId} cashier=${dto.cashierId}`,
     );
-    return this.cashflow.openSession(dto);
+    return this.cashflow.openSession(storeId, dto);
   }
 
-  async closeSession(dto: CloseSessionDto) {
+  async closeSession(storeId: string, dto: CloseSessionDto) {
     this.logger.log(`Closing register session #${dto.sessionId}`);
-    return this.cashflow.closeSession(dto);
+    return this.cashflow.closeSession(storeId, dto);
   }
 
   async getActiveSession(storeId = 'default-store') {
     return this.cashflow.getActiveSession(storeId);
   }
 
-  async getSessionById(sessionId: number) {
-    return this.prisma.cash_register_sessions.findUnique({
-      where: { id: sessionId },
+  /** `storeId` required (SEC-06) — same hole as cashflow, different door. */
+  async getSessionById(sessionId: number, storeId: string) {
+    return this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
     });
   }
 
@@ -130,16 +124,17 @@ export class RegisterService {
     return this.cashflow.listSessions(storeId, limit);
   }
 
-  async getSessionBalance(sessionId: number) {
-    return this.cashflow.getSessionBalance(sessionId);
+  async getSessionBalance(sessionId: number, storeId: string) {
+    return this.cashflow.getSessionBalance(sessionId, storeId);
   }
 
   /**
    * Suspend a session (e.g. shift break).
+   * `storeId` required (SEC-06).
    */
-  async suspendSession(sessionId: number, operatorId: string) {
-    const session = await this.prisma.cash_register_sessions.findUnique({
-      where: { id: sessionId },
+  async suspendSession(sessionId: number, storeId: string, operatorId: string) {
+    const session = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
     });
     if (!session || session.status !== RegisterSessionStatus.OPEN) {
       throw new Error(`Session #${sessionId} is not open`);
@@ -156,10 +151,11 @@ export class RegisterService {
 
   /**
    * Resume a suspended session.
+   * `storeId` required (SEC-06).
    */
-  async resumeSession(sessionId: number, operatorId: string) {
-    const session = await this.prisma.cash_register_sessions.findUnique({
-      where: { id: sessionId },
+  async resumeSession(sessionId: number, storeId: string, operatorId: string) {
+    const session = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
     });
     if (!session || session.status !== RegisterSessionStatus.SUSPENDED) {
       throw new Error(`Session #${sessionId} is not suspended`);
@@ -194,9 +190,12 @@ export class RegisterService {
    * Refunds: currently 0 unless a refund cashflow_entry exists for this
    * session. Field is always present in the response.
    */
-  async getSessionSummary(sessionId: number): Promise<SessionSummaryResponse> {
-    const session = await this.prisma.cash_register_sessions.findUnique({
-      where: { id: sessionId },
+  async getSessionSummary(
+    sessionId: number,
+    storeId: string,
+  ): Promise<SessionSummaryResponse> {
+    const session = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
     });
     if (!session) {
       throw new NotFoundException(`Session #${sessionId} not found`);
@@ -400,6 +399,7 @@ export class RegisterService {
    */
   async recordCashAdjustment(
     sessionId: number,
+    storeId: string,
     dto: CashAdjustmentDto,
   ): Promise<{
     entryId: number;
@@ -407,8 +407,8 @@ export class RegisterService {
     adjustmentType: string;
     amount: number;
   }> {
-    const session = await this.prisma.cash_register_sessions.findUnique({
-      where: { id: sessionId },
+    const session = await this.prisma.cash_register_sessions.findFirst({
+      where: { id: sessionId, store_id: storeId },
     });
     if (!session) {
       throw new NotFoundException(`Session #${sessionId} not found`);
@@ -445,7 +445,7 @@ export class RegisterService {
         reference_id: null,
         category,
         note: dto.note ?? '',
-        operator_id: dto.operatorId,
+        operator_id: dto.operatorId ?? 'system',
         created_at: new Date().toISOString(),
       },
     });

@@ -33,7 +33,13 @@ describe('PosSalesService', () => {
     };
   }
 
-  function makeHarness(options: { cachedReceipt?: PosSaleReceipt } = {}) {
+  function makeHarness(
+    options: {
+      cachedReceipt?: PosSaleReceipt;
+      /** store_settings keys, e.g. { 'calc.tax_rate': '0.1' } — see CALC_POLICY_KEYS */
+      calcSettings?: Record<string, string>;
+    } = {},
+  ) {
     const tx = {
       idempotency_keys: {
         create: jest.fn().mockResolvedValue({}),
@@ -139,7 +145,9 @@ describe('PosSalesService', () => {
       users as any,
       sync as any,
       readModel as any,
-      new PosCalculationService({ getSettings: async () => ({}) } as any),
+      new PosCalculationService({
+        getSettings: async () => options.calcSettings ?? {},
+      } as any),
       {
         getSetting: async () => '',
         getCapabilities: async () => ({ enabledModules: [] }),
@@ -549,14 +557,14 @@ describe('PosSalesService', () => {
     expect(receipt.change).toBe(0);
   });
 
-  it('tax and service charge increase total correctly', async () => {
-    const { service, tx } = makeHarness();
-    // subtotal = 20000, tax = 2000, sc = 1000, total = 23000
+  it('computes tax and service charge from store policy, increasing total correctly', async () => {
+    // subtotal = 20000, tax = 10% = 2000, sc = 5% = 1000, total = 23000
+    const { service, tx } = makeHarness({
+      calcSettings: { 'calc.tax_rate': '0.1', 'calc.service_charge_rate': '0.05' },
+    });
     const receipt = await service.createSale(
       makeDto({
         clientSaleId: 'sale-tax-sc',
-        taxAmount: 2000,
-        serviceChargeAmount: 1000,
         payments: [{ method: 'Cash', amount: 23000, paidAmount: 23000 }],
       }),
     );
@@ -574,6 +582,22 @@ describe('PosSalesService', () => {
         }),
       }),
     );
+  });
+
+  it('ignores a client-supplied tax/serviceCharge override (SEC-09)', async () => {
+    // Store policy is zero-rate here — if the (now-removed) DTO fields were
+    // still honored, an attacker could try to smuggle a tax value in via an
+    // unknown property. TypeScript blocks that at compile time for known
+    // callers; this test documents the DTO no longer has the field at all.
+    const { service } = makeHarness();
+    const dto = makeDto({ clientSaleId: 'sale-no-tax-override' });
+    const dtoAsAny = dto as unknown as Record<string, unknown>;
+    expect(dtoAsAny.taxAmount).toBeUndefined();
+    expect(dtoAsAny.serviceChargeAmount).toBeUndefined();
+
+    const receipt = await service.createSale(dto);
+    expect(receipt.taxAmount).toBe(0);
+    expect(receipt.serviceChargeAmount).toBe(0);
   });
 
   it('issues unique receipt numbers from the store/register/date sequence', async () => {

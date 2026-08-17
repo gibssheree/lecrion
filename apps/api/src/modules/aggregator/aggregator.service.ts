@@ -20,6 +20,7 @@ import { PrismaService } from '@libs/db/src/prisma';
 import { RealtimeService } from '../../infrastructure/realtime/realtime.service';
 import { AuditService } from '../audit/audit.service';
 import { SyncService } from '../sync/sync.service';
+import { AppConfigService } from '../../infrastructure/config/app-config.service';
 import {
   AggregatorChannel,
   AggregatorOrderItem,
@@ -36,6 +37,7 @@ export class AggregatorService {
     private readonly realtime: RealtimeService,
     private readonly audit: AuditService,
     private readonly sync: SyncService,
+    private readonly config: AppConfigService,
   ) {}
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -102,6 +104,8 @@ export class AggregatorService {
           status: 'pending',
           estimated_time: order.estimatedPrepMinutes ?? 20,
           created_at: new Date().toISOString(),
+          // Aggregator routing is single-tenant today, same as the bot (SEC-05).
+          store_id: this.config.defaultStoreId,
         },
       });
 
@@ -257,17 +261,23 @@ export class AggregatorService {
       resolvedPrice: number;
     }> = [];
 
+    const storeId = this.config.defaultStoreId;
+
     for (const item of items) {
       // Try exact name first
       let menu = await this.prisma.menu.findFirst({
-        where: { name: item.name, is_active: true },
+        where: { name: item.name, is_active: true, store_id: storeId },
         select: { id: true, name: true, price: true },
       });
 
       // Fallback: contains match
       if (!menu) {
         menu = await this.prisma.menu.findFirst({
-          where: { name: { contains: item.name }, is_active: true },
+          where: {
+            name: { contains: item.name },
+            is_active: true,
+            store_id: storeId,
+          },
           select: { id: true, name: true, price: true },
           orderBy: { id: 'asc' },
         });

@@ -50,6 +50,7 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('products')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -70,6 +71,7 @@ export class CatalogController {
     @Query('q') q: string,
     @Query('categoryId') categoryId: string,
     @Query('includeInactive') includeInactive: string,
+    @StoreId() storeId: string,
   ) {
     try {
       const keyword = String(q || '').trim();
@@ -78,14 +80,15 @@ export class CatalogController {
 
       let products;
       if (keyword) {
-        products = await this.catalogService.searchProducts(keyword);
+        products = await this.catalogService.searchProducts(keyword, storeId);
       } else if (catId && Number.isInteger(catId) && catId > 0) {
         products = await this.catalogService.getProductsByCategoryId(
           catId,
+          storeId,
           showAll,
         );
       } else {
-        products = await this.catalogService.getAllProducts(showAll);
+        products = await this.catalogService.getAllProducts(storeId, showAll);
       }
       return { products };
     } catch {
@@ -99,7 +102,10 @@ export class CatalogController {
   // ── GET /api/products/barcode/:code ────────────────────────────────────────
   @Get('barcode/:code')
   @Roles('owner', 'manager', 'cashier', 'inventory_staff')
-  async getProductByBarcode(@Param('code') code: string) {
+  async getProductByBarcode(
+    @Param('code') code: string,
+    @StoreId() storeId: string,
+  ) {
     if (!code?.trim()) {
       throw new HttpException(
         { status: 'invalid_barcode' },
@@ -110,7 +116,10 @@ export class CatalogController {
     if (!productId) {
       throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
     }
-    const product = await this.catalogService.getProductById(productId);
+    const product = await this.catalogService.getProductById(
+      productId,
+      storeId,
+    );
     if (!product) {
       throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
     }
@@ -120,12 +129,15 @@ export class CatalogController {
   // ── GET /api/products/:id ──────────────────────────────────────────────────
   @Get(':id')
   @Roles('owner', 'manager', 'cashier', 'inventory_staff', 'support')
-  async getProductById(@Param('id') idParam: string) {
+  async getProductById(
+    @Param('id') idParam: string,
+    @StoreId() storeId: string,
+  ) {
     const id = Number(idParam);
     if (!Number.isInteger(id) || id <= 0) {
       throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
     }
-    const product = await this.catalogService.getProductById(id);
+    const product = await this.catalogService.getProductById(id, storeId);
     if (!product) {
       throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
     }
@@ -139,12 +151,13 @@ export class CatalogController {
     @Param('id') idParam: string,
     @Query('limit') limit: string,
     @Query('offset') offset: string,
+    @StoreId() storeId: string,
   ) {
     const id = Number(idParam);
     if (!Number.isInteger(id) || id <= 0) {
       throw new HttpException({ status: 'invalid_id' }, HttpStatus.BAD_REQUEST);
     }
-    const product = await this.catalogService.getProductById(id);
+    const product = await this.catalogService.getProductById(id, storeId);
     if (!product) {
       throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
     }
@@ -159,7 +172,10 @@ export class CatalogController {
   // ── POST /api/products ─────────────────────────────────────────────────────
   @Post()
   @Roles('owner', 'manager')
-  async createProduct(@Body() body: CreateProductDto) {
+  async createProduct(
+    @Body() body: CreateProductDto,
+    @StoreId() storeId: string,
+  ) {
     if (!body?.name || !body?.price) {
       throw new HttpException(
         { status: 'error', message: 'name and price are required' },
@@ -175,7 +191,7 @@ export class CatalogController {
         HttpStatus.BAD_REQUEST,
       );
     }
-    const product = await this.catalogService.createProduct(body);
+    const product = await this.catalogService.createProduct(body, storeId);
     this.audit.record({
       actor: body.sku ?? 'api',
       action: 'product.created',
@@ -198,6 +214,7 @@ export class CatalogController {
   async updateProduct(
     @Param('id') idParam: string,
     @Body() body: UpdateProductDto,
+    @StoreId() storeId: string,
   ) {
     const id = Number(idParam);
     if (!Number.isInteger(id) || id <= 0) {
@@ -212,11 +229,15 @@ export class CatalogController {
         HttpStatus.BAD_REQUEST,
       );
     }
-    const existing = await this.catalogService.getProductById(id);
+    const existing = await this.catalogService.getProductById(id, storeId);
     if (!existing) {
       throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
     }
-    const updated = await this.catalogService.updateProduct(id, body);
+    const updated = await this.catalogService.updateProduct(
+      id,
+      body,
+      storeId,
+    );
     this.audit.record({
       actor: 'api',
       action: 'product.updated',
@@ -245,6 +266,7 @@ export class CatalogController {
     @Body('stock') stockParam: number,
     @Body('note') noteParam: string,
     @Body('operatorId') operatorIdParam: string,
+    @StoreId() storeId: string,
   ) {
     const id = Number(idParam);
     const stock = Number(stockParam);
@@ -256,7 +278,7 @@ export class CatalogController {
       );
     }
 
-    const product = await this.catalogService.getProductById(id);
+    const product = await this.catalogService.getProductById(id, storeId);
     if (!product) {
       throw new HttpException({ status: 'not_found' }, HttpStatus.NOT_FOUND);
     }
