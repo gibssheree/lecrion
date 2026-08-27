@@ -11,8 +11,14 @@ import {
   StoreCapabilitiesResponse,
   StoreVerificationStatus,
   StoreVerificationStatusValue,
+  TIER_MODULES,
   VERTICAL_MODULES,
 } from '@libs/contracts/src/modules';
+import {
+  DEFAULT_STORE_TIER,
+  STORE_TIERS,
+  StoreTier,
+} from '@libs/contracts/src/enums';
 
 // ── Calculation policy setting keys ──────────────────────────────────────────
 // Duplicated here to break the circular import:
@@ -457,11 +463,13 @@ export class StoresService {
       ? normalizeVerificationStatus(profile.verification_status)
       : StoreVerificationStatus.VERIFIED;
 
-    const [dbCoreModules, dbVerticalModules, overrides] = await Promise.all([
-      this.getCoreModulesFromCatalog(),
-      this.getVerticalModulesFromCatalog(businessVertical),
-      this.getModuleOverrides(storeId),
-    ]);
+    const [dbCoreModules, dbVerticalModules, overrides, tier] =
+      await Promise.all([
+        this.getCoreModulesFromCatalog(),
+        this.getVerticalModulesFromCatalog(businessVertical),
+        this.getModuleOverrides(storeId),
+        this.getStoreTier(storeId),
+      ]);
 
     const coreModules =
       dbCoreModules.length > 0
@@ -478,9 +486,11 @@ export class StoresService {
         : ([
             ...(VERTICAL_MODULES[businessVertical] ?? []),
           ] as PlatformModuleValue[]);
+    const tierModules = [...(TIER_MODULES[tier] ?? [])] as PlatformModuleValue[];
     const enabledModuleSet = new Set<PlatformModuleValue>([
       ...coreModules,
       ...verticalModules,
+      ...tierModules,
     ]);
 
     for (const override of overrides) {
@@ -494,6 +504,7 @@ export class StoresService {
 
     return {
       storeId,
+      tier,
       businessVertical,
       businessPreset,
       requestedBusinessVertical,
@@ -501,7 +512,64 @@ export class StoresService {
       enabledModules: Array.from(enabledModuleSet),
       coreModules,
       verticalModules,
+      tierModules,
     };
+  }
+
+  /**
+   * Get a store's subscription tier. Defaults to 'starter' if the store has
+   * no row yet (e.g. a store_id referenced before the stores table existed)
+   * — never silently grant a higher tier than what's on record.
+   */
+  async getStoreTier(storeId: string): Promise<StoreTier> {
+    const rows = await this.queryOptional<{ tier: string }>(
+      `SELECT tier FROM stores WHERE id = ? LIMIT 1`,
+      storeId,
+    );
+    const tier = rows?.[0]?.tier;
+    return (STORE_TIERS as string[]).includes(tier ?? '')
+      ? (tier as StoreTier)
+      : DEFAULT_STORE_TIER;
+  }
+
+  /**
+   * Set a store's subscription tier. Support-only (see AdminStoresController)
+   * — there is no self-service upgrade/downgrade flow yet, so this is how a
+   * store actually moves tiers today: manually, after payment is confirmed
+   * out of band.
+   */
+  async setStoreTier(params: {
+    storeId: string;
+    tier: string;
+    updatedBy: string;
+  }) {
+    if (!(STORE_TIERS as string[]).includes(params.tier)) {
+      throw new BadRequestException(
+        `Unknown tier '${params.tier}'. Valid tiers: ${STORE_TIERS.join(', ')}`,
+      );
+    }
+
+    const now = new Date().toISOString();
+    // upsert, not update: a store_id can predate the stores table (created
+    // in some other table before this existed) and never have gotten a row
+    // via the migration backfill or registration — don't 500 on that, just
+    // create it now with a placeholder name support can fix up later.
+    await this.prisma.stores.upsert({
+      where: { id: params.storeId },
+      update: { tier: params.tier, updated_at: now },
+      create: {
+        id: params.storeId,
+        name: params.storeId,
+        tier: params.tier,
+        created_at: now,
+        updated_at: now,
+      },
+    });
+
+    this.logger.log(
+      `Store tier updated: store=${params.storeId} tier=${params.tier} by=${params.updatedBy}`,
+    );
+    return this.getCapabilities(params.storeId);
   }
 
   /**

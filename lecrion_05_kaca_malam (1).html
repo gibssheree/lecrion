@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lecrion — Infrastruktur Bisnis Bertenaga AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#080B14;
+    --navy-2:#0D111E;
+    --panel:rgba(255,255,255,0.045);
+    --panel-border:rgba(255,255,255,0.09);
+    --cyan:#4FD8C4;
+    --violet:#8B7CF6;
+    --txt:#E7EAF3;
+    --txt-soft:#8E96AC;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--navy);color:var(--txt);font-family:'Sora',sans-serif;line-height:1.6;
+    background-image:
+      radial-gradient(700px 500px at 85% -10%, rgba(79,216,196,0.14), transparent 60%),
+      radial-gradient(600px 400px at 5% 15%, rgba(139,124,246,0.12), transparent 60%);
+    background-repeat:no-repeat;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  h1,h2,h3{font-weight:700;letter-spacing:-0.02em;}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(8,11,20,0.7);backdrop-filter:blur(14px);border-bottom:1px solid var(--panel-border);}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;}
+  .logo{font-weight:800;font-size:20px;display:flex;align-items:center;gap:8px;}
+  .logo .chip{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,var(--cyan),var(--violet));}
+  .navlinks{display:flex;gap:32px;font-size:14px;color:var(--txt-soft);}
+  .navlinks a:hover{color:var(--txt);}
+  .cta-btn{
+    background:linear-gradient(135deg,var(--cyan),var(--violet));color:#06080E;
+    padding:11px 22px;border-radius:10px;font-size:14px;font-weight:700;
+  }
+  .cta-ghost{border:1px solid var(--panel-border);padding:10px 20px;border-radius:10px;font-size:14px;color:var(--txt-soft);}
+  .cta-ghost:hover{border-color:var(--cyan);color:var(--cyan);}
+
+  /* HERO */
+  .hero{padding:110px 0 80px;text-align:center;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--panel-border);
+    padding:8px 16px;border-radius:30px;font-size:13px;color:var(--cyan);margin-bottom:28px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  .hero h1{font-size:58px;line-height:1.08;max-width:820px;margin:0 auto 22px;}
+  .hero h1 .grad{background:linear-gradient(135deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .hero p.lead{font-size:17px;color:var(--txt-soft);max-width:560px;margin:0 auto 38px;}
+  .hero-ctas{display:flex;gap:14px;justify-content:center;margin-bottom:70px;}
+
+  /* glass panel dashboard */
+  .glass{
+    max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--panel-border);
+    border-radius:20px;padding:8px;backdrop-filter:blur(20px);
+    box-shadow:0 40px 100px -30px rgba(0,0,0,0.6);
+  }
+  .glass-inner{background:rgba(8,11,20,0.5);border-radius:14px;padding:28px;}
+  .glass-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+  .glass-top .lbl{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--txt-soft);}
+  .glass-top .live{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--cyan);}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;}
+  .stat{background:var(--panel);border:1px solid var(--panel-border);border-radius:12px;padding:20px;text-align:left;}
+  .stat .lbl{font-size:12px;color:var(--txt-soft);margin-bottom:8px;}
+  .stat .val{font-size:26px;font-weight:700;}
+  .stat .val.cyan{color:var(--cyan);}
+  .stat .val.violet{color:var(--violet);}
+  .ai-strip{background:var(--panel);border:1px solid var(--panel-border);border-radius:12px;padding:18px 20px;text-align:left;display:flex;gap:14px;align-items:center;}
+  .ai-strip .icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--violet));flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;}
+  .ai-strip p{font-size:13.5px;color:var(--txt-soft);}
+  .ai-strip b{color:var(--txt);}
+
+  /* SEGMENTS */
+  .segment-strip{padding:26px 0;border-top:1px solid var(--panel-border);border-bottom:1px solid var(--panel-border);}
+  .segment-strip .wrap{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;}
+  .segment-strip span{background:var(--panel);border:1px solid var(--panel-border);padding:9px 18px;border-radius:30px;font-size:13px;color:var(--txt-soft);}
+
+  /* DIFF */
+  .diff{padding:110px 0;}
+  .diff-head{text-align:center;margin-bottom:60px;}
+  .section-label{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cyan);margin-bottom:18px;}
+  .diff-head h2{font-size:38px;max-width:660px;margin:0 auto;}
+  .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .diff-card{
+    background:var(--panel);border:1px solid var(--panel-border);border-radius:20px;padding:40px;
+    position:relative;overflow:hidden;
+  }
+  .diff-card::after{
+    content:"";position:absolute;top:-60px;right:-60px;width:180px;height:180px;border-radius:50%;
+    background:radial-gradient(circle, rgba(79,216,196,0.18), transparent 70%);
+  }
+  .diff-card h3{font-size:24px;margin-bottom:14px;}
+  .diff-card p{color:var(--txt-soft);font-size:15px;max-width:400px;position:relative;}
+  .diff-card .tag{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--violet);border:1px solid rgba(139,124,246,0.3);padding:5px 12px;border-radius:20px;margin-bottom:20px;}
+
+  /* AI EXPLAINER */
+  .ai-explain{padding:0 0 110px;}
+  .ai-explain-head{text-align:center;margin-bottom:56px;}
+  .ai-explain-head h2{font-size:38px;max-width:620px;margin:0 auto;}
+  .ai-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .ai-card{
+    background:var(--panel);border:1px solid var(--panel-border);border-radius:22px;padding:38px;
+    position:relative;overflow:hidden;
+  }
+  .ai-card.owner::after{content:"";position:absolute;top:-70px;right:-70px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle, rgba(79,216,196,0.16), transparent 70%);}
+  .ai-card.cs::after{content:"";position:absolute;top:-70px;right:-70px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle, rgba(139,124,246,0.16), transparent 70%);}
+  .ai-card .top-row{display:flex;align-items:center;gap:14px;margin-bottom:22px;position:relative;}
+  .ai-card .icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .ai-card.owner .icon{background:linear-gradient(135deg,var(--cyan),#2A9D8F);}
+  .ai-card.cs .icon{background:linear-gradient(135deg,var(--violet),#5B4FD6);}
+  .ai-card .for-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt-soft);text-transform:uppercase;letter-spacing:0.08em;}
+  .ai-card h3{font-size:23px;margin-bottom:12px;position:relative;}
+  .ai-card p.desc{color:var(--txt-soft);font-size:14.5px;margin-bottom:24px;position:relative;}
+  .ai-card ul{list-style:none;position:relative;margin-bottom:26px;}
+  .ai-card li{display:flex;gap:10px;font-size:14px;color:var(--txt);padding:8px 0;border-top:1px solid var(--panel-border);}
+  .ai-card li:first-child{border-top:none;}
+  .ai-card li .chk{color:var(--cyan);flex-shrink:0;}
+  .ai-card.cs li .chk{color:var(--violet);}
+  .ai-card .convo{background:rgba(0,0,0,0.25);border:1px solid var(--panel-border);border-radius:14px;padding:16px 18px;font-size:13px;position:relative;}
+  .ai-card .convo .q{color:var(--txt-soft);margin-bottom:10px;}
+  .ai-card .convo .q b{color:var(--txt);font-weight:600;}
+  .ai-card .convo .a{color:var(--txt);}
+  .ai-card.owner .convo .a b{color:var(--cyan);}
+  .ai-card.cs .convo .a b{color:var(--violet);}
+
+  /* FEATURES */
+  .features{padding:0 0 110px;}
+  .features-head{text-align:center;margin-bottom:54px;}
+  .features-head h2{font-size:38px;max-width:600px;margin:0 auto;}
+  .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .feat-item{background:var(--panel);border:1px solid var(--panel-border);border-radius:16px;padding:28px 24px;}
+  .feat-item:hover{border-color:rgba(79,216,196,0.35);}
+  .feat-item .mono{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;}
+  .feat-item h3{font-size:18px;margin-bottom:8px;}
+  .feat-item p{font-size:14px;color:var(--txt-soft);}
+
+  /* PRICING */
+  .pricing{padding:110px 0;border-top:1px solid var(--panel-border);}
+  .pricing-head{text-align:center;margin-bottom:54px;}
+  .pricing-head h2{font-size:38px;}
+  .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .price-card{background:var(--panel);border:1px solid var(--panel-border);border-radius:18px;padding:34px 28px;}
+  .price-card.hi{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(79,216,196,0.3), 0 30px 60px -25px rgba(79,216,196,0.25);}
+  .price-card .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt-soft);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;}
+  .price-card.hi .tag{color:var(--cyan);}
+  .price-card h3{font-size:22px;margin-bottom:6px;}
+  .price-card .sub{font-size:13px;color:var(--txt-soft);margin-bottom:24px;}
+  .price-card ul{list-style:none;font-size:14px;color:var(--txt-soft);}
+  .price-card li{padding:9px 0;border-top:1px solid var(--panel-border);}
+  .price-card li:first-child{border-top:none;}
+
+  .cta-final{padding:120px 0;text-align:center;}
+  .cta-final h2{font-size:44px;max-width:640px;margin:0 auto 18px;}
+  .cta-final p{color:var(--txt-soft);margin-bottom:36px;}
+  .cta-final-btns{display:flex;gap:14px;justify-content:center;}
+
+  footer{border-top:1px solid var(--panel-border);padding:44px 0;font-size:13px;color:var(--txt-soft);}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+
+  @media (max-width:900px){
+    .hero h1{font-size:36px;}
+    .stat-grid,.diff-grid,.feat-grid,.price-grid,.ai-pair{grid-template-columns:1fr;}
+    .navlinks{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <nav>
+      <div class="logo"><span class="chip"></span>Lecrion</div>
+      <div class="navlinks">
+        <a href="#ai">AI Assistant</a>
+        <a href="#fitur">Fitur</a>
+        <a href="#beda">Keunggulan</a>
+        <a href="#harga">Harga</a>
+        <a href="#kontak">Kontak</a>
+      </div>
+      <a href="#" class="cta-btn">Jadwalkan Demo</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>AI Owner Assistant — Live untuk Semua Pelanggan</div>
+    <h1>Infrastruktur bisnis dengan <span class="grad">otak AI</span> di dalamnya.</h1>
+    <p class="lead">Kasir, keuangan, dan stok tersambung dalam satu sistem yang diawasi AI Owner Assistant dan lapisan anti-fraud — dibangun untuk UMKM Indonesia yang serius bertumbuh.</p>
+    <div class="hero-ctas">
+      <a href="#" class="cta-btn">Coba Gratis 14 Hari</a>
+      <a href="#" class="cta-ghost">Jadwalkan Demo</a>
+    </div>
+
+    <div class="glass">
+      <div class="glass-inner">
+        <div class="glass-top">
+          <div class="lbl mono">lecrion://dashboard/owner</div>
+          <div class="live"><span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--cyan);"></span>LIVE</div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="lbl">Omzet Hari Ini</div><div class="val cyan">Rp 16,3 jt</div></div>
+          <div class="stat"><div class="lbl">Transaksi</div><div class="val">207</div></div>
+          <div class="stat"><div class="lbl">Anomali Terdeteksi</div><div class="val violet">1</div></div>
+        </div>
+        <div class="ai-strip">
+          <div class="icon">✦</div>
+          <p><b>AI Owner Assistant:</b> "Selisih kas Rp 20.000 di shift malam — refund jam 21:12 belum ada approval manajer. Perlu ditinjau?"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="segment-strip">
+  <div class="wrap">
+    <span>Restoran & Kafe</span>
+    <span>Bahan Bangunan</span>
+    <span>Hotel & Penginapan</span>
+    <span>Retail</span>
+    <span>Minimarket</span>
+  </div>
+</section>
+
+<section class="diff" id="beda">
+  <div class="wrap">
+    <div class="diff-head">
+      <div class="section-label">Keunggulan Inti</div>
+      <h2>Dua sistem yang tidak dimiliki Majoo, Olsera, maupun Moka POS.</h2>
+    </div>
+    <div class="diff-grid">
+      <div class="diff-card">
+        <div class="tag">AI-Native</div>
+        <h3>AI Owner Assistant</h3>
+        <p>Ajukan pertanyaan bisnis dalam bahasa natural — "berapa untung minggu ini?" — dan dapatkan jawaban instan lengkap dengan analisis pendukung.</p>
+      </div>
+      <div class="diff-card">
+        <div class="tag">Audit Layer</div>
+        <h3>Lapisan Anti-Fraud</h3>
+        <p>Setiap koreksi transaksi tercatat permanen, setiap refund besar wajib disetujui manajer, dan setiap selisih kas dilaporkan real-time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ai-explain" id="ai">
+  <div class="wrap">
+    <div class="ai-explain-head">
+      <div class="section-label">Dua Otak AI, Satu Sistem</div>
+      <h2>Bukan sekadar fitur — dua asisten AI yang bekerja untuk dua sisi bisnis Anda.</h2>
+    </div>
+    <div class="ai-pair">
+      <div class="ai-card owner">
+        <div class="top-row">
+          <div class="icon">✦</div>
+          <div>
+            <div class="for-tag">Untuk Pemilik Toko</div>
+            <h3 style="margin:0;">AI Owner Assistant</h3>
+          </div>
+        </div>
+        <p class="desc">Asisten AI khusus pemilik yang bisa ditanya langsung soal bisnis — tanpa perlu buka satu pun laporan. Cukup ketik pertanyaan, jawaban keluar dalam bahasa natural, lengkap dengan angka pendukung.</p>
+        <ul>
+          <li><span class="chk">✓</span>Ringkasan penjualan & performa toko real-time</li>
+          <li><span class="chk">✓</span>Prediksi omzet 6 bulan ke depan dari tren historis</li>
+          <li><span class="chk">✓</span>Laporan otomatis ke WhatsApp: tutup toko, stok menipis, update penjualan</li>
+          <li><span class="chk">✓</span>Deteksi & peringatan selisih kas / anomali transaksi</li>
+        </ul>
+        <div class="convo">
+          <div class="q">👤 Owner: <b>"Produk apa yang paling laris bulan ini?"</b></div>
+          <div class="a">🤖 <b>AI Owner Assistant:</b> "Hoodie Basic, terjual 214 pcs. Naik 18% dari bulan lalu, didorong promo bundling Sabtu malam."</div>
+        </div>
+      </div>
+
+      <div class="ai-card cs">
+        <div class="top-row">
+          <div class="icon">💬</div>
+          <div>
+            <div class="for-tag">Untuk Pelanggan Toko</div>
+            <h3 style="margin:0;">AI Customer Service</h3>
+          </div>
+        </div>
+        <p class="desc">Asisten AI yang menjawab pertanyaan pelanggan secara otomatis lewat WhatsApp atau live chat — sebelum mereka datang ke toko, atau sambil menunggu pesanan diproses. Tidak perlu admin standby 24 jam.</p>
+        <ul>
+          <li><span class="chk">✓</span>Jawab pertanyaan stok, harga, dan ketersediaan produk</li>
+          <li><span class="chk">✓</span>Pemesanan langsung via chatbot WhatsApp, tanpa aplikasi tambahan</li>
+          <li><span class="chk">✓</span>Cek status pesanan otomatis, kapan saja ditanya</li>
+          <li><span class="chk">✓</span>Asisten nutrisi untuk F&B: kalori, gula, alergen menu</li>
+        </ul>
+        <div class="convo">
+          <div class="q">👤 Pelanggan: <b>"Kak, sambal geprek masih ada nggak? Pedasnya bisa milih level?"</b></div>
+          <div class="a">🤖 <b>AI Customer Service:</b> "Masih ada, kak! Tersedia level 1–5. Mau langsung saya buatkan pesanannya?"</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="fitur">
+  <div class="wrap">
+    <div class="features-head">
+      <div class="section-label">Kemampuan Sistem</div>
+      <h2>Semua yang dibutuhkan operasional harian toko Anda.</h2>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-item"><div class="mono">Kasir</div><h3>Transaksi & Split Bayar</h3><p>Input pesanan cepat dengan berbagai metode pembayaran sekaligus.</p></div>
+      <div class="feat-item"><div class="mono">Keuangan</div><h3>Buku Kas Otomatis</h3><p>Uang masuk-keluar tercatat otomatis dengan jejak audit lengkap.</p></div>
+      <div class="feat-item"><div class="mono">Stok</div><h3>Stock Opname</h3><p>Alur hitung, ajukan, dan disetujui untuk stok yang selalu akurat.</p></div>
+      <div class="feat-item"><div class="mono">Shift</div><h3>Reconciliation Kas</h3><p>Deteksi otomatis selisih kas saat tutup shift, dengan approval manajer.</p></div>
+      <div class="feat-item"><div class="mono">Analitik</div><h3>Prediksi Omzet</h3><p>Proyeksi 6 bulan ke depan dihitung dari tren transaksi historis.</p></div>
+      <div class="feat-item"><div class="mono">Tim</div><h3>Multi-Outlet & Peran</h3><p>Kelola banyak cabang dan staf dari satu akun pemilik.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing" id="harga">
+  <div class="wrap">
+    <div class="pricing-head">
+      <div class="section-label">Harga</div>
+      <h2>Paket untuk setiap tahap pertumbuhan bisnis.</h2>
+    </div>
+    <div class="price-grid">
+      <div class="price-card"><div class="tag">Starter</div><h3>Fondasi</h3><p class="sub">Kasir dasar, tanpa AI.</p><ul><li>POS & transaksi</li><li>Katalog produk</li><li>1 outlet</li></ul></div>
+      <div class="price-card hi"><div class="tag">Business — Populer</div><h3>Pertumbuhan</h3><p class="sub">AI chatbot & multi-outlet.</p><ul><li>Semua fitur Starter</li><li>AI chatbot WhatsApp</li><li>Multi-outlet</li></ul></div>
+      <div class="price-card"><div class="tag">Enterprise</div><h3>Kendali Penuh</h3><p class="sub">AI Owner Assistant & anti-fraud.</p><ul><li>Semua fitur Business</li><li>AI Owner Assistant</li><li>Anti-fraud penuh</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-final" id="kontak">
+  <div class="wrap">
+    <h2>Bawa AI ke dalam operasional toko Anda.</h2>
+    <p>Demo langsung dengan tim Lecrion — gratis, tanpa komitmen.</p>
+    <div class="cta-final-btns">
+      <a href="#" class="cta-btn">Coba Gratis 14 Hari</a>
+      <a href="#" class="cta-ghost">Jadwalkan Demo</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="logo"><span class="chip"></span>Lecrion</div>
+    <div>© 2026 Lecrion. Infrastruktur bisnis untuk UMKM Indonesia.</div>
+  </div>
+</footer>
+
+</body>
+</html>

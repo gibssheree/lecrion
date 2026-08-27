@@ -8,6 +8,12 @@ import {
   BusinessVertical,
   BusinessVerticalValue,
 } from '@libs/contracts/src/modules';
+import {
+  DEFAULT_STORE_TIER,
+  STORE_TIERS,
+  StoreTier,
+  TIER_LIMITS,
+} from '@libs/contracts/src/enums';
 import { AppConfigService } from '../../infrastructure/config/app-config.service';
 import {
   JwtPayload,
@@ -301,6 +307,17 @@ export class AuthService {
           notes: 'Auto-approved on self-registration',
         } as any,
       });
+
+      // 4. Store row — every new signup starts on the Starter tier.
+      await tx.stores.create({
+        data: {
+          id: storeId,
+          name: params.storeName,
+          tier: 'starter',
+          created_at: now,
+          updated_at: now,
+        } as any,
+      });
     });
 
     this.logger.log(
@@ -343,6 +360,23 @@ export class AuthService {
    * Create a new user with a specific role and store assignment.
    * Only callable by owner-role users (enforced at controller level).
    */
+  /**
+   * Duplicated from StoresService#getStoreTier rather than imported:
+   * StoresModule already imports AuthModule (to reuse guards), so the
+   * reverse import here would be circular. Same tradeoff CALC_POLICY_KEYS
+   * makes in stores.service.ts — keep both in sync if the tier logic changes.
+   */
+  private async getStoreTierForLimitCheck(storeId: string): Promise<StoreTier> {
+    const rows = await this.prisma.$queryRawUnsafe<{ tier: string }[]>(
+      `SELECT tier FROM stores WHERE id = ? LIMIT 1`,
+      storeId,
+    );
+    const tier = rows?.[0]?.tier;
+    return (STORE_TIERS as string[]).includes(tier ?? '')
+      ? (tier as StoreTier)
+      : DEFAULT_STORE_TIER;
+  }
+
   async createUser(params: {
     email: string;
     password: string;
@@ -354,6 +388,17 @@ export class AuthService {
     });
     if (existing) {
       throw new Error(`User with email '${params.email}' already exists`);
+    }
+
+    const tier = await this.getStoreTierForLimitCheck(params.storeId);
+    const limit = TIER_LIMITS[tier].maxStaffAccounts;
+    const currentCount = await this.prisma.users.count({
+      where: { store_id: params.storeId, role: { not: 'support' } } as any,
+    });
+    if (currentCount >= limit) {
+      throw new Error(
+        `Batas akun tercapai: paket ${tier} maksimal ${limit} akun (${currentCount} sudah dipakai).`,
+      );
     }
 
     const passwordHash = await bcrypt.hash(params.password, 10);

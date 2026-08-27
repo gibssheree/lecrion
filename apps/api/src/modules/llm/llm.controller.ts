@@ -5,9 +5,11 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { LlmService } from './llm.service';
 import { LlmRole } from './llm.types';
+import { AiUsageService } from './ai-usage.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.types';
 
@@ -100,11 +102,15 @@ const TOOL_DEFINITIONS = [
 
 @Controller('llm')
 export class LlmController {
-  constructor(private readonly llmService: LlmService) {}
+  constructor(
+    private readonly llmService: LlmService,
+    private readonly aiUsage: AiUsageService,
+  ) {}
 
   /**
    * POST /api/llm/chat
-   * Used by the dashboard LLM Console to test AI responses.
+   * Used by the dashboard LLM Console to test AI responses — this is the
+   * "AI Owner Assistant" the pricing page sells a per-tier chat quota for.
    */
   @Post('chat')
   @HttpCode(HttpStatus.OK)
@@ -113,6 +119,18 @@ export class LlmController {
     if (!message?.trim()) {
       return { reply: 'Pesan tidak boleh kosong.' };
     }
+
+    const storeId = user?.storeId ?? 'default-store';
+    const quota = await this.aiUsage.checkAndIncrement(storeId, 'owner_assistant');
+    if (!quota.allowed) {
+      throw new HttpException(
+        {
+          message: `Kuota chat AI Owner Assistant habis (${quota.dailyCount}/${quota.dailyLimit} hari ini, ${quota.monthlyCount}/${quota.monthlyLimit} bulan ini). Upgrade paket untuk kuota lebih besar.`,
+        },
+        429,
+      );
+    }
+
     // Role + identity come from the authenticated token, NOT the request body.
     const role = mapUserRoleToLlmRole(user?.role);
     const sender = user?.actor ?? 'dashboard-console';

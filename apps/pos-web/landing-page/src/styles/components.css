@@ -1,38 +1,15 @@
 /* ── Wordmark ────────────────────────────────────────── */
+/* The logo is now the brand PNG (assets/Lecrion.png) rendered directly —
+ * flat raster art, so there's no `currentColor` trick for light/dark
+ * variants the way the old inline-SVG mark had. */
 .lp-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--lp-ink);
+  display: block;
+  height: 27px;
+  width: auto;
 }
 
-.lp-logo__mark {
-  width: 26px;
-  height: 26px;
-  flex: none;
-  color: var(--lp-brand);
-}
-
-.lp-logo__type {
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1;
-}
-
-.lp-logo--invert {
-  color: #fff;
-}
-.lp-logo--invert .lp-logo__mark {
-  color: #8b7bff;
-}
-
-.lp-logo--sm .lp-logo__mark {
-  width: 22px;
+.lp-logo--sm {
   height: 22px;
-}
-.lp-logo--sm .lp-logo__type {
-  font-size: 16.5px;
 }
 
 /* ── Buttons ─────────────────────────────────────────── */
@@ -53,40 +30,31 @@
 }
 
 .lp-button--primary {
-  background: var(--lp-brand);
-  border-color: var(--lp-brand);
-  color: #fff;
+  background: linear-gradient(135deg, var(--lp-cyan), var(--lp-violet));
+  border-color: transparent;
+  color: var(--lp-ink);
 }
 .lp-button--primary:hover {
-  background: var(--lp-brand-lift);
-  border-color: var(--lp-brand-lift);
+  filter: brightness(1.08);
 }
 
 .lp-button--secondary {
-  background: var(--lp-paper);
-  border-color: var(--lp-line-strong);
-  color: var(--lp-ink);
+  background: var(--lp-panel);
+  border-color: var(--lp-panel-border-strong);
+  color: var(--lp-text);
 }
 .lp-button--secondary:hover {
-  border-color: var(--lp-ink);
+  border-color: var(--lp-cyan);
+  color: var(--lp-cyan);
 }
 
 .lp-button--ghost {
   background: transparent;
-  color: var(--lp-ink);
+  color: var(--lp-text);
   padding: 0 4px;
 }
 .lp-button--ghost:hover {
-  color: var(--lp-brand);
-}
-
-.lp-section--dark .lp-button--secondary {
-  background: transparent;
-  border-color: #33333f;
-  color: #fff;
-}
-.lp-section--dark .lp-button--secondary:hover {
-  border-color: #6f6f8a;
+  color: var(--lp-cyan);
 }
 
 .lp-button--lg {
@@ -105,7 +73,7 @@
 }
 
 .lp-link {
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
   font-weight: 600;
 }
 .lp-link:hover {

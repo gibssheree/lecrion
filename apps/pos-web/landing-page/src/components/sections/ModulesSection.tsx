@@ -75,9 +75,9 @@ export default function ModulesSection() {
     <Section tone="light">
       <div className="lp-section-heading">
         <h2>
-          Yang sudah jalan,
+          Kemampuan yang sudah
           <br />
-          <em>bukan yang direncanakan.</em>
+          <em>bisa dipakai hari ini.</em>
         </h2>
         <p>
           Modul aktif menyesuaikan paket dan jenis usaha Anda. Yang tidak

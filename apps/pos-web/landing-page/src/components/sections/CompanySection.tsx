@@ -30,7 +30,7 @@ const PRINCIPLES = [
 const FACTS = [
   { label: "Bidang", value: "Perangkat lunak operasional ritel & F&B" },
   { label: "Produk", value: "Lecrion POS, Lecrion Chatbot" },
-  { label: "Model", value: "Langganan bulanan / tahunan per outlet" },
+  { label: "Model", value: "Langganan bulanan per paket (Starter, Pro, Enterprise)" },
   { label: "Wilayah layanan", value: "Indonesia" },
   { label: "Badan usaha", value: "Lengkapi sebelum rilis" },
   { label: "Berdiri", value: "Lengkapi sebelum rilis" },
@@ -42,15 +42,14 @@ export default function CompanySection() {
       <div className="lp-company">
         <div className="lp-company__lede">
           <h2>
-            Lecrion membangun perangkat lunak
-            <br />
+            Lecrion membangun perangkat lunak{" "}
             <em>untuk bisnis yang melayani antrean.</em>
           </h2>
           <p>
             Kami menggarap satu masalah: operasional outlet terpecah di banyak
             alat yang tidak saling bicara. Produk kami menyatukan transaksi,
             stok, percakapan pelanggan, dan laporan dalam satu sistem yang bisa
-            diuji langsung, bukan dijanjikan di slide.
+            Anda coba langsung.
           </p>
         </div>
 

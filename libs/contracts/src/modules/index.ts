@@ -1,3 +1,5 @@
+import { StoreTier } from '@libs/contracts/src/enums';
+
 export const BusinessVertical = {
   GENERAL: 'general',
   RETAIL: 'retail',
@@ -103,6 +105,21 @@ export const PlatformModule = {
   HEALTH_SERVICE_CATALOG: 'health.service_catalog',
   HEALTH_PRODUCT_RETAIL: 'health.product_retail',
   HEALTH_RESTRICTED_INVENTORY: 'health.restricted_inventory',
+
+  // Gated by subscription tier (see TIER_MODULES below), not business
+  // vertical — every one of these is a capability the pricing page sells,
+  // not a vertical-specific workflow. Unlike the groups above, these are
+  // NOT included in any VERTICAL_MODULES/PRESET_MODULES entry, so adding
+  // them here changes nothing until TIER_MODULES/getCapabilities also read
+  // a store's tier — this const alone is additive.
+  POS_SPLIT_PAYMENT: 'tier.split_payment',
+  POS_SHIFT_APPROVAL: 'tier.shift_approval',
+  INVENTORY_MULTI_LOCATION: 'tier.multi_location_inventory',
+  REPORTS_ADVANCED_ANALYTICS: 'tier.advanced_analytics',
+  REPORTS_CSV_EXPORT: 'tier.csv_export',
+  OPERATIONS_PURCHASE_ORDER: 'tier.purchase_order',
+  CHATBOT_ORDERING: 'tier.chatbot_ordering',
+  CHATBOT_NUTRITION_ASSISTANT: 'tier.chatbot_nutrition_assistant',
 } as const;
 
 export type PlatformModuleValue =
@@ -202,6 +219,49 @@ export const VERTICAL_MODULES: Record<
   ],
 };
 
+// ── Subscription tier → module mapping ───────────────────────────────────────
+// Matches apps/pos-web/landing-page's pricing page feature checklists as of
+// 2026-08-26. Starter gets nothing beyond core + vertical defaults; each
+// tier above includes everything the one below it has, plus its own row.
+//
+// NOT covered here, on purpose — flagged instead of guessed:
+//   - "Invoice B2B" (Enterprise-only per pricing) is currently core.invoices,
+//     always on for every tier today. Reclassifying it would take invoicing
+//     away from existing Starter/Business stores already using it — a real
+//     behavior change, not an additive one, so it needs a product decision
+//     before touching it.
+//   - Split payment / shift approval are enforced inside pos-sales.service.ts
+//     / register.service.ts / pos-approval.service.ts, not behind a route
+//     guard — the module keys exist so getCapabilities() can report them,
+//     but nothing reads POS_SPLIT_PAYMENT/POS_SHIFT_APPROVAL yet. Wiring
+//     that up means editing money-handling transaction logic, deliberately
+//     done as its own separate, carefully-reviewed change.
+//   - Chatbot ordering/nutrition assistant: the WhatsApp bot is single-tenant
+//     today (see the SEC-11 roadmap note in checkout.service.ts) — it can't
+//     yet tell which store's tier applies. Enforcement is blocked on that,
+//     not on this mapping.
+export const TIER_MODULES: Record<StoreTier, readonly PlatformModuleValue[]> = {
+  starter: [],
+  business: [
+    PlatformModule.POS_SPLIT_PAYMENT,
+    PlatformModule.POS_SHIFT_APPROVAL,
+    PlatformModule.INVENTORY_MULTI_LOCATION,
+    PlatformModule.REPORTS_ADVANCED_ANALYTICS,
+    PlatformModule.CHATBOT_ORDERING,
+    PlatformModule.CHATBOT_NUTRITION_ASSISTANT,
+  ],
+  enterprise: [
+    PlatformModule.POS_SPLIT_PAYMENT,
+    PlatformModule.POS_SHIFT_APPROVAL,
+    PlatformModule.INVENTORY_MULTI_LOCATION,
+    PlatformModule.REPORTS_ADVANCED_ANALYTICS,
+    PlatformModule.CHATBOT_ORDERING,
+    PlatformModule.CHATBOT_NUTRITION_ASSISTANT,
+    PlatformModule.REPORTS_CSV_EXPORT,
+    PlatformModule.OPERATIONS_PURCHASE_ORDER,
+  ],
+};
+
 export const BusinessPreset = {
   RESTAURANT: 'restaurant',
   CAFE: 'cafe',
@@ -271,6 +331,7 @@ export const PRESET_MODULES = {
 
 export interface StoreCapabilitiesResponse {
   storeId: string;
+  tier: StoreTier;
   businessVertical: BusinessVerticalValue;
   businessPreset: BusinessPresetValue | null;
   requestedBusinessVertical: BusinessVerticalValue | null;
@@ -278,4 +339,5 @@ export interface StoreCapabilitiesResponse {
   enabledModules: PlatformModuleValue[];
   coreModules: PlatformModuleValue[];
   verticalModules: PlatformModuleValue[];
+  tierModules: PlatformModuleValue[];
 }

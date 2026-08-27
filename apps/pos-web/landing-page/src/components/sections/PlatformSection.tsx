@@ -43,12 +43,12 @@ const CONTRAST = [
 
 export default function PlatformSection() {
   return (
-    <Section id="platform" tone="paper">
+    <Section id="platform" tone="paper" wide>
       <div className="lp-section-heading">
         <h2>
-          Bukan tujuh aplikasi
+          Satu inti transaksi,
           <br />
-          <em>yang dipaksa saling bicara.</em>
+          <em>dipakai semua titik masuk.</em>
         </h2>
         <p>
           Semua titik masuk menulis ke inti transaksi yang sama. Itu sebabnya

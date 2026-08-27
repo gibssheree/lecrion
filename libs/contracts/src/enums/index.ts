@@ -12,6 +12,52 @@ export type UserRole =
   | "worker_service"
   | "llm_service";
 
+// ── Subscription tier ────────────────────────────────────────────────────────
+// The store's paid plan (Starter / Business / Enterprise on the pricing page),
+// gating feature access. Unrelated to `customers.tier` (loyalty tier, e.g.
+// regular/silver/gold/platinum) — same word, different concept, do not conflate.
+export type StoreTier = "starter" | "business" | "enterprise";
+export const STORE_TIERS: StoreTier[] = ["starter", "business", "enterprise"];
+export const DEFAULT_STORE_TIER: StoreTier = "starter";
+
+// Numeric limits per tier, matching the pricing page as of 2026-08-26.
+// "maxStaffAccounts" counts every non-support user row under a store_id,
+// owner included (matches how the pricing page counted it: Starter's "Maks
+// 3" was spelled out as "owner + 2 staf").
+//
+// maxOutlets is carried here for completeness (and because the pricing page
+// sells it) but nothing enforces it today — there is no feature yet for one
+// account to own more than one store_id, so there is nothing to cap. Don't
+// wire a check against this field until that feature exists; a limit on an
+// action nobody can take enforces nothing.
+export interface TierLimits {
+  maxOutlets: number;
+  maxStaffAccounts: number;
+  aiOwnerAssistant: { perDay: number; perMonth: number };
+  aiCustomerService: { perDay: number; perMonth: number };
+}
+
+export const TIER_LIMITS: Record<StoreTier, TierLimits> = {
+  starter: {
+    maxOutlets: 3,
+    maxStaffAccounts: 5,
+    aiOwnerAssistant: { perDay: 10, perMonth: 300 },
+    aiCustomerService: { perDay: 33, perMonth: 1000 },
+  },
+  business: {
+    maxOutlets: 8,
+    maxStaffAccounts: 9,
+    aiOwnerAssistant: { perDay: 20, perMonth: 600 },
+    aiCustomerService: { perDay: 60, perMonth: 1800 },
+  },
+  enterprise: {
+    maxOutlets: 20,
+    maxStaffAccounts: 30,
+    aiOwnerAssistant: { perDay: 50, perMonth: 1500 },
+    aiCustomerService: { perDay: 300, perMonth: 6900 },
+  },
+};
+
 // ── Order status ─────────────────────────────────────────────────────────────
 //
 // Lifecycle:

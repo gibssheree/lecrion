@@ -1,4 +1,10 @@
-/* Container, section rhythm, section headings. */
+/* Container, section rhythm, section headings.
+ *
+ * Kaca malam doesn't band section backgrounds — the whole page sits on one
+ * navy ground and content is grouped by glass panels instead. "paper" keeps
+ * a hairline rhythm break; "dark" is now just an alias of "light" (both
+ * already read as emphasized against a uniform ground via their own panels
+ * and gradient blooms, so no separate fill is needed). */
 
 .lp-container {
   width: min(1160px, calc(100% - 48px));
@@ -11,18 +17,21 @@
 
 .lp-section {
   padding: 104px 0;
+  /* Without this, jumping to a section (nav click, or just scrolling to a
+   * section boundary) lands its top flush against the sticky header, which
+   * covers the header-height's worth of the section's own top padding —
+   * the heading ends up looking cramped against the nav instead of getting
+   * its full, intended clearance. */
+  scroll-margin-top: var(--lp-header-h);
 }
 
-.lp-section--light {
+.lp-section--light,
+.lp-section--dark {
   background: var(--lp-bg);
 }
 .lp-section--paper {
-  background: var(--lp-paper);
-  border-block: 1px solid var(--lp-line);
-}
-.lp-section--dark {
-  background: var(--lp-ink);
-  color: #fff;
+  background: var(--lp-bg);
+  border-block: 1px solid var(--lp-panel-border);
 }
 
 /* Adjacent sections of the same tone should not double up their borders. */
@@ -49,16 +58,9 @@
 .lp-section-heading p {
   margin-top: 18px;
   max-width: 600px;
-  color: var(--lp-text);
-  font-size: 16.5px;
+  color: var(--lp-muted);
+  font-size: 16px;
   line-height: 1.62;
-}
-
-.lp-section--dark .lp-section-heading h2 em {
-  color: var(--lp-dark-dim);
-}
-.lp-section--dark .lp-section-heading p {
-  color: var(--lp-dark-text);
 }
 
 @media (max-width: 640px) {

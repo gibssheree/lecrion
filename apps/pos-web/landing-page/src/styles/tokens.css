@@ -1,43 +1,55 @@
-/* Lecrion brand tokens.
- * Built on the mark's own indigo (#1C05B3) — one accent, used with intent.
- * The font is @imported here (not in index.html) so it ships with the landing
- * chunk only, and does not load for cashiers using the POS every day. */
+/* Lecrion brand tokens — "kaca malam" (night glass): dark navy ground, glass
+ * panels, a cyan/violet accent pair. The font is @imported here (not in
+ * index.html) so it ships with the landing chunk only, and does not load for
+ * cashiers using the POS every day. */
 
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 .landing-page {
-  /* Brand */
-  --lp-brand: #1c05b3;
-  --lp-brand-deep: #150489;
-  --lp-brand-lift: #2a12d6;
-  --lp-brand-wash: #f1efff;
-  --lp-brand-line: #d9d3ff;
+  /* Ground */
+  --lp-bg: #080b14;
+  --lp-bg-raised: #0d111e;
+  --lp-paper: #ffffff; /* used only inside the product-mock screenshots below */
 
-  /* Surfaces */
-  --lp-paper: #ffffff;
-  --lp-bg: #f7f7fa;
-  --lp-ink: #0b0b14;
-  --lp-ink-soft: #14141f;
+  /* Accent pair */
+  --lp-cyan: #4fd8c4;
+  --lp-violet: #8b7cf6;
+  --lp-cyan-deep: #2a9d8f;
+  --lp-violet-deep: #5b4fd6;
+  --lp-ink: #0b0b14; /* text printed on the accent gradient */
 
-  /* Type — every step below clears WCAG AA (4.5:1) on its own surface, so
-   * secondary copy stays readable instead of decorative. */
-  --lp-text: #4a4a58; /* 8.1:1 on --lp-bg */
-  --lp-muted: #62626f; /* 5.6:1 */
-  --lp-faint: #6c6c7a; /* lightest text tone: still ≥4.5:1 on the tinted
-                        * panel backgrounds inside the product mocks */
+  /* Glass panels */
+  --lp-panel: rgba(255, 255, 255, 0.045);
+  --lp-panel-2: rgba(255, 255, 255, 0.075);
+  --lp-panel-border: rgba(255, 255, 255, 0.09);
+  --lp-panel-border-strong: rgba(255, 255, 255, 0.16);
 
-  /* Lines */
-  --lp-line: #e7e7ee;
-  --lp-line-strong: #d5d5e0;
+  /* Type on dark — every step below clears WCAG AA (4.5:1) on --lp-bg. */
+  --lp-text: #e7eaf3; /* 12.9:1 */
+  --lp-muted: #8e96ac; /* 6.2:1 */
+  --lp-faint: #6c7488; /* 4.5:1: lightest tone that still clears AA */
 
-  /* On dark */
-  --lp-dark-text: #a9a9bd; /* 8.5:1 on --lp-ink */
-  --lp-dark-dim: #777792; /* 4.5:1 on --lp-ink */
-  --lp-dark-line: #23232f;
-
-  /* Signal */
+  /* Signal (kept separate from the accent pair on purpose) */
   --lp-ok: #058043;
   --lp-warn: #ad6500;
+
+  /* ── Product-mock screenshot island ──────────────────────────────────────
+   * ProductSurfacesSection renders the POS/chatbot UI as real markup so it
+   * stays honest and in step with the app. That app is light-themed and
+   * brand-indigo, unrelated to this marketing site's dark accent — so its
+   * tokens are pinned here, independent of the tokens above, rather than
+   * inheriting whatever the marketing chrome happens to be this season. */
+  --lp-mock-paper: #ffffff;
+  --lp-mock-panel: #fbfbfd;
+  --lp-mock-ink: #0b0b14;
+  --lp-mock-text: #4a4a58;
+  --lp-mock-muted: #62626f;
+  --lp-mock-faint: #6c6c7a;
+  --lp-mock-line: #e7e7ee;
+  --lp-mock-line-strong: #d5d5e0;
+  --lp-mock-brand: #1c05b3;
+  --lp-mock-brand-wash: #f1efff;
+  --lp-mock-brand-deep: #150489;
 
   /* Geometry */
   --lp-r-sm: 6px;
@@ -45,6 +57,6 @@
   --lp-r-lg: 16px;
   --lp-header-h: 60px;
 
-  --lp-mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo,
+  --lp-mono: "IBM Plex Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo,
     Consolas, monospace;
 }

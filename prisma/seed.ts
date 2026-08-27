@@ -8,6 +8,16 @@ const adapter = new PrismaBetterSqlite3({ url: db });
 const prisma = new PrismaClient({ adapter } as any);
 
 async function main() {
+  await prisma.stores.upsert({
+    where: { id: "default-store" },
+    update: {},
+    create: {
+      id: "default-store",
+      name: "Lecrion",
+      tier: "starter",
+    },
+  });
+
   const password = await bcrypt.hash("admin123", 10);
 
   const owner = await prisma.users.upsert({

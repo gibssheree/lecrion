@@ -1,6 +1,5 @@
 import { Menu, X } from "lucide-react";
 import { useMobileMenu } from "../../hooks/useMobileMenu";
-import { useScrolled } from "../../hooks/useScrolled";
 import Button from "../ui/Button";
 import Logo from "../ui/Logo";
 
@@ -14,11 +13,10 @@ const NAV_LINKS = [
 
 export default function SiteHeader() {
   const { open, toggle, setOpen } = useMobileMenu();
-  const scrolled = useScrolled();
 
   return (
     <>
-      <header className={`lp-site-header${scrolled ? " is-scrolled" : ""}`}>
+      <header className="lp-site-header">
         <div className="lp-container lp-container--wide lp-site-header__inner">
           <a className="lp-site-brand" href="/" aria-label="Lecrion, beranda">
             <Logo />

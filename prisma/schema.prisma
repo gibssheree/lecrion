@@ -684,6 +684,49 @@ model business_vertical_modules {
   @@index([module_key], map: "idx_bvm_module")
 }
 
+// The store itself — previously synthetic (see the removed note in
+// stores.service.ts#getStoreInfo); every other table's store_id column
+// stays a loose string with no FK for now, this just gives that string a
+// real row to anchor tier/billing state to.
+//
+// `tier` is the subscription plan (starter/business/enterprise, matching
+// the pricing page) — unrelated to `customers.tier`, which is a per-customer
+// loyalty tier. Not a Prisma enum: every other status-like column in this
+// schema (role, verification_status, ...) is a plain String validated at
+// the app layer (see StoreTier in libs/contracts), so this follows suit.
+model stores {
+  id         String  @id
+  name       String
+  tier       String  @default("starter")
+  created_at String  @default("datetime('now')")
+  updated_at String  @default("datetime('now')")
+
+  @@index([tier], map: "idx_stores_tier")
+}
+
+// AI chat quota tracking — one row per (store, quota type, period). "period"
+// is a plain string so the same table serves both granularities: 'YYYY-MM-DD'
+// for the daily cap, 'YYYY-MM' for the monthly cap. A chat is counted once it
+// passes the quota check (see AiUsageService), never before — a rejected
+// request must not consume quota.
+//
+// Only wired up for the Owner Assistant endpoint (POST /api/llm/chat) today.
+// The WhatsApp Customer Service bot can't be metered per-store yet because
+// bot-dispatch.service.ts doesn't know which store a conversation belongs to
+// (see the SEC-11 comment in checkout.service.ts) — enforcing this here
+// would just meter one hardcoded default store regardless of who's texting.
+model ai_usage_counters {
+  id         Int    @id @default(autoincrement())
+  store_id   String
+  quota_type String
+  period     String
+  count      Int    @default(0)
+  updated_at String @default("datetime('now')")
+
+  @@unique([store_id, quota_type, period], map: "uniq_ai_usage_counter")
+  @@index([store_id, quota_type], map: "idx_ai_usage_store_type")
+}
+
 // Store-level business profile. verified_business_vertical is the source of
 // truth for module capability resolution.
 model store_business_profiles {

@@ -15,16 +15,14 @@
     transform: none;
   }
 
-  .lp-hero__text > *,
-  .lp-hero__media {
+  .lp-hero__inner > * {
     opacity: 0;
     animation: lp-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  .lp-hero__text > *:nth-child(1) { animation-delay: 0.04s; }
-  .lp-hero__text > *:nth-child(2) { animation-delay: 0.1s; }
-  .lp-hero__text > *:nth-child(3) { animation-delay: 0.16s; }
-  .lp-hero__text > *:nth-child(4) { animation-delay: 0.22s; }
-  .lp-hero__media { animation-delay: 0.14s; }
+  .lp-hero__inner > *:nth-child(1) { animation-delay: 0.04s; }
+  .lp-hero__inner > *:nth-child(2) { animation-delay: 0.1s; }
+  .lp-hero__inner > *:nth-child(3) { animation-delay: 0.16s; }
+  .lp-hero__panel { animation-delay: 0.24s; }
 
   @keyframes lp-rise {
     from {

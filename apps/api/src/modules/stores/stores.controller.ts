@@ -177,6 +177,20 @@ export class AdminStoresController {
     });
   }
 
+  @Patch(':storeId/tier')
+  @Roles('support')
+  setStoreTier(
+    @Param('storeId') storeId: string,
+    @Body() body: { tier: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.storesService.setStoreTier({
+      storeId,
+      tier: body.tier,
+      updatedBy: user.actor,
+    });
+  }
+
   @Patch(':storeId/modules/:moduleKey')
   @Roles('support')
   setModuleOverride(

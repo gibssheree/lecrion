@@ -18,9 +18,12 @@ import { PosReportsService } from './pos-reports.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RequireModule } from '../../common/decorators/require-module.decorator';
+import { ModuleCapabilityGuard } from '../../common/guards/module-capability.guard';
+import { PlatformModule } from '@libs/contracts/src/modules';
 
 @Controller('reports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleCapabilityGuard)
 export class ReportsController {
   constructor(
     private readonly reportsService: ReportsService,
@@ -195,6 +198,7 @@ export class ReportsController {
 
   @Get('pos/hourly')
   @Roles('owner', 'manager', 'cashier')
+  @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getPosHourly(
     @Query('storeId') storeId?: string,
     @Query('date') date?: string,
@@ -204,6 +208,7 @@ export class ReportsController {
 
   @Get('pos/cashier-performance')
   @Roles('owner', 'manager')
+  @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getCashierPerformance(
     @Query('storeId') storeId?: string,
     @Query('dateFrom') dateFrom?: string,
@@ -214,6 +219,7 @@ export class ReportsController {
 
   @Get('pos/promo-performance')
   @Roles('owner', 'manager')
+  @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getPromoPerformance(
     @Query('storeId') storeId?: string,
     @Query('dateFrom') dateFrom?: string,
@@ -224,6 +230,7 @@ export class ReportsController {
 
   @Get('pos/customer-repeat')
   @Roles('owner', 'manager')
+  @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getCustomerRepeatRate(
     @Query('storeId') storeId?: string,
     @Query('dateFrom') dateFrom?: string,
@@ -250,6 +257,7 @@ export class ReportsController {
 
   @Get('pos/forecast')
   @Roles('owner', 'manager')
+  @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getForecast(@Query('storeId') storeId?: string) {
     return this.posReports.getForecast({ storeId });
   }
@@ -269,6 +277,7 @@ export class ReportsController {
    */
   @Get('pos/export/csv')
   @Roles('owner', 'manager')
+  @RequireModule(PlatformModule.REPORTS_CSV_EXPORT)
   async exportPosCsv(
     @Res() res: Response,
     @Query('storeId') storeId?: string,

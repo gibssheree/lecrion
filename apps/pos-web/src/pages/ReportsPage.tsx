@@ -23,6 +23,7 @@ import { fmt, fmtPct } from "../utils/fmt";
 import GlassPanel from "../components/ui/GlassPanel";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import { useStoreCapabilities } from "../hooks/useStoreCapabilities";
 
 const BASE = "";
 function getToken() {
@@ -164,6 +165,15 @@ function HourlyChart({ data }: { data: any[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const { hasModule } = useStoreCapabilities();
+  // Cashier/promo/forecast (and the hourly chart) are Business+ ("Laporan
+  // lanjutan + prediksi omzet" on the pricing page). Below, unentitled
+  // stores skip these fetches entirely rather than calling an endpoint the
+  // backend now 403s — previously the single Promise.all meant one 403
+  // here failed the ENTIRE page load, including summary/daily/top-products
+  // that every tier gets.
+  const hasAdvancedAnalytics = hasModule("tier.advanced_analytics");
+
   const [preset, setPreset] = useState(0);
   const [dateFrom, setDateFrom] = useState(todayStr());
   const [dateTo, setDateTo] = useState(todayStr());
@@ -190,12 +200,12 @@ export default function ReportsPage() {
       const [s, d, h, tp, pm, cp, pp, fc] = await Promise.all([
         api<any>(`/api/reports/pos/summary${qs}`),
         api<any[]>(`/api/reports/pos/daily?limit=30`),
-        api<any[]>(`/api/reports/pos/hourly`),
+        hasAdvancedAnalytics ? api<any[]>(`/api/reports/pos/hourly`) : Promise.resolve([]),
         api<any[]>(`/api/reports/pos/top-products${qs}&limit=10`),
         api<any[]>(`/api/reports/pos/payment-mix${qs}`),
-        api<any[]>(`/api/reports/pos/cashier-performance${qs}`),
-        api<any[]>(`/api/reports/pos/promo-performance${qs}`),
-        api<any>(`/api/reports/pos/forecast`),
+        hasAdvancedAnalytics ? api<any[]>(`/api/reports/pos/cashier-performance${qs}`) : Promise.resolve([]),
+        hasAdvancedAnalytics ? api<any[]>(`/api/reports/pos/promo-performance${qs}`) : Promise.resolve([]),
+        hasAdvancedAnalytics ? api<any>(`/api/reports/pos/forecast`) : Promise.resolve(null),
       ]);
       setSummary(s);
       setDaily(Array.isArray(d) ? d : []);
@@ -210,11 +220,20 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, hasAdvancedAnalytics]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // If the current tab isn't in the entitled set (e.g. a tier downgrade
+  // happened, or capabilities just finished loading), fall back to Ringkasan
+  // rather than showing a tab body for a fetch that was never made.
+  useEffect(() => {
+    if (!hasAdvancedAnalytics && (tab === "cashier" || tab === "promo" || tab === "forecast")) {
+      setTab("overview");
+    }
+  }, [hasAdvancedAnalytics, tab]);
 
   function applyPreset(idx: number) {
     setPreset(idx);
@@ -261,13 +280,21 @@ export default function ReportsPage() {
     }
   }
 
-  const TABS = [
+  const TABS: Array<{
+    key: "overview" | "daily" | "cashier" | "promo" | "forecast";
+    label: string;
+    icon: JSX.Element;
+  }> = [
     { key: "overview", label: "Ringkasan", icon: <BarChart2 size={13} /> },
     { key: "daily", label: "Harian", icon: <TrendingUp size={13} /> },
-    { key: "cashier", label: "Kasir", icon: <Users size={13} /> },
-    { key: "promo", label: "Promo", icon: <Tag size={13} /> },
-    { key: "forecast", label: "Forecasting", icon: <TrendingUp size={13} /> },
-  ] as const;
+    ...(hasAdvancedAnalytics
+      ? [
+          { key: "cashier" as const, label: "Kasir", icon: <Users size={13} /> },
+          { key: "promo" as const, label: "Promo", icon: <Tag size={13} /> },
+          { key: "forecast" as const, label: "Forecasting", icon: <TrendingUp size={13} /> },
+        ]
+      : []),
+  ];
 
   return (
     <PosAppShell title="Laporan & Analitik">

@@ -1,22 +1,14 @@
 /* ══ Site header ═════════════════════════════════════ */
-/* Transparent over the hero so nothing cuts across it; the tint, blur, and
- * hairline fade in together once content starts passing underneath. */
+/* Solid, same navy as the rest of the page, always — no scroll state, no
+ * transparency. It has to fully occlude whatever scrolls under it (the
+ * product-mock screenshots are light-colored and would otherwise show
+ * through and collide with the nav text). */
 .lp-site-header {
   position: sticky;
   top: 0;
   z-index: 50;
   height: var(--lp-header-h);
-  background: rgba(247, 247, 250, 0);
-  border-bottom: 1px solid transparent;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.lp-site-header.is-scrolled {
-  background: rgba(247, 247, 250, 0.82);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom-color: var(--lp-line);
+  background: var(--lp-bg);
 }
 
 .lp-site-header__inner {
@@ -38,12 +30,12 @@
 }
 
 .lp-site-nav a {
-  color: var(--lp-text);
+  color: var(--lp-muted);
   font-size: 14px;
   font-weight: 500;
 }
 .lp-site-nav a:hover {
-  color: var(--lp-ink);
+  color: var(--lp-text);
 }
 
 .lp-header-actions {
@@ -56,10 +48,10 @@
 .lp-login-link {
   font-size: 14px;
   font-weight: 600;
-  color: var(--lp-ink);
+  color: var(--lp-text);
 }
 .lp-login-link:hover {
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
 }
 
 .lp-header-actions .lp-button {
@@ -75,10 +67,10 @@
   width: 38px;
   height: 38px;
   margin-left: auto;
-  border: 1px solid var(--lp-line-strong);
+  border: 1px solid var(--lp-panel-border-strong);
   border-radius: var(--lp-r-sm);
-  background: var(--lp-paper);
-  color: var(--lp-ink);
+  background: var(--lp-panel);
+  color: var(--lp-text);
   cursor: pointer;
 }
 
@@ -98,10 +90,11 @@
 
 .lp-mobile-nav > a {
   padding: 16px 0;
-  border-bottom: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-panel-border);
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  color: var(--lp-text);
 }
 
 .lp-mobile-nav__actions {
@@ -114,148 +107,173 @@
 .lp-mobile-login {
   font-size: 15px;
   font-weight: 600;
-  color: var(--lp-text);
+  color: var(--lp-muted);
 }
 
 /* ══ Hero ════════════════════════════════════════════ */
-/* One full screen. The sticky header sits in the same scroll flow, so its
- * height comes off the top to make the hero exactly one viewport. */
 .lp-hero {
   position: relative;
-  display: flex;
-  align-items: center;
-  min-height: calc(100vh - var(--lp-header-h));
-  padding: 56px 0;
+  padding: 108px 0 76px;
   background: var(--lp-bg);
-  border-bottom: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-panel-border);
   overflow: hidden;
-}
-
-/* Faint engineering grid — structure, not decoration blobs. */
-.lp-hero__grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(28, 5, 179, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(28, 5, 179, 0.045) 1px, transparent 1px);
-  background-size: 62px 62px;
-  mask-image: radial-gradient(ellipse 90% 62% at 50% 0%, #000 25%, transparent 78%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 62% at 50% 0%, #000 25%, transparent 78%);
-  pointer-events: none;
+  text-align: center;
 }
 
 .lp-hero__inner {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-  gap: 64px;
-  align-items: center;
-  width: min(1320px, calc(100% - 48px));
-}
-
-.lp-hero__text {
-  max-width: 620px;
+  width: min(1160px, calc(100% - 48px));
+  margin: 0 auto;
 }
 
 .lp-hero h1 {
-  font-size: clamp(38px, 4.6vw, 62px);
-  line-height: 1.03;
-  letter-spacing: -0.038em;
+  font-size: clamp(36px, 5vw, 60px);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.lp-hero h1 .lp-grad {
+  background: linear-gradient(135deg, var(--lp-cyan), var(--lp-violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .lp-hero__sub {
-  margin-top: 26px;
-  color: var(--lp-text);
-  font-size: 17.5px;
+  margin: 22px auto 0;
+  max-width: 560px;
+  color: var(--lp-muted);
+  font-size: 17px;
   line-height: 1.6;
 }
 
 .lp-hero__actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  margin-top: 40px;
+  margin-top: 36px;
 }
 
-.lp-hero__points {
+/* ── Glass dashboard panel ────────────────────────────── */
+.lp-hero__panel {
+  max-width: 940px;
+  margin: 64px auto 0;
+  padding: 8px;
+  border: 1px solid var(--lp-panel-border);
+  border-radius: 20px;
+  background: var(--lp-panel);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.6);
+  text-align: left;
+}
+
+.lp-hero__panel-inner {
+  padding: 26px;
+  border-radius: 14px;
+  background: rgba(8, 11, 20, 0.5);
+}
+
+.lp-hero__panel-top {
   display: flex;
-  flex-direction: column;
-  gap: 28px;
-  margin-top: 56px;
-  padding-top: 36px;
-  border-top: 1px solid var(--lp-line-strong);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
 }
 
-.lp-hero__points li {
-  position: relative;
-  padding-left: 24px;
-}
-
-.lp-hero__points li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 7px;
-  width: 10px;
-  height: 6px;
-  border-left: 1.8px solid var(--lp-brand);
-  border-bottom: 1.8px solid var(--lp-brand);
-  transform: rotate(-45deg);
-}
-
-.lp-hero__points strong {
-  display: block;
-  font-size: 15px;
-  letter-spacing: -0.012em;
-}
-
-.lp-hero__points span {
-  display: block;
-  margin-top: 6px;
+.lp-hero__panel-label {
   color: var(--lp-muted);
+  font-size: 12px;
+}
+
+.lp-hero__panel-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lp-cyan);
+  font-family: var(--lp-mono);
+  font-size: 11px;
+}
+
+.lp-hero__panel-live .lp-dot {
+  background: var(--lp-cyan);
+}
+
+.lp-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.lp-hero__stat {
+  padding: 18px;
+  border: 1px solid var(--lp-panel-border);
+  border-radius: 12px;
+  background: var(--lp-panel);
+}
+
+.lp-hero__stat-label {
+  font-size: 12px;
+  color: var(--lp-muted);
+  margin-bottom: 8px;
+}
+
+.lp-hero__stat-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+.lp-hero__stat-value.is-cyan {
+  color: var(--lp-cyan);
+}
+.lp-hero__stat-value.is-violet {
+  color: var(--lp-violet);
+}
+
+.lp-hero__ai {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--lp-panel-border);
+  border-radius: 12px;
+  background: var(--lp-panel);
+}
+
+.lp-hero__ai-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--lp-cyan), var(--lp-violet));
   font-size: 14px;
+  color: var(--lp-ink);
+}
+
+.lp-hero__ai p {
+  color: var(--lp-muted);
+  font-size: 13.5px;
   line-height: 1.5;
 }
 
-/* Right column: reserved for the hero portrait. */
-.lp-hero__media {
-  position: relative;
-  aspect-ratio: 4 / 5;
-  max-height: min(72vh, 620px);
-  margin-left: auto;
-  width: 100%;
-  max-width: 520px;
-  border-radius: var(--lp-r-lg);
-  overflow: hidden;
+.lp-hero__ai p strong {
+  color: var(--lp-text);
 }
 
-.lp-hero__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.lp-hero__media-slot {
-  width: 100%;
-  height: 100%;
-  border: 1px dashed var(--lp-line-strong);
-  border-radius: var(--lp-r-lg);
-  background: linear-gradient(
-    180deg,
-    rgba(28, 5, 179, 0.04),
-    rgba(28, 5, 179, 0.01)
-  );
-}
-
-/* ══ Product surfaces (dark section) ═════════════════ */
+/* ══ Product surfaces ═════════════════════════════════ */
 .lp-tabs {
   display: inline-flex;
   gap: 6px;
   padding: 6px;
   margin-bottom: 24px;
-  border: 1px solid var(--lp-dark-line);
+  border: 1px solid var(--lp-panel-border);
   border-radius: var(--lp-r);
-  background: #101019;
+  background: var(--lp-panel);
 }
 
 .lp-tab {
@@ -266,7 +284,7 @@
   border: 0;
   border-radius: var(--lp-r-sm);
   background: transparent;
-  color: var(--lp-dark-text);
+  color: var(--lp-muted);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -274,37 +292,38 @@
 
 .lp-tab strong {
   font-size: 14.5px;
-  color: #e8e8f2;
+  color: var(--lp-text);
 }
 .lp-tab span {
   font-size: 12.5px;
 }
 
 .lp-tab.is-active {
-  background: var(--lp-brand);
+  background: linear-gradient(135deg, var(--lp-cyan), var(--lp-violet));
 }
 .lp-tab.is-active strong,
 .lp-tab.is-active span {
-  color: #fff;
-}
-.lp-tab.is-active span {
-  color: #c9c2ff;
+  color: var(--lp-ink);
 }
 
 .lp-surface__note {
   max-width: 640px;
   margin-top: 22px;
-  color: var(--lp-dark-text);
+  color: var(--lp-muted);
   font-size: 15px;
   line-height: 1.6;
 }
 
-/* ── Shared product-mock frame ───────────────────────── */
+/* ── Shared product-mock frame ─────────────────────────
+ * This card and everything under it (.lp-pos, .lp-bot) is a light-themed
+ * screenshot of the real app UI — a deliberately separate visual world from
+ * the dark marketing chrome around it, so it uses the pinned --lp-mock-*
+ * tokens from tokens.css rather than the page's own dark tokens. */
 .lp-ui {
-  border: 1px solid #23232f;
+  border: 1px solid var(--lp-mock-line-strong);
   border-radius: var(--lp-r-lg);
-  background: var(--lp-paper);
-  color: var(--lp-ink);
+  background: var(--lp-mock-paper);
+  color: var(--lp-mock-ink);
   overflow: hidden;
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
 }
@@ -315,8 +334,8 @@
   gap: 12px;
   height: 46px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--lp-line);
-  background: #fbfbfd;
+  border-bottom: 1px solid var(--lp-mock-line);
+  background: var(--lp-mock-panel);
 }
 
 .lp-ui__title {
@@ -339,7 +358,7 @@
 
 .lp-ui__meta {
   margin-left: auto;
-  color: var(--lp-muted);
+  color: var(--lp-mock-muted);
   font-size: 12.5px;
 }
 
@@ -352,7 +371,7 @@
 
 .lp-pos__main {
   padding: 16px;
-  border-right: 1px solid var(--lp-line);
+  border-right: 1px solid var(--lp-mock-line);
 }
 
 .lp-pos__chips {
@@ -364,16 +383,16 @@
 
 .lp-pos__chips span {
   padding: 6px 12px;
-  border: 1px solid var(--lp-line);
+  border: 1px solid var(--lp-mock-line);
   border-radius: 999px;
-  color: var(--lp-text);
+  color: var(--lp-mock-text);
   font-size: 12.5px;
   font-weight: 500;
 }
 
 .lp-pos__chips span.is-active {
-  background: var(--lp-ink);
-  border-color: var(--lp-ink);
+  background: var(--lp-mock-ink);
+  border-color: var(--lp-mock-ink);
   color: #fff;
 }
 
@@ -389,9 +408,9 @@
   gap: 3px;
   min-height: 92px;
   padding: 13px;
-  border: 1px solid var(--lp-line);
+  border: 1px solid var(--lp-mock-line);
   border-radius: var(--lp-r-sm);
-  background: var(--lp-paper);
+  background: var(--lp-mock-paper);
 }
 
 .lp-pos__tile-name {
@@ -404,11 +423,11 @@
   margin-top: auto;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--lp-brand);
+  color: var(--lp-mock-brand);
 }
 
 .lp-pos__tile-stock {
-  color: var(--lp-faint);
+  color: var(--lp-mock-faint);
   font-size: 11.5px;
 }
 .lp-pos__tile-stock.is-low {
@@ -419,7 +438,7 @@
 .lp-pos__cart {
   display: flex;
   flex-direction: column;
-  background: #fbfbfd;
+  background: var(--lp-mock-panel);
 }
 
 .lp-pos__cart-head {
@@ -427,13 +446,13 @@
   align-items: baseline;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-mock-line);
 }
 .lp-pos__cart-head strong {
   font-size: 14px;
 }
 .lp-pos__cart-head span {
-  color: var(--lp-muted);
+  color: var(--lp-mock-muted);
   font-size: 12.5px;
 }
 
@@ -448,7 +467,7 @@
   gap: 10px;
   align-items: center;
   padding: 9px 0;
-  border-bottom: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-mock-line);
   font-size: 13px;
 }
 
@@ -458,8 +477,8 @@
   justify-content: center;
   height: 20px;
   border-radius: 4px;
-  background: var(--lp-brand-wash);
-  color: var(--lp-brand-deep);
+  background: var(--lp-mock-brand-wash);
+  color: var(--lp-mock-brand-deep);
   font-size: 12px;
   font-weight: 600;
 }
@@ -468,12 +487,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--lp-text);
+  color: var(--lp-mock-text);
 }
 
 .lp-pos__totals {
   padding: 12px 16px;
-  border-top: 1px solid var(--lp-line);
+  border-top: 1px solid var(--lp-mock-line);
   font-size: 13px;
 }
 
@@ -481,14 +500,14 @@
   display: flex;
   justify-content: space-between;
   padding: 3px 0;
-  color: var(--lp-muted);
+  color: var(--lp-mock-muted);
 }
 
 .lp-pos__totals .is-total {
   margin-top: 6px;
   padding-top: 9px;
-  border-top: 1px solid var(--lp-line);
-  color: var(--lp-ink);
+  border-top: 1px solid var(--lp-mock-line);
+  color: var(--lp-mock-ink);
   font-size: 15px;
   font-weight: 600;
 }
@@ -497,7 +516,7 @@
   margin: 0 16px 16px;
   padding: 12px;
   border-radius: var(--lp-r-sm);
-  background: var(--lp-brand);
+  background: var(--lp-mock-brand);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -512,8 +531,8 @@
 }
 
 .lp-bot__list {
-  border-right: 1px solid var(--lp-line);
-  background: #fbfbfd;
+  border-right: 1px solid var(--lp-mock-line);
+  background: var(--lp-mock-panel);
   padding: 8px;
 }
 
@@ -524,7 +543,7 @@
   border-radius: var(--lp-r-sm);
 }
 .lp-bot__conv.is-active {
-  background: var(--lp-brand-wash);
+  background: var(--lp-mock-brand-wash);
 }
 
 .lp-bot__conv-top {
@@ -537,7 +556,7 @@
 }
 
 .lp-bot__conv-time {
-  color: var(--lp-faint);
+  color: var(--lp-mock-faint);
   font-weight: 500;
 }
 
@@ -547,7 +566,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--lp-muted);
+  color: var(--lp-mock-muted);
   font-size: 12px;
 }
 
@@ -559,7 +578,7 @@
   height: 17px;
   padding: 0 5px;
   border-radius: 999px;
-  background: var(--lp-brand);
+  background: var(--lp-mock-brand);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -572,7 +591,7 @@
   flex-direction: column;
   gap: 9px;
   padding: 18px;
-  border-right: 1px solid var(--lp-line);
+  border-right: 1px solid var(--lp-mock-line);
 }
 
 /* Messages sit at the bottom of the pane, as in a real thread. */
@@ -595,28 +614,28 @@
   gap: 12px;
   margin-top: 14px;
   padding: 10px 14px;
-  border: 1px solid var(--lp-line);
+  border: 1px solid var(--lp-mock-line);
   border-radius: 999px;
-  background: #fbfbfd;
-  color: var(--lp-faint);
+  background: var(--lp-mock-panel);
+  color: var(--lp-mock-faint);
   font-size: 13px;
 }
 
 .lp-bot__composer span:last-child {
-  color: var(--lp-brand);
+  color: var(--lp-mock-brand);
   font-weight: 600;
 }
 
 .lp-bot__thread .is-user {
   align-self: flex-end;
-  background: var(--lp-bg);
-  border: 1px solid var(--lp-line);
+  background: var(--lp-mock-paper);
+  border: 1px solid var(--lp-mock-line);
   border-bottom-right-radius: 4px;
 }
 
 .lp-bot__thread .is-bot {
   align-self: flex-start;
-  background: var(--lp-brand);
+  background: var(--lp-mock-brand);
   color: #fff;
   border-bottom-left-radius: 4px;
 }
@@ -630,13 +649,13 @@
 
 .lp-bot__side {
   padding: 14px;
-  background: #fbfbfd;
+  background: var(--lp-mock-panel);
 }
 
 .lp-bot__side-label {
   display: block;
   margin-bottom: 8px;
-  color: var(--lp-faint);
+  color: var(--lp-mock-faint);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.07em;
@@ -646,9 +665,9 @@
 .lp-bot__card {
   margin-bottom: 16px;
   padding: 11px 13px;
-  border: 1px solid var(--lp-line);
+  border: 1px solid var(--lp-mock-line);
   border-radius: var(--lp-r-sm);
-  background: var(--lp-paper);
+  background: var(--lp-mock-paper);
 }
 
 .lp-bot__row {
@@ -657,10 +676,10 @@
   gap: 10px;
   padding: 4px 0;
   font-size: 12.5px;
-  color: var(--lp-muted);
+  color: var(--lp-mock-muted);
 }
 .lp-bot__row strong {
-  color: var(--lp-ink);
+  color: var(--lp-mock-ink);
 }
 
 .lp-bot__action {
@@ -669,11 +688,11 @@
   gap: 8px;
   padding: 5px 0;
   font-size: 12.5px;
-  color: var(--lp-text);
+  color: var(--lp-mock-text);
 }
 
 .lp-bot__model {
-  color: var(--lp-faint);
+  color: var(--lp-mock-faint);
   font-size: 11.5px;
 }
 
@@ -682,19 +701,20 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
-  border: 1px solid var(--lp-line);
+  border: 1px solid var(--lp-panel-border);
   border-radius: var(--lp-r);
-  background: var(--lp-line);
+  background: var(--lp-panel-border);
   overflow: hidden;
 }
 
 .lp-layer {
   padding: 28px;
-  background: var(--lp-paper);
+  background: var(--lp-bg-raised);
 }
 
 .lp-layer__step {
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
+  font-family: var(--lp-mono);
   font-size: 12px;
   font-weight: 600;
 }
@@ -713,8 +733,8 @@
 .lp-layer li {
   position: relative;
   padding-left: 18px;
-  color: var(--lp-text);
-  font-size: 14.5px;
+  color: var(--lp-muted);
+  font-size: 14px;
 }
 
 .lp-layer li::before {
@@ -725,7 +745,7 @@
   width: 6px;
   height: 6px;
   border-radius: 2px;
-  background: var(--lp-brand-line);
+  background: var(--lp-violet);
 }
 
 .lp-contrast {
@@ -734,7 +754,7 @@
   gap: 48px;
   margin-top: 56px;
   padding-top: 48px;
-  border-top: 1px solid var(--lp-line);
+  border-top: 1px solid var(--lp-panel-border);
 }
 
 .lp-contrast__label {
@@ -744,7 +764,7 @@
   letter-spacing: -0.012em;
 }
 .lp-contrast__col.is-after .lp-contrast__label {
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
 }
 
 .lp-contrast ul {
@@ -757,7 +777,7 @@
   padding-left: 22px;
   position: relative;
   color: var(--lp-text);
-  font-size: 15.5px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
@@ -776,8 +796,8 @@
   top: 8px;
   width: 9px;
   height: 5px;
-  border-left: 1.8px solid var(--lp-brand);
-  border-bottom: 1.8px solid var(--lp-brand);
+  border-left: 1.8px solid var(--lp-cyan);
+  border-bottom: 1.8px solid var(--lp-cyan);
   transform: rotate(-45deg);
 }
 
@@ -791,7 +811,7 @@
 .lp-module h3 {
   padding-bottom: 12px;
   margin-bottom: 14px;
-  border-bottom: 1px solid var(--lp-line-strong);
+  border-bottom: 1px solid var(--lp-panel-border-strong);
   font-size: 15px;
 }
 
@@ -802,8 +822,8 @@
 }
 
 .lp-module li {
-  color: var(--lp-text);
-  font-size: 14.5px;
+  color: var(--lp-muted);
+  font-size: 14px;
 }
 
 /* ══ Verticals ═══════════════════════════════════════ */
@@ -817,13 +837,13 @@
   display: flex;
   flex-direction: column;
   padding: 24px;
-  border: 1px solid var(--lp-line);
+  border: 1px solid var(--lp-panel-border);
   border-radius: var(--lp-r);
-  background: var(--lp-bg);
+  background: var(--lp-panel);
 }
 
 .lp-vertical-card:hover {
-  border-color: var(--lp-brand-line);
+  border-color: rgba(79, 216, 196, 0.35);
 }
 
 .lp-vertical-card h3 {
@@ -832,8 +852,8 @@
 
 .lp-vertical-card p {
   margin-top: 10px;
-  color: var(--lp-text);
-  font-size: 14.5px;
+  color: var(--lp-muted);
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -843,105 +863,101 @@
   gap: 6px;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid var(--lp-line);
+  border-top: 1px solid var(--lp-panel-border);
 }
 
 .lp-vertical-card__tags span {
   padding: 3px 8px;
   border-radius: 4px;
-  background: var(--lp-paper);
-  border: 1px solid var(--lp-line);
+  background: var(--lp-panel-2);
+  border: 1px solid var(--lp-panel-border);
   color: var(--lp-muted);
   font-size: 11.5px;
   font-weight: 500;
 }
 
 /* ══ Pricing ═════════════════════════════════════════ */
-.lp-billing {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 32px;
-  border: 1px solid var(--lp-line);
-  border-radius: var(--lp-r-sm);
-  background: var(--lp-bg);
-}
-
-.lp-billing__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--lp-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.lp-billing__btn.is-active {
-  background: var(--lp-paper);
-  color: var(--lp-ink);
-  box-shadow: 0 1px 3px rgba(11, 11, 20, 0.09);
-}
-
-.lp-billing__save {
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--lp-brand-wash);
-  color: var(--lp-brand-deep);
-  font-size: 11.5px;
-}
-
 .lp-pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px;
   align-items: start;
 }
 
 .lp-plan {
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 28px;
-  border: 1px solid var(--lp-line);
-  border-radius: var(--lp-r);
-  background: var(--lp-bg);
+  padding: 30px 26px;
+  border: 1px solid var(--lp-panel-border);
+  border-radius: var(--lp-r-lg);
+  background: var(--lp-panel);
+  overflow: hidden;
 }
 
 .lp-plan.is-featured {
-  border-color: var(--lp-brand);
-  background: var(--lp-paper);
-  box-shadow: 0 1px 0 var(--lp-brand) inset, 0 18px 40px -28px rgba(28, 5, 179, 0.5);
+  border-color: var(--lp-cyan);
+  background: var(--lp-panel-2);
+  box-shadow:
+    0 0 0 1px rgba(79, 216, 196, 0.3),
+    0 30px 60px -25px rgba(79, 216, 196, 0.25);
+}
+
+.lp-plan.is-featured::after {
+  content: "";
+  position: absolute;
+  top: -70px;
+  right: -70px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 216, 196, 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+.lp-plan__tag {
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-muted);
+}
+.lp-plan.is-featured .lp-plan__tag {
+  color: var(--lp-cyan);
 }
 
 .lp-plan__head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin-top: 8px;
 }
 
 .lp-plan__head h3 {
-  font-size: 18px;
+  font-size: 21px;
 }
 
 .lp-plan__flag {
   padding: 3px 8px;
   border-radius: 4px;
-  background: var(--lp-brand);
-  color: #fff;
+  background: linear-gradient(135deg, var(--lp-cyan), var(--lp-violet));
+  color: var(--lp-ink);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
+.lp-plan__target {
+  margin-top: 6px;
+  color: var(--lp-faint);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 .lp-plan__desc {
-  margin-top: 8px;
+  margin-top: 10px;
   min-height: 42px;
   color: var(--lp-muted);
   font-size: 14px;
@@ -949,34 +965,83 @@
 }
 
 .lp-plan__price {
+  position: relative;
+  margin: 20px 0 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--lp-panel-border);
+}
+
+.lp-plan__price-row {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  margin: 20px 0 22px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--lp-line);
 }
 
 .lp-plan__price strong {
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.lp-plan__price span {
+.lp-plan__price-row span {
   color: var(--lp-muted);
   font-size: 13px;
 }
 
+.lp-plan__price-from {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--lp-faint);
+  font-size: 12.5px;
+}
+
 .lp-plan__cta {
+  position: relative;
   width: 100%;
 }
 
+/* ── Usage limits (outlet / staff / AI quota) ─────────── */
+/* Stacked, not side-by-side: the AI-quota values ("6.900 chat/bulan
+ * (300/hari)") are long enough that a label/value row fighting over one
+ * line wraps mid-word. Stacking removes the ambiguity regardless of how
+ * long any given value is. */
+.lp-plan__limits {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--lp-panel-border);
+}
+
+.lp-plan__limits > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lp-plan__limits dt {
+  color: var(--lp-faint);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+.lp-plan__limits dd {
+  margin: 0;
+  color: var(--lp-text);
+  font-family: var(--lp-mono);
+  font-size: 13.5px;
+}
+
 .lp-plan__features {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--lp-panel-border);
 }
 
 .lp-plan__features li {
@@ -984,19 +1049,26 @@
   align-items: flex-start;
   gap: 9px;
   color: var(--lp-text);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.45;
 }
 
 .lp-plan__features svg {
   flex: none;
   margin-top: 3px;
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
+}
+
+.lp-plan__features li.is-excluded {
+  color: var(--lp-faint);
+}
+.lp-plan__features li.is-excluded svg {
+  color: var(--lp-faint);
 }
 
 .lp-pricing-note {
   margin-top: 28px;
-  color: var(--lp-muted);
+  color: var(--lp-faint);
   font-size: 13.5px;
 }
 
@@ -1017,14 +1089,14 @@
 }
 .lp-company__lede p {
   margin-top: 20px;
-  color: var(--lp-text);
-  font-size: 16.5px;
+  color: var(--lp-muted);
+  font-size: 16px;
   line-height: 1.62;
 }
 
 .lp-company__facts {
   margin: 0;
-  border-top: 1px solid var(--lp-line-strong);
+  border-top: 1px solid var(--lp-panel-border-strong);
 }
 
 .lp-company__facts > div {
@@ -1032,16 +1104,17 @@
   grid-template-columns: 130px minmax(0, 1fr);
   gap: 16px;
   padding: 13px 0;
-  border-bottom: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-panel-border);
 }
 
 .lp-company__facts dt {
-  color: var(--lp-muted);
+  color: var(--lp-faint);
   font-size: 13.5px;
 }
 
 .lp-company__facts dd {
   margin: 0;
+  color: var(--lp-text);
   font-size: 14px;
   font-weight: 500;
 }
@@ -1052,11 +1125,11 @@
   gap: 40px;
   margin-top: 72px;
   padding-top: 48px;
-  border-top: 1px solid var(--lp-line);
+  border-top: 1px solid var(--lp-panel-border);
 }
 
 .lp-principle__num {
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
   font-size: 12px;
   font-weight: 600;
 }
@@ -1067,8 +1140,8 @@
 }
 
 .lp-principle p {
-  color: var(--lp-text);
-  font-size: 14.5px;
+  color: var(--lp-muted);
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -1089,16 +1162,16 @@
 }
 .lp-faq__aside p {
   margin-top: 18px;
-  color: var(--lp-text);
+  color: var(--lp-muted);
   font-size: 15px;
 }
 
 .lp-faq__list {
-  border-top: 1px solid var(--lp-line-strong);
+  border-top: 1px solid var(--lp-panel-border-strong);
 }
 
 .lp-faq__item {
-  border-bottom: 1px solid var(--lp-line);
+  border-bottom: 1px solid var(--lp-panel-border);
 }
 
 .lp-faq__item summary {
@@ -1107,6 +1180,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 0;
+  color: var(--lp-text);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -1119,7 +1193,7 @@
 }
 
 .lp-faq__item summary:hover {
-  color: var(--lp-brand);
+  color: var(--lp-cyan);
 }
 
 /* Plus → minus, drawn in CSS so it always matches the text colour. */
@@ -1148,35 +1222,45 @@
 
 .lp-faq__item p {
   padding: 0 40px 22px 0;
-  color: var(--lp-text);
+  color: var(--lp-muted);
   font-size: 15px;
   line-height: 1.65;
 }
 
-/* ══ CTA ═════════════════════════════════════════════ */
+/* ══ CTA ══════════════════════════════════════════════
+ * Centered, matching the reference's closing moment — a single narrow
+ * column rather than the old two-column split, since there's no longer a
+ * background-color shift doing the work of setting this section apart. */
 .lp-cta-section {
-  padding: 96px 0;
+  padding: 100px 0;
+  text-align: center;
 }
 
 .lp-cta {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 48px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
 }
 
+.lp-cta__text {
+  max-width: 640px;
+}
+
 .lp-cta h2 {
-  font-size: clamp(28px, 3.4vw, 44px);
+  font-size: clamp(28px, 3.6vw, 46px);
 }
 .lp-cta h2 em {
   font-style: normal;
-  color: var(--lp-dark-dim);
+  background: linear-gradient(135deg, var(--lp-cyan), var(--lp-violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .lp-cta p {
-  margin-top: 18px;
-  max-width: 560px;
-  color: var(--lp-dark-text);
+  margin: 18px auto 0;
+  max-width: 480px;
+  color: var(--lp-muted);
   font-size: 16px;
   line-height: 1.6;
 }
@@ -1184,14 +1268,17 @@
 .lp-cta__actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
+  margin-top: 34px;
 }
 
 /* ══ Footer ══════════════════════════════════════════ */
 .lp-footer {
   padding: 72px 0 32px;
-  background: var(--lp-ink);
-  color: #fff;
+  background: var(--lp-bg-raised);
+  border-top: 1px solid var(--lp-panel-border);
+  color: var(--lp-text);
 }
 
 .lp-footer__top {
@@ -1204,13 +1291,13 @@
 .lp-footer__brand p {
   margin: 18px 0 16px;
   max-width: 320px;
-  color: var(--lp-dark-text);
-  font-size: 14.5px;
+  color: var(--lp-muted);
+  font-size: 14px;
   line-height: 1.6;
 }
 
 .lp-footer__mail {
-  color: #8b7bff;
+  color: var(--lp-cyan);
   font-size: 14.5px;
   font-weight: 600;
 }
@@ -1230,7 +1317,7 @@
   font-size: 13px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--lp-dark-dim);
+  color: var(--lp-faint);
 }
 
 .lp-footer__nav ul {
@@ -1240,11 +1327,11 @@
 }
 
 .lp-footer__nav a {
-  color: var(--lp-dark-text);
+  color: var(--lp-muted);
   font-size: 14px;
 }
 .lp-footer__nav a:hover {
-  color: #fff;
+  color: var(--lp-text);
 }
 
 .lp-footer__bottom {
@@ -1253,34 +1340,9 @@
   justify-content: space-between;
   gap: 12px;
   padding-top: 28px;
-  border-top: 1px solid var(--lp-dark-line);
-  color: var(--lp-dark-dim);
+  border-top: 1px solid var(--lp-panel-border);
+  color: var(--lp-faint);
   font-size: 13px;
-}
-
-/* The two-column hero targets exactly one screen (min-height in the rule
- * above). That math was set against the full, generously-spaced values —
- * fine on a normal monitor, but a 1366×768 laptop (a very common size) comes
- * up ~30px short and forces a scroll inside the hero. Tighten just enough on
- * shorter viewports to keep the one-screen fit; tall viewports are untouched. */
-@media (max-height: 820px) and (min-width: 900px) {
-  .lp-hero {
-    padding: 40px 0;
-  }
-  .lp-hero__sub {
-    margin-top: 20px;
-  }
-  .lp-hero__actions {
-    margin-top: 32px;
-  }
-  .lp-hero__points {
-    gap: 20px;
-    margin-top: 40px;
-    padding-top: 26px;
-  }
-  .lp-hero__points span {
-    margin-top: 4px;
-  }
 }
 
 /* ══ Responsive ══════════════════════════════════════ */
@@ -1317,23 +1379,14 @@
     display: inline-flex;
   }
 
-  /* Stack the hero and let it size to content, so the reserved photo slot
-     never squeezes the copy on a phone. */
   .lp-hero {
-    min-height: 0;
-    padding: 56px 0 64px;
+    padding: 88px 0 56px;
   }
-  .lp-hero__inner {
+  .lp-hero__stats {
     grid-template-columns: 1fr;
-    gap: 40px;
   }
-  .lp-hero__text {
-    max-width: none;
-  }
-  .lp-hero__media {
-    margin-left: 0;
-    max-width: 420px;
-    max-height: none;
+  .lp-hero__panel {
+    margin-top: 44px;
   }
 
   .lp-layers,
@@ -1342,15 +1395,11 @@
   }
   .lp-pricing-grid {
     max-width: 460px;
+    margin: 0 auto;
   }
   .lp-contrast {
     grid-template-columns: 1fr;
     gap: 36px;
-  }
-
-  .lp-cta {
-    grid-template-columns: 1fr;
-    gap: 28px;
   }
 
   .lp-footer__top {
@@ -1392,9 +1441,6 @@
   .lp-principles {
     gap: 32px;
     margin-top: 48px;
-  }
-  .lp-hero__proof-item dt {
-    font-size: 26px;
   }
   .lp-plan {
     padding: 24px;

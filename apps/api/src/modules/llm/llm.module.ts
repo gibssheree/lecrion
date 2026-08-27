@@ -4,6 +4,7 @@ import { LlmAdapterService } from './llm-adapter.service';
 import { PromptTemplatesService } from './prompt-templates.service';
 import { LlmToolsService } from './llm-tools.service';
 import { NutritionAdvisorService } from './nutrition-advisor.service';
+import { AiUsageService } from './ai-usage.service';
 import { LlmController } from './llm.controller';
 import { AuditModule } from '../audit/audit.module';
 
@@ -16,7 +17,8 @@ import { AuditModule } from '../audit/audit.module';
     PromptTemplatesService,
     LlmToolsService,
     NutritionAdvisorService,
+    AiUsageService,
   ],
-  exports: [LlmService, NutritionAdvisorService],
+  exports: [LlmService, NutritionAdvisorService, AiUsageService],
 })
 export class LlmModule {}
