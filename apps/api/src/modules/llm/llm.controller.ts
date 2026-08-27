@@ -140,6 +140,7 @@ export class LlmController {
       role,
       history: [],
       context: {},
+      storeId,
     });
     return { reply };
   }

@@ -44,14 +44,16 @@ export class LlmService {
       history = [],
       context = {},
       correlationId,
+      storeId,
     } = opts;
 
     const start = Date.now();
 
     try {
-      const systemPrompt = this.promptTemplates.buildSystemPrompt(
+      const systemPrompt = await this.promptTemplates.buildSystemPrompt(
         role,
         context,
+        storeId,
       );
       const enrichedContext = {
         ...context,

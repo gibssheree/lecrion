@@ -83,6 +83,7 @@ function makeLines() {
 function makeHarness(
   doc: ReturnType<typeof makeDoc> | null = makeDoc(),
   lines: ReturnType<typeof makeLines> = makeLines(),
+  options: { tier?: string } = {},
 ) {
   const tx = {
     operation_documents: {
@@ -136,14 +137,20 @@ function makeHarness(
     }),
   };
 
+  // Defaults to 'enterprise' so existing purchase_order/goods_receipt tests
+  // (which predate tier-gating and expect success) keep passing — only
+  // tests that explicitly want the gate pass options.tier.
+  const stores = { getStoreTier: jest.fn().mockResolvedValue(options.tier ?? 'enterprise') };
+
   const service = new OperationsService(
     prisma as any,
     audit as any,
     sync as any,
     ledger as any,
+    stores as any,
   );
 
-  return { service, prisma, tx, audit, sync, ledger };
+  return { service, prisma, tx, audit, sync, ledger, stores };
 }
 
 // ── Create tests ──────────────────────────────────────────────────────────────
@@ -185,6 +192,66 @@ describe('OperationsService.createDocument', () => {
     );
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'operation_document.created' }),
+    );
+    expect(result.status).toBe(DOC_STATUS.DRAFT);
+  });
+
+  it('rejects goods_receipt creation on non-Enterprise tier', async () => {
+    const { service, stores } = makeHarness(makeDoc(), makeLines(), { tier: 'business' });
+
+    await expect(
+      service.createDocument(
+        {
+          documentType: DOC_TYPE.GOODS_RECEIPT,
+          destinationLocationId: 2,
+          lines: [{ menuId: 1, qty: 5, unitCost: 8000 }],
+        },
+        { actor: 'manager-1' } as any,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stores.getStoreTier).toHaveBeenCalled();
+  });
+
+  it('rejects purchase_order creation on Starter tier', async () => {
+    const { service } = makeHarness(makeDoc(), makeLines(), { tier: 'starter' });
+
+    await expect(
+      service.createDocument(
+        {
+          documentType: DOC_TYPE.PURCHASE_ORDER,
+          supplierName: 'Supplier A',
+          lines: [{ menuId: 1, qty: 5, unitCost: 8000 }],
+        },
+        { actor: 'manager-1' } as any,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('allows stock_transfer creation on Starter tier (not gated — Business relies on this for multi-location)', async () => {
+    const { service } = makeHarness(makeDoc(), makeLines(), { tier: 'starter' });
+
+    const result = await service.createDocument(
+      {
+        documentType: DOC_TYPE.STOCK_TRANSFER,
+        sourceLocationId: 1,
+        destinationLocationId: 2,
+        lines: [{ menuId: 1, qty: 5 }],
+      },
+      { actor: 'manager-1' } as any,
+    );
+    expect(result.status).toBe(DOC_STATUS.DRAFT);
+  });
+
+  it('allows stock_adjustment creation on Starter tier (not gated)', async () => {
+    const { service } = makeHarness(makeDoc(), makeLines(), { tier: 'starter' });
+
+    const result = await service.createDocument(
+      {
+        documentType: DOC_TYPE.STOCK_ADJUSTMENT,
+        destinationLocationId: 2,
+        lines: [{ menuId: 1, qty: -2 }],
+      },
+      { actor: 'manager-1' } as any,
     );
     expect(result.status).toBe(DOC_STATUS.DRAFT);
   });
@@ -299,6 +366,22 @@ describe('OperationsService.submitDocument', () => {
     await expect(
       service.submitDocument(999, {}, undefined),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects submitting another store\'s document (cross-tenant guard)', async () => {
+    const { service } = makeHarness(makeDoc({ store_id: 'default-store' }));
+
+    await expect(
+      service.submitDocument(1, {}, { storeId: 'store-someone-else', actor: 'u1' } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows submitting when the authenticated user matches the document\'s store', async () => {
+    const { service } = makeHarness(makeDoc({ store_id: 'default-store' }));
+
+    await expect(
+      service.submitDocument(1, {}, { storeId: 'default-store', actor: 'u1' } as any),
+    ).resolves.toBeDefined();
   });
 });
 

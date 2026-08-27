@@ -30,6 +30,7 @@ import {
 import { PrismaService } from '@libs/db/src/prisma';
 import { AuditService } from '../audit/audit.service';
 import { SyncService } from '../sync/sync.service';
+import { StoresService } from '../stores/stores.service';
 import { ManagerApprovalStatus } from '@libs/contracts/src/enums';
 import { MANAGER_APPROVAL_EVENTS } from '@libs/contracts/src/events';
 import {
@@ -70,15 +71,27 @@ export class PosApprovalService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly sync: SyncService,
+    private readonly stores: StoresService,
   ) {}
 
   // ── Policy checks ─────────────────────────────────────────────────────────
 
   /**
    * Check whether a refund requires manager approval.
-   * Approval required when refundAmount > threshold.
+   * Approval required when refundAmount > threshold — but only for
+   * Business+ stores. Starter's pricing is explicit: "hanya catat selisih"
+   * (variance logging only, no approval gate) — see TIER_MODULES /
+   * PlatformModule.POS_SHIFT_APPROVAL. Variance calculation itself lives in
+   * RegisterService/CashflowService and is untouched by this — Starter
+   * still gets that, it just skips the approval requirement layered on top.
    */
-  checkRefundPolicy(refundAmount: number): ApprovalPolicyResult {
+  async checkRefundPolicy(
+    storeId: string,
+    refundAmount: number,
+  ): Promise<ApprovalPolicyResult> {
+    if ((await this.stores.getStoreTier(storeId)) === 'starter') {
+      return { required: false };
+    }
     const threshold = getRefundThreshold();
     if (refundAmount > threshold) {
       return {
@@ -92,9 +105,16 @@ export class PosApprovalService {
 
   /**
    * Check whether a void requires manager approval.
-   * Approval required when order age > VOID_MAX_AGE_MINUTES.
+   * Approval required when order age > VOID_MAX_AGE_MINUTES — Starter-tier
+   * exempt, same reasoning as checkRefundPolicy above.
    */
-  checkVoidPolicy(orderCreatedAt: string): ApprovalPolicyResult {
+  async checkVoidPolicy(
+    storeId: string,
+    orderCreatedAt: string,
+  ): Promise<ApprovalPolicyResult> {
+    if ((await this.stores.getStoreTier(storeId)) === 'starter') {
+      return { required: false };
+    }
     const maxAgeMs = getVoidMaxAgeMinutes() * 60 * 1000;
     const orderAge = Date.now() - new Date(orderCreatedAt).getTime();
     if (orderAge > maxAgeMs) {

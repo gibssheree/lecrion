@@ -32,6 +32,7 @@ function makeOrder(
   return {
     id: 1,
     status: OrderStatus.CONFIRMED,
+    store_id: 'default-store',
     cancelled_at: null,
     cancellation_reason: null,
     payments: [
@@ -111,8 +112,10 @@ function makeHarness(
   const realtime = { emit: jest.fn() };
   const ledger = { writeMovement: jest.fn().mockResolvedValue({}) };
   const approval = {
-    checkVoidPolicy: jest.fn().mockReturnValue({ required: false }),
-    checkRefundPolicy: jest.fn().mockReturnValue({ required: false }),
+    // Both are now async (tier-gated — see pos-approval.service.ts) hence
+    // mockResolvedValue, not mockReturnValue.
+    checkVoidPolicy: jest.fn().mockResolvedValue({ required: false }),
+    checkRefundPolicy: jest.fn().mockResolvedValue({ required: false }),
     checkDiscountPolicy: jest.fn().mockReturnValue({ required: false }),
     verifyManagerPin: jest.fn(),
     inlineApprove: jest.fn().mockResolvedValue({ approvalId: 99 }),
@@ -193,6 +196,39 @@ describe('PosCorrectionsService.voidOrder', () => {
     );
     expect(result.status).toBe(OrderStatus.CANCELLED);
     expect(result.correctionNumber).toMatch(/^COR-VOID-/);
+  });
+
+  it('rejects voiding another store\'s order (cross-tenant guard)', async () => {
+    const order = makeOrder({
+      payments: [
+        { id: 10, amount: 20000, paid_amount: 0, payment_method: 'Cash', status: PaymentStatus.PENDING, store_id: 'default-store' },
+      ],
+    });
+    const { service } = makeHarness(order);
+
+    await expect(
+      service.voidOrder(
+        1,
+        { reason: 'test' },
+        { storeId: 'store-someone-else', actor: 'u1' } as any,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows voiding when the authenticated user matches the order\'s store', async () => {
+    const order = makeOrder({
+      payments: [
+        { id: 10, amount: 20000, paid_amount: 0, payment_method: 'Cash', status: PaymentStatus.PENDING, store_id: 'default-store' },
+      ],
+    });
+    const { service } = makeHarness(order);
+
+    const result = await service.voidOrder(
+      1,
+      { reason: 'test' },
+      { storeId: 'default-store', actor: 'u1' } as any,
+    );
+    expect(result.status).toBe(OrderStatus.CANCELLED);
   });
 
   it('rejects void of order with paid payments', async () => {
@@ -288,6 +324,27 @@ describe('PosCorrectionsService.refundOrder — full cash refund', () => {
     expect(result.correctionNumber).toMatch(/^COR-REFUND-/);
   });
 
+  it('rejects refunding another store\'s order (cross-tenant guard)', async () => {
+    const { service } = makeHarness();
+    await expect(
+      service.refundOrder(
+        1,
+        { reason: 'wrong item' },
+        { storeId: 'store-someone-else', actor: 'u1' } as any,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows refunding when the authenticated user matches the order\'s store', async () => {
+    const { service } = makeHarness();
+    const result = await service.refundOrder(
+      1,
+      { reason: 'wrong item' },
+      { storeId: 'default-store', actor: 'u1' } as any,
+    );
+    expect(result.status).toBe(OrderStatus.REFUNDED);
+  });
+
   it('full refund: does NOT create cashflow entry for non-cash payment', async () => {
     const order = makeOrder({
       payments: [
@@ -312,7 +369,7 @@ describe('PosCorrectionsService.refundOrder — full cash refund', () => {
 
   it('uses an existing approved manager approval id for threshold refunds', async () => {
     const { service, tx, approval } = makeHarness();
-    approval.checkRefundPolicy.mockReturnValue({
+    approval.checkRefundPolicy.mockResolvedValue({
       required: true,
       reason: 'Refund requires manager approval',
     });

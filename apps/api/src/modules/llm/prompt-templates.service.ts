@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { LlmRole, LlmContext } from './llm.types';
+import { StoresService } from '../stores/stores.service';
 
 const BASE_RULES = `
 ATURAN WAJIB (TIDAK BOLEH DILANGGAR):
@@ -70,10 +71,22 @@ Contoh pertanyaan: "Ada berapa transaksi offline yang belum tersinkron?" / "Apak
 export class PromptTemplatesService {
   readonly ROLES: LlmRole[] = ['customer', 'admin', 'cashier', 'support'];
 
-  buildSystemPrompt(
+  constructor(private readonly stores: StoresService) {}
+
+  /**
+   * `storeId` (SEC-11) lets the assistant identify the actual store it's
+   * serving instead of generic "toko" prose — this is the per-store
+   * identity piece; model/temperature/tone stay global for now (see the
+   * schema note on ai_usage_counters for the fuller per-store-config gap).
+   * Optional: callers without a resolved store yet (there shouldn't be any
+   * left, but this keeps the method from hard-failing) get the old generic
+   * prompt back.
+   */
+  async buildSystemPrompt(
     role: LlmRole = 'customer',
     context: LlmContext = {},
-  ): string {
+    storeId?: string,
+  ): Promise<string> {
     const {
       catalogContext = 'Belum ada data katalog.',
       cartContext = 'Keranjang kosong.',
@@ -81,10 +94,13 @@ export class PromptTemplatesService {
     } = context;
 
     const toolsDesc = TOOLS_DESCRIPTION;
+    const storeName = storeId ? await this.getStoreName(storeId) : null;
+    const storeLine = storeName ? `Nama toko: ${storeName}.` : '';
 
     switch (role) {
       case 'admin':
         return `Kamu adalah AI Owner Assistant untuk admin/owner toko Lecrion POS.
+${storeLine}
 Tugasmu: bantu owner memantau penjualan, stok, pesanan, laporan keuangan, analitik, dan operasional harian.
 
 ${BASE_RULES}
@@ -107,6 +123,7 @@ ${catalogContext}`.trim();
 
       case 'cashier':
         return `Kamu adalah asisten kasir untuk mempercepat proses transaksi.
+${storeLine}
 Tugasmu: bantu kasir cek stok cepat, cari produk, dan konfirmasi pesanan.
 
 ${BASE_RULES}
@@ -124,6 +141,7 @@ ${catalogContext}`.trim();
 
       case 'support':
         return `Kamu adalah asisten support untuk membantu tim customer service.
+${storeLine}
 Tugasmu: bantu support agent menyelidiki masalah customer dan pesanan.
 
 ${BASE_RULES}
@@ -141,6 +159,7 @@ ${catalogContext}`.trim();
       case 'customer':
       default:
         return `Kamu adalah asisten belanja WhatsApp untuk toko.
+${storeLine}
 Tugasmu: bantu customer browsing produk, cek stok, harga, dan status pesanan.
 
 ${BASE_RULES}
@@ -158,6 +177,15 @@ ${catalogContext}
 
 KERANJANG CUSTOMER:
 ${cartContext}`.trim();
+    }
+  }
+
+  private async getStoreName(storeId: string): Promise<string | null> {
+    try {
+      const settings = await this.stores.getSettings(storeId);
+      return settings['storeName'] || null;
+    } catch {
+      return null;
     }
   }
 }

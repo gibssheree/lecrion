@@ -7,9 +7,10 @@ import { NutritionAdvisorService } from './nutrition-advisor.service';
 import { AiUsageService } from './ai-usage.service';
 import { LlmController } from './llm.controller';
 import { AuditModule } from '../audit/audit.module';
+import { StoresModule } from '../stores/stores.module';
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, StoresModule],
   controllers: [LlmController],
   providers: [
     LlmService,

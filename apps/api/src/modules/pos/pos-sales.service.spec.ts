@@ -38,6 +38,10 @@ describe('PosSalesService', () => {
       cachedReceipt?: PosSaleReceipt;
       /** store_settings keys, e.g. { 'calc.tax_rate': '0.1' } — see CALC_POLICY_KEYS */
       calcSettings?: Record<string, string>;
+      /** Defaults to 'business' so the existing split-payment test (below)
+       * keeps passing — only tests that explicitly want the Starter-tier
+       * gate pass tier: 'starter'. */
+      tier?: string;
     } = {},
   ) {
     const tx = {
@@ -151,6 +155,7 @@ describe('PosSalesService', () => {
       {
         getSetting: async () => '',
         getCapabilities: async () => ({ enabledModules: [] }),
+        getStoreTier: jest.fn().mockResolvedValue(options.tier ?? 'business'),
       } as any,
       { createTicketForOrder: async () => null } as any,
       { emitKitchenTicketCreated: () => undefined } as any,
@@ -537,6 +542,34 @@ describe('PosSalesService', () => {
       where: { id: 10 },
       data: { expected_cash: { increment: 10000 } },
     });
+  });
+
+  it('rejects split payment on Starter tier (SEC/tier: split payment is Business+)', async () => {
+    const { service } = makeHarness({ tier: 'starter' });
+
+    await expect(
+      service.createSale(
+        makeDto({
+          clientSaleId: 'sale-split-starter',
+          payments: [
+            { method: 'Cash', amount: 10000, paidAmount: 10000 },
+            { method: 'QRIS', amount: 10000 },
+          ],
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('allows a single-method sale on Starter tier (cash-with-change is not split payment)', async () => {
+    const { service } = makeHarness({ tier: 'starter' });
+
+    const receipt = await service.createSale(
+      makeDto({
+        clientSaleId: 'sale-single-starter',
+        payments: [{ method: 'Cash', amount: 20000, paidAmount: 25000 }],
+      }),
+    );
+    expect(receipt.total).toBe(20000);
   });
 
   it('discount reduces total correctly', async () => {

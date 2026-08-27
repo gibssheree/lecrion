@@ -40,6 +40,7 @@ export class CheckoutService {
     address?: string;
     idempotencyKey?: string;
     correlationId?: string;
+    storeId?: string;
   }) {
     const {
       sender,
@@ -72,10 +73,11 @@ export class CheckoutService {
       ? orderType
       : this.configService.defaultOrderType;
 
-    // The WhatsApp bot is single-tenant today (see SEC-11 in the roadmap —
-    // per-merchant bot routing is separate, larger future work), so every
-    // bot-originated order/menu-lookup uses the configured default store.
-    const storeId = this.configService.defaultStoreId;
+    // SEC-11: storeId now comes from the caller (BotDispatchService resolves
+    // it per-conversation via BotRoutingService) — defaultStoreId is only a
+    // fallback for callers that don't pass one (tests, other internal
+    // callers), same convention as pos-sales.service.ts's SEC-05/06 fix.
+    const storeId = opts.storeId ?? this.configService.defaultStoreId;
 
     const result = await this.prisma.$transaction(async (tx) => {
       const { userId } = await this.usersService.ensureUserByPhone(sender, tx);

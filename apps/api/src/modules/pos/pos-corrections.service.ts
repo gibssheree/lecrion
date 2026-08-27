@@ -128,6 +128,14 @@ export class PosCorrectionsService {
       include: { payments: true },
     });
     if (!order) throw new NotFoundException(`Order #${orderId} not found`);
+    // Cross-tenant guard (same class of gap as SEC-05/06): without this, any
+    // authenticated user could void another store's order by id. Skipped
+    // only when there's no authenticated store to compare against (e.g. a
+    // system-originated call), matching how `operatorId` already falls back
+    // to 'system' below rather than requiring `user`.
+    if (user?.storeId && (order as any).store_id !== user.storeId) {
+      throw new NotFoundException(`Order #${orderId} not found`);
+    }
 
     if (VOID_TERMINAL.has(order.status as any)) {
       throw new BadRequestException(
@@ -150,7 +158,10 @@ export class PosCorrectionsService {
     }
 
     // ── Approval policy check ──────────────────────────────────────────────
-    const voidPolicy = this.approval.checkVoidPolicy(order.created_at);
+    const voidPolicy = await this.approval.checkVoidPolicy(
+      (order as any).store_id,
+      order.created_at,
+    );
     if (voidPolicy.required) {
       if (!dto.managerApprovalId && (!dto.managerPin || !dto.approvedBy)) {
         throw new ForbiddenException(
@@ -302,6 +313,10 @@ export class PosCorrectionsService {
       include: { order_items: true, payments: true },
     });
     if (!order) throw new NotFoundException(`Order #${orderId} not found`);
+    // Cross-tenant guard — see the matching comment in voidOrder above.
+    if (user?.storeId && (order as any).store_id !== user.storeId) {
+      throw new NotFoundException(`Order #${orderId} not found`);
+    }
 
     if (REFUND_TERMINAL.has(order.status as any)) {
       throw new BadRequestException(
@@ -412,7 +427,10 @@ export class PosCorrectionsService {
     refundAmount = Math.min(refundAmount, maxRefundable);
 
     // ── Approval policy check ──────────────────────────────────────────────
-    const refundPolicy = this.approval.checkRefundPolicy(refundAmount);
+    const refundPolicy = await this.approval.checkRefundPolicy(
+      (order as any).store_id,
+      refundAmount,
+    );
     if (refundPolicy.required) {
       if (!dto.managerApprovalId && (!dto.managerPin || !dto.approvedBy)) {
         throw new ForbiddenException(

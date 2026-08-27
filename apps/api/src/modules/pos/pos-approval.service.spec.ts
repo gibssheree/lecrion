@@ -17,6 +17,7 @@ function makeHarness(
   options: {
     existingApproval?: any;
     envOverrides?: Record<string, string>;
+    tier?: string;
   } = {},
 ) {
   // Apply env overrides before service construction
@@ -47,11 +48,17 @@ function makeHarness(
 
   const audit = { record: jest.fn() };
   const sync = { writeOutboxInTx: jest.fn() };
+  // Defaults to 'business' — the threshold-check tests below exercise the
+  // Rp-amount/age logic, which only runs for Business+ (Starter short-
+  // circuits to {required:false} before the threshold is even read; see
+  // the dedicated 'Starter tier' describe block for that behavior).
+  const stores = { getStoreTier: jest.fn().mockResolvedValue(options.tier ?? 'business') };
 
   const service = new PosApprovalService(
     prisma as any,
     audit as any,
     sync as any,
+    stores as any,
   );
 
   function restoreEnv() {
@@ -66,61 +73,83 @@ function makeHarness(
     }
   }
 
-  return { service, prisma, audit, sync, restoreEnv };
+  return { service, prisma, audit, sync, stores, restoreEnv };
 }
 
 // ── Policy check tests ────────────────────────────────────────────────────────
 
 describe('PosApprovalService — policy checks', () => {
-  it('refund below threshold does not require approval', () => {
+  it('refund below threshold does not require approval', async () => {
     const { service, restoreEnv } = makeHarness({
       envOverrides: { REFUND_APPROVAL_THRESHOLD_IDR: '100000' },
     });
-    const result = service.checkRefundPolicy(50000);
+    const result = await service.checkRefundPolicy('store-1', 50000);
     expect(result.required).toBe(false);
     restoreEnv();
   });
 
-  it('refund above threshold requires approval', () => {
+  it('refund above threshold requires approval', async () => {
     const { service, restoreEnv } = makeHarness({
       envOverrides: { REFUND_APPROVAL_THRESHOLD_IDR: '100000' },
     });
-    const result = service.checkRefundPolicy(150000);
+    const result = await service.checkRefundPolicy('store-1', 150000);
     expect(result.required).toBe(true);
     expect(result.approvalType).toBe('refund');
     expect(result.reason).toContain('150.000');
     restoreEnv();
   });
 
-  it('refund exactly at threshold does not require approval', () => {
+  it('refund exactly at threshold does not require approval', async () => {
     const { service, restoreEnv } = makeHarness({
       envOverrides: { REFUND_APPROVAL_THRESHOLD_IDR: '100000' },
     });
-    const result = service.checkRefundPolicy(100000);
+    const result = await service.checkRefundPolicy('store-1', 100000);
     expect(result.required).toBe(false);
     restoreEnv();
   });
 
-  it('void within age window does not require approval', () => {
+  it('void within age window does not require approval', async () => {
     const { service, restoreEnv } = makeHarness({
       envOverrides: { VOID_MAX_AGE_MINUTES: '30' },
     });
     // Order created 5 minutes ago
     const recentOrder = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const result = service.checkVoidPolicy(recentOrder);
+    const result = await service.checkVoidPolicy('store-1', recentOrder);
     expect(result.required).toBe(false);
     restoreEnv();
   });
 
-  it('void beyond age window requires approval', () => {
+  it('void beyond age window requires approval', async () => {
     const { service, restoreEnv } = makeHarness({
       envOverrides: { VOID_MAX_AGE_MINUTES: '30' },
     });
     // Order created 60 minutes ago
     const oldOrder = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const result = service.checkVoidPolicy(oldOrder);
+    const result = await service.checkVoidPolicy('store-1', oldOrder);
     expect(result.required).toBe(true);
     expect(result.approvalType).toBe('void');
+    restoreEnv();
+  });
+
+  it('Starter tier never requires refund approval, regardless of amount', async () => {
+    const { service, stores, restoreEnv } = makeHarness({
+      envOverrides: { REFUND_APPROVAL_THRESHOLD_IDR: '100000' },
+      tier: 'starter',
+    });
+    const result = await service.checkRefundPolicy('store-1', 5_000_000);
+    expect(result.required).toBe(false);
+    expect(stores.getStoreTier).toHaveBeenCalledWith('store-1');
+    restoreEnv();
+  });
+
+  it('Starter tier never requires void approval, regardless of age', async () => {
+    const { service, restoreEnv } = makeHarness({
+      envOverrides: { VOID_MAX_AGE_MINUTES: '30' },
+      tier: 'starter',
+    });
+    const ancientOrder = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    const result = await service.checkVoidPolicy('store-1', ancientOrder);
+    expect(result.required).toBe(false);
     restoreEnv();
   });
 

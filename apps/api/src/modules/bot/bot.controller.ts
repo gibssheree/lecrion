@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Req,
   Res,
   HttpCode,
@@ -9,7 +10,10 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
 import { BotDispatchService } from './bot-dispatch.service';
+import { BotRoutingService } from './bot-routing.service';
 import { HistoryService } from '../chatbot/history.service';
 import { AppConfigService } from '../../infrastructure/config/app-config.service';
 import { PrismaService } from '@libs/db/src/prisma';
@@ -38,12 +42,35 @@ export class BotController {
 
   constructor(
     private readonly dispatch: BotDispatchService,
+    private readonly routing: BotRoutingService,
     private readonly historyService: HistoryService,
     private readonly config: AppConfigService,
     private readonly prisma: PrismaService,
   ) {
     // Inject Prisma into the dedupe module (singleton pattern)
     setPrisma(prisma);
+  }
+
+  /**
+   * GET /api/bot/whatsapp-link
+   * The QR-code / deep-link an owner shares with customers (table tent,
+   * Instagram bio, etc.) — a customer's first tap sends a pre-filled
+   * message that auto-binds their conversation to this store (SEC-11).
+   * Not @Public() — the global auth guards apply, so `user.storeId` is the
+   * authenticated owner's own store.
+   */
+  @Get('whatsapp-link')
+  getWhatsAppLink(@CurrentUser() user: AuthUser) {
+    const storeId = user.storeId;
+    const link = this.routing.buildWhatsAppLink(storeId);
+    if (!link) {
+      return {
+        configured: false,
+        message:
+          'Nomor WhatsApp bot belum dikonfigurasi (FONNTE_WA_NUMBER). Hubungi admin Lecrion.',
+      };
+    }
+    return { configured: true, storeId, link };
   }
 
   @Post('webhook')

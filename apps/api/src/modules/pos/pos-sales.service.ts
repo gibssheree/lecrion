@@ -81,6 +81,20 @@ export class PosSalesService {
     // still applies when there's no authenticated user (tests, internal
     // callers) — the HTTP endpoint always provides one via @CurrentUser().
     const storeId = user?.storeId ?? dto.storeId ?? 'default-store';
+
+    // Split payment is Business+ (pricing page: "✗ Split payment" on
+    // Starter). Single-method sales — including cash-with-change, which
+    // still submits a 1-element `payments` array — are always allowed;
+    // only `payments.length > 1` is gated.
+    if (dto.payments.length > 1) {
+      const tier = await this.stores.getStoreTier(storeId);
+      if (tier === 'starter') {
+        throw new BadRequestException(
+          'Split payment memerlukan paket Business atau lebih tinggi.',
+        );
+      }
+    }
+
     const storePolicy = await this.calc.getPolicy(storeId);
 
     // Validate payment methods against store's kasirPaymentMethods setting.

@@ -704,6 +704,29 @@ model stores {
   @@index([tier], map: "idx_stores_tier")
 }
 
+// Resolves "which store is this WhatsApp conversation for" (SEC-11) — one
+// binding per phone number, since a single number is only ever mid-
+// conversation with one store at a time. Bound two ways (see
+// BotRoutingService): a customer sends a store's QR-code trigger message
+// ("LECRION:<storeId>"), or the sender's number is found in some store's
+// `adminPhones` setting (the owner talking to their own bot).
+//
+// When a number's binding CHANGES to a different store, its cart and chat
+// history are cleared rather than also adding store_id to carts/cart_items/
+// chat_history — those three tables stay sender-only. This is deliberately
+// scoped down: it's a smaller, lower-risk change than migrating carts'
+// primary key, and gives the same guarantee that matters (no cart/price
+// bleed between stores) as long as a number is never "live" with two stores
+// at once, which the one-binding-per-sender design already ensures.
+model bot_conversation_bindings {
+  sender     String @id
+  store_id   String
+  bound_at   String @default("datetime('now')")
+  updated_at String @default("datetime('now')")
+
+  @@index([store_id], map: "idx_bot_conversation_bindings_store")
+}
+
 // AI chat quota tracking — one row per (store, quota type, period). "period"
 // is a plain string so the same table serves both granularities: 'YYYY-MM-DD'
 // for the daily cap, 'YYYY-MM' for the monthly cap. A chat is counted once it

@@ -5,9 +5,10 @@ import { AuditModule } from '../audit/audit.module';
 import { SyncModule } from '../sync/sync.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { AuthModule } from '../auth/auth.module';
+import { StoresModule } from '../stores/stores.module';
 
 @Module({
-  imports: [AuditModule, SyncModule, InventoryModule, AuthModule],
+  imports: [AuditModule, SyncModule, InventoryModule, AuthModule, StoresModule],
   controllers: [OperationsController],
   providers: [OperationsService],
   exports: [OperationsService],

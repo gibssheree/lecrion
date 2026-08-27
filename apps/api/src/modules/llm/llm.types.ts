@@ -10,6 +10,11 @@ export interface LlmChatOptions {
   history?: LlmHistoryTurn[];
   context?: LlmContext;
   correlationId?: string;
+  /** Which store this conversation belongs to (SEC-11) — used to give the
+   * system prompt that store's name instead of a generic one. Optional so
+   * existing callers that don't have a resolved store yet still compile;
+   * PromptTemplatesService falls back to a generic prompt without it. */
+  storeId?: string;
 }
 
 export interface LlmContext {

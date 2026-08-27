@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BotController } from './bot.controller';
 import { BotDispatchService } from './bot-dispatch.service';
+import { BotRoutingService } from './bot-routing.service';
 import { ScheduledReportsService } from './scheduled-reports.service';
 import { CatalogModule } from '../catalog/catalog.module';
 import { InventoryModule } from '../inventory/inventory.module';
@@ -21,7 +22,7 @@ import { StoresModule } from '../stores/stores.module';
     StoresModule,
   ],
   controllers: [BotController],
-  providers: [BotDispatchService, ScheduledReportsService],
-  exports: [ScheduledReportsService],
+  providers: [BotDispatchService, BotRoutingService, ScheduledReportsService],
+  exports: [ScheduledReportsService, BotRoutingService],
 })
 export class BotModule {}

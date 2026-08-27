@@ -36,6 +36,7 @@ import { PrismaService } from '@libs/db/src/prisma';
 import { AuditService } from '../audit/audit.service';
 import { SyncService } from '../sync/sync.service';
 import { InventoryLedgerService } from '../inventory/inventory-ledger.service';
+import { StoresService } from '../stores/stores.service';
 import {
   OperationDocumentStatus,
   OperationDocumentType,
@@ -79,6 +80,7 @@ export class OperationsService {
     private readonly audit: AuditService,
     private readonly sync: SyncService,
     private readonly ledger: InventoryLedgerService,
+    private readonly stores: StoresService,
   ) {}
 
   // ── Create ───────────────────────────────────────────────────────────────────
@@ -88,8 +90,32 @@ export class OperationsService {
     user?: AuthUser,
   ): Promise<OperationDocumentResponse> {
     const createdBy = user?.actor ?? 'system';
-    const storeId = dto.storeId ?? user?.storeId ?? 'default-store';
+    // user.storeId takes precedence over dto.storeId — same SEC-05/06 sibling
+    // bug class as pos-sales.service.ts: the reverse order let an
+    // authenticated user submit an arbitrary dto.storeId and create
+    // documents (and, on posting, stock movements) in a store they don't
+    // belong to. dto.storeId still applies with no authenticated user
+    // (tests, internal callers) — the HTTP endpoint always provides one via
+    // @CurrentUser().
+    const storeId = user?.storeId ?? dto.storeId ?? 'default-store';
     const now = new Date().toISOString();
+
+    // Purchase order & goods receipt are Enterprise-only ("Purchase Order &
+    // penerimaan barang" on the pricing page). Stock transfer/adjustment
+    // stay open to every tier — Business needs transfer for its
+    // multi-location feature, and adjustment is a basic correction any
+    // store can need.
+    if (
+      dto.documentType === OperationDocumentType.PURCHASE_ORDER ||
+      dto.documentType === OperationDocumentType.GOODS_RECEIPT
+    ) {
+      const tier = await this.stores.getStoreTier(storeId);
+      if (tier !== 'enterprise') {
+        throw new BadRequestException(
+          `Dokumen ${dto.documentType === OperationDocumentType.PURCHASE_ORDER ? 'purchase order' : 'penerimaan barang'} memerlukan paket Enterprise.`,
+        );
+      }
+    }
 
     // Validate location requirements
     this.validateLocationRequirements(dto);
@@ -188,7 +214,7 @@ export class OperationsService {
     const operatorId = dto.operatorId ?? user?.actor ?? 'system';
     const now = new Date().toISOString();
 
-    const doc = await this.loadDocument(documentId);
+    const doc = await this.loadDocument(documentId, user?.storeId);
 
     if (doc.status !== 'draft') {
       throw new BadRequestException(
@@ -242,7 +268,7 @@ export class OperationsService {
     const operatorId = dto.operatorId ?? user?.actor ?? 'system';
     const now = new Date().toISOString();
 
-    const doc = await this.loadDocument(documentId);
+    const doc = await this.loadDocument(documentId, user?.storeId);
 
     if (doc.status === 'posted') {
       throw new BadRequestException(
@@ -465,7 +491,7 @@ export class OperationsService {
       throw new BadRequestException('reason is required for cancellation');
     }
 
-    const doc = await this.loadDocument(documentId);
+    const doc = await this.loadDocument(documentId, user?.storeId);
 
     if (doc.status === 'posted') {
       throw new BadRequestException(
@@ -582,11 +608,22 @@ export class OperationsService {
 
   // ── Private helpers ───────────────────────────────────────────────────────────
 
-  private async loadDocument(documentId: number) {
+  /**
+   * `expectedStoreId`, when given, enforces that the document belongs to
+   * that store — same class of cross-tenant gap as SEC-05/06: without this,
+   * any authenticated user could submit/post/cancel another store's
+   * document by id. Skipped only when there's no authenticated store to
+   * compare against (e.g. a system-originated call), matching how
+   * `operatorId` already falls back to 'system' in the three callers below.
+   */
+  private async loadDocument(documentId: number, expectedStoreId?: string) {
     const doc = await this.prisma.operation_documents.findUnique({
       where: { id: documentId },
     });
     if (!doc) {
+      throw new NotFoundException(`Document #${documentId} not found`);
+    }
+    if (expectedStoreId && doc.store_id !== expectedStoreId) {
       throw new NotFoundException(`Document #${documentId} not found`);
     }
     return doc;

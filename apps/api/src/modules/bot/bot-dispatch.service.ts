@@ -8,7 +8,7 @@ import { LlmService } from '../llm/llm.service';
 import { ReportsService } from '../reports/reports.service';
 import { NutritionAdvisorService } from '../llm/nutrition-advisor.service';
 import { AppConfigService } from '../../infrastructure/config/app-config.service';
-import { StoresService } from '../stores/stores.service';
+import { BotRoutingService } from './bot-routing.service';
 import { detectIntent, Intent } from '@bot/intents/intentDetector';
 import {
   formatMenuList,
@@ -43,6 +43,14 @@ export interface DispatchContext {
   userWaIdentity: string;
   imageUrl: string | null;
   isgroup: boolean;
+  /**
+   * Resolved by dispatch() itself via BotRoutingService (SEC-11) — never set
+   * by the caller (bot.controller.ts doesn't know this yet either). Optional
+   * only so existing construction sites don't need to change; by the time
+   * route() reads it, dispatch() has always already filled it in.
+   */
+  storeId?: string;
+  isOwner?: boolean;
 }
 
 export interface DispatchResult {
@@ -126,7 +134,7 @@ export class BotDispatchService {
     private readonly reports: ReportsService,
     private readonly nutrition: NutritionAdvisorService,
     private readonly config: AppConfigService,
-    private readonly stores: StoresService,
+    private readonly routing: BotRoutingService,
   ) {}
 
   /**
@@ -134,15 +142,27 @@ export class BotDispatchService {
    * Called by BotController for every inbound Fonnte webhook.
    */
   async dispatch(ctx: DispatchContext): Promise<DispatchResult> {
-    const {
-      userMessage,
-      conversationSender,
+    const { userMessage, conversationSender, sender, resolvedName, isgroup } =
+      ctx;
+
+    // 0. Resolve which store this conversation belongs to (SEC-11) — must
+    // happen before anything else, since every handler below needs it.
+    const resolved = await this.routing.resolveConversation(
       sender,
-      resolvedName,
-      userWaIdentity,
-      imageUrl,
-      isgroup,
-    } = ctx;
+      userMessage,
+    );
+    ctx.storeId = resolved.storeId;
+    ctx.isOwner = resolved.isOwner;
+
+    if (resolved.justBound) {
+      return {
+        reply: [
+          `Terhubung dengan ${resolved.storeName}.`,
+          'Ketik *menu* untuk lihat produk yang tersedia.',
+        ].join('\n'),
+        entryType: 'chat',
+      };
+    }
 
     // 1. Delivery follow-up takes priority
     const deliveryResult = await this.handleDeliveryFollowup(
@@ -150,6 +170,7 @@ export class BotDispatchService {
       sender,
       resolvedName,
       userMessage,
+      ctx.storeId,
     );
     if (deliveryResult !== null) return deliveryResult;
 
@@ -178,34 +199,35 @@ export class BotDispatchService {
       userWaIdentity,
       imageUrl,
       isgroup,
+      storeId,
+      isOwner,
     } = ctx;
 
     // ── Owner-only data gate ───────────────────────────────────────────────
     // Sales reports & raw stock levels must only reach the store owner's
     // configured WhatsApp number(s). Everyone else gets a polite decline.
-    if (
-      BotDispatchService.OWNER_ONLY_INTENTS.has(intent.type) &&
-      !(await this.isOwnerSender(sender))
-    ) {
+    // `isOwner` was already resolved once in dispatch() — see BotRoutingService.
+    if (BotDispatchService.OWNER_ONLY_INTENTS.has(intent.type) && !isOwner) {
       return this.handleOwnerOnlyDenied();
     }
 
     switch (intent.type) {
       case 'menu':
-        return this.handleMenu();
+        return this.handleMenu(storeId!);
       case 'help_quick':
         return this.handleHelpQuick();
       case 'product_detail':
-        return this.handleProductDetail(intent.productRef);
+        return this.handleProductDetail(intent.productRef, storeId!);
       case 'ingredients_single':
-        return this.handleIngredientsSingle(intent.productRef);
+        return this.handleIngredientsSingle(intent.productRef, storeId!);
       case 'ingredients_all':
-        return this.handleIngredientsAll(intent.category ?? null);
+        return this.handleIngredientsAll(intent.category ?? null, storeId!);
       case 'nutrition_query':
         return this.handleNutritionQuery(
           intent.productRef,
           intent.topic,
           userMessage,
+          storeId!,
         );
 
       case 'cart_view':
@@ -215,6 +237,7 @@ export class BotDispatchService {
           intent.productRef,
           intent.qty ?? 1,
           conversationSender,
+          storeId!,
         );
       case 'cart_remove':
         return this.handleCartRemove(intent.productRef, conversationSender);
@@ -226,6 +249,7 @@ export class BotDispatchService {
           conversationSender,
           resolvedName,
           sender,
+          storeId!,
         );
 
       case 'ingredient_summary':
@@ -235,7 +259,7 @@ export class BotDispatchService {
       case 'ingredient_by_category':
         return this.handleIngredientByCategory(intent.category);
       case 'ingredient_single_stock':
-        return this.handleIngredientSingleStock(intent.ingredientRef);
+        return this.handleIngredientSingleStock(intent.ingredientRef, storeId!);
       case 'ingredient_out_summary':
         return this.handleIngredientOutSummary();
       case 'ingredient_low_stock':
@@ -275,14 +299,15 @@ export class BotDispatchService {
           imageUrl,
           isgroup,
           prefixTriggeredInGroup,
+          storeId: storeId!,
         });
     }
   }
 
   // ─── Catalog handlers ──────────────────────────────────────────────────────
 
-  private async handleMenu(): Promise<DispatchResult> {
-    const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
+  private async handleMenu(storeId: string): Promise<DispatchResult> {
+    const products = await this.catalog.getAllProducts(storeId);
     return { reply: formatMenuList(products), entryType: 'catalog' };
   }
 
@@ -292,22 +317,25 @@ export class BotDispatchService {
 
   private async handleProductDetail(
     productRef: string,
+    storeId: string,
   ): Promise<DispatchResult> {
-    const product = await this.resolveProductRef(productRef);
+    const product = await this.resolveProductRef(productRef, storeId);
     return { reply: formatProductDetail(product), entryType: 'catalog' };
   }
 
   private async handleIngredientsSingle(
     productRef: string,
+    storeId: string,
   ): Promise<DispatchResult> {
-    const product = await this.resolveProductRef(productRef);
+    const product = await this.resolveProductRef(productRef, storeId);
     return { reply: formatIngredientReply(product), entryType: 'nutrition' };
   }
 
   private async handleIngredientsAll(
     category: string | null,
+    storeId: string,
   ): Promise<DispatchResult> {
-    const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
+    const products = await this.catalog.getAllProducts(storeId);
     return {
       reply: formatAllIngredientsReply(products, category),
       entryType: 'nutrition',
@@ -318,17 +346,18 @@ export class BotDispatchService {
     productRef: string,
     topic: string,
     userMessage: string,
+    storeId: string,
   ): Promise<DispatchResult> {
-    let product = await this.resolveProductRef(productRef);
+    let product = await this.resolveProductRef(productRef, storeId);
     if (!product) {
       // Fuzzy match from full catalog
-      const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
+      const products = await this.catalog.getAllProducts(storeId);
       const lowered = userMessage.toLowerCase();
       product =
         products.find((p) => lowered.includes(p.name.toLowerCase())) ?? null;
     }
     if (!product) {
-      const products = await this.catalog.getAllProducts(this.config.defaultStoreId);
+      const products = await this.catalog.getAllProducts(storeId);
       const examples = products
         .slice(0, 6)
         .map((p) => p.name)
@@ -367,8 +396,9 @@ export class BotDispatchService {
     productRef: string,
     qty: number,
     sender: string,
+    storeId: string,
   ): Promise<DispatchResult> {
-    const product = await this.resolveProductRef(productRef);
+    const product = await this.resolveProductRef(productRef, storeId);
     if (!product)
       return {
         reply: 'Produk tidak ditemukan. Ketik menu untuk lihat daftar produk.',
@@ -419,6 +449,7 @@ export class BotDispatchService {
     conversationSender: string,
     resolvedName: string | null,
     sender: string,
+    storeId: string,
   ): Promise<DispatchResult> {
     if (orderType === 'delivery') {
       const c = await this.cart.getCart(conversationSender);
@@ -441,6 +472,7 @@ export class BotDispatchService {
       sender: conversationSender,
       customerName: resolvedName ?? sender,
       orderType,
+      storeId,
     });
   }
 
@@ -449,6 +481,7 @@ export class BotDispatchService {
     sender: string,
     resolvedName: string | null,
     userMessage: string,
+    storeId: string,
   ): Promise<DispatchResult | null> {
     const session = deliverySessions.get(conversationSender);
     if (!session?.awaitingDetails) return null;
@@ -473,6 +506,7 @@ export class BotDispatchService {
       orderType: 'delivery',
       phone: details.phone,
       address: details.address,
+      storeId,
     });
   }
 
@@ -482,6 +516,7 @@ export class BotDispatchService {
     orderType?: string;
     phone?: string;
     address?: string;
+    storeId?: string;
   }): Promise<DispatchResult> {
     try {
       const order = await this.checkout.createOrderFromCart(opts);
@@ -532,6 +567,7 @@ export class BotDispatchService {
 
   private async handleIngredientSingleStock(
     ingredientRef: string,
+    storeId: string,
   ): Promise<DispatchResult> {
     const cleanedRef = normalizeIngredientReference(ingredientRef);
     const item = await this.inventory.searchIngredientByName(
@@ -542,7 +578,7 @@ export class BotDispatchService {
         reply: formatSingleIngredientStockReply(item as any),
         entryType: 'inventory',
       };
-    const product = await this.resolveProductRef(cleanedRef || ingredientRef);
+    const product = await this.resolveProductRef(cleanedRef || ingredientRef, storeId);
     return {
       reply: product
         ? formatProductDetail(product)
@@ -666,6 +702,7 @@ export class BotDispatchService {
     imageUrl: string | null;
     isgroup: boolean;
     prefixTriggeredInGroup: boolean;
+    storeId: string;
   }): Promise<DispatchResult> {
     const {
       userMessage,
@@ -673,6 +710,7 @@ export class BotDispatchService {
       userWaIdentity,
       isgroup,
       prefixTriggeredInGroup,
+      storeId,
     } = opts;
 
     // Group prefix command not recognized → deterministic error
@@ -690,7 +728,7 @@ export class BotDispatchService {
 
     const [historyTurns, catalogContext, cartData] = await Promise.all([
       this.history.getHistoryBySender(conversationSender, 10),
-      this.catalog.getCatalogContext(this.config.defaultStoreId),
+      this.catalog.getCatalogContext(storeId),
       this.cart.getCart(conversationSender),
     ]);
 
@@ -702,6 +740,7 @@ export class BotDispatchService {
       role: 'customer',
       history: historyTurns,
       context: { catalogContext, cartContext },
+      storeId,
     });
 
     return { reply, entryType: 'chat' };
@@ -755,47 +794,16 @@ export class BotDispatchService {
     };
   }
 
-  /**
-   * True if the sender's WhatsApp number is in the store's admin allowlist,
-   * configured via Bot Settings → "Nomor WA Admin" (setting key: adminPhones).
-   *
-   * Fail-closed: if no admin numbers are configured or the lookup fails,
-   * NO ONE is treated as owner over WhatsApp (sensitive data stays hidden).
-   */
-  private async isOwnerSender(sender: string): Promise<boolean> {
-    try {
-      const settings = await this.stores.getSettings(this.config.defaultStoreId);
-      const raw = settings['adminPhones'] ?? '';
-      if (!raw.trim()) return false;
-      const allow = raw
-        .split(/[\s,;]+/)
-        .map((entry) => this.normalizePhone(entry))
-        .filter(Boolean);
-      return allow.includes(this.normalizePhone(sender));
-    } catch {
-      return false;
-    }
-  }
-
-  /** Canonicalize an Indonesian phone number to "62…" digits for comparison. */
-  private normalizePhone(phone: string): string {
-    let d = String(phone ?? '').replace(/\D/g, '');
-    if (!d) return '';
-    if (d.startsWith('0')) d = '62' + d.slice(1);
-    else if (d.startsWith('8')) d = '62' + d;
-    return d;
-  }
-
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  private async resolveProductRef(productRef: string | number): Promise<any> {
+  private async resolveProductRef(
+    productRef: string | number,
+    storeId: string,
+  ): Promise<any> {
     const maybeId = Number(productRef);
     if (Number.isInteger(maybeId) && maybeId > 0)
-      return this.catalog.getProductById(maybeId, this.config.defaultStoreId);
-    return this.catalog.findProductByName(
-      String(productRef),
-      this.config.defaultStoreId,
-    );
+      return this.catalog.getProductById(maybeId, storeId);
+    return this.catalog.findProductByName(String(productRef), storeId);
   }
 
   private isValidYear(year: number): boolean {

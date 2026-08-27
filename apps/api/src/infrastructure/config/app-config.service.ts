@@ -9,6 +9,16 @@ export class AppConfigService {
     return this.configService.get<string>('FONNTE_TOKEN') || '';
   }
 
+  /**
+   * The bot's own WhatsApp number (digits only, e.g. "6281234567890") — the
+   * number customers text TO. Fonnte's webhook payload doesn't include this
+   * (it has no "which of my numbers received this" field), so it has to be
+   * configured here to build a per-store wa.me deep link. Empty until set.
+   */
+  get fonnteWaNumber(): string {
+    return this.configService.get<string>('FONNTE_WA_NUMBER') || '';
+  }
+
   get geminiApiKey(): string {
     return this.configService.get<string>('GEMINI_API_KEY') || '';
   }
