@@ -89,7 +89,7 @@ describe('StoresService capabilities', () => {
     expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_TABLES);
   });
 
-  it('maps accommodation preset to accommodation hotel capabilities', async () => {
+  it('maps accommodation preset to the hotel vertical but enables no accommodation modules yet', async () => {
     const prisma = createPrismaMock({ businessVertical: 'accommodation' });
     const service = new StoresService(prisma as never);
 
@@ -99,11 +99,24 @@ describe('StoresService capabilities', () => {
       BusinessVertical.ACCOMMODATION_HOTEL,
     );
     expect(capabilities.businessPreset).toBe('accommodation');
-    expect(capabilities.enabledModules).toContain(
+
+    // None of the accommodation modules ship yet — every route behind them is
+    // a static placeholder (see the VERTICAL_MODULES comment). They must stay
+    // disabled so the nav doesn't advertise pages that do nothing.
+    expect(capabilities.enabledModules).not.toContain(
       PlatformModule.ACCOMMODATION_RESERVATIONS,
     );
-    expect(capabilities.enabledModules).toContain(
+    expect(capabilities.enabledModules).not.toContain(
       PlatformModule.ACCOMMODATION_ROOMS,
+    );
+    expect(capabilities.enabledModules).not.toContain(
+      PlatformModule.ACCOMMODATION_CHECKIN,
+    );
+
+    // ...but core POS/inventory/reports still work for a hotel's F&B outlet.
+    expect(capabilities.coreModules.length).toBeGreaterThan(0);
+    expect(capabilities.enabledModules).toEqual(
+      expect.arrayContaining(capabilities.coreModules),
     );
   });
 

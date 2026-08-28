@@ -49,11 +49,28 @@ export class AuditService {
     });
   }
 
-  async query(filters: { actor?: string; resource?: string; action?: string; limit?: number } = {}) {
-    const { actor, resource, action, limit = 50 } = filters;
-    
+  /**
+   * Query a single store's audit trail.
+   *
+   * `storeId` is REQUIRED, not optional (SEC-12). This previously filtered
+   * only on actor/resource/action, so GET /api/audit returned every store's
+   * audit rows — including before_value/after_value payloads for price
+   * changes, voids and refunds — to any authenticated caller. Cross-store
+   * audit access is a support-only capability and already has its own
+   * dedicated path: SupportService.queryAuditLogs, behind @Roles('support').
+   */
+  async query(filters: {
+    storeId: string;
+    actor?: string;
+    resource?: string;
+    action?: string;
+    limit?: number;
+  }) {
+    const { storeId, actor, resource, action, limit = 50 } = filters;
+
     return this.prisma.audit_logs.findMany({
       where: {
+        store_id: storeId,
         actor: actor || undefined,
         resource: resource || undefined,
         action: action || undefined,

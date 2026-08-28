@@ -182,14 +182,21 @@ export const VERTICAL_MODULES: Record<
     PlatformModule.WAREHOUSE_DISPATCH,
     PlatformModule.WAREHOUSE_TRANSFER,
   ],
-  [BusinessVertical.ACCOMMODATION_HOTEL]: [
-    PlatformModule.ACCOMMODATION_RESERVATIONS,
-    PlatformModule.ACCOMMODATION_ROOMS,
-    PlatformModule.ACCOMMODATION_CHECKIN,
-    PlatformModule.ACCOMMODATION_HOUSEKEEPING,
-    PlatformModule.ACCOMMODATION_GUEST_SERVICES,
-    PlatformModule.ACCOMMODATION_AMENITIES_INVENTORY,
-  ],
+  // DISABLED — none of the accommodation modules are implemented. There is
+  // no rooms/reservations/check-in/folio/housekeeping table in the schema, no
+  // service or controller in apps/api, and every accommodation route in
+  // pos-web renders <VerticalFeaturePage>, a static placeholder that fetches
+  // nothing. Listing them here marked them "enabled", which showed a hotel
+  // merchant a full nav (Reservasi, Check-in/Check-out, Tipe Kamar, Paket
+  // Menginap, Amenities, Laporan Reservasi) where every entry opens an empty
+  // page — worse than not offering the vertical at all.
+  //
+  // An accommodation store still gets every CORE module (POS, inventory,
+  // cashflow, reports, corrections/approval anti-fraud), which is the part
+  // that genuinely works — a hotel can run its restaurant/bar/minibar on it
+  // today. Re-populate this list module-by-module as each one ships with a
+  // real page and real tables behind it.
+  [BusinessVertical.ACCOMMODATION_HOTEL]: [],
   [BusinessVertical.MANUFACTURING]: [
     PlatformModule.MANUFACTURING_BOM,
     PlatformModule.MANUFACTURING_PRODUCTION_ORDER,
@@ -307,14 +314,11 @@ export const PRESET_MODULES = {
     PlatformModule.RETAIL_PRICE_LABELS,
     PlatformModule.RETAIL_EXCHANGES,
   ],
-  [BusinessPreset.ACCOMMODATION]: [
-    PlatformModule.ACCOMMODATION_RESERVATIONS,
-    PlatformModule.ACCOMMODATION_ROOMS,
-    PlatformModule.ACCOMMODATION_CHECKIN,
-    PlatformModule.ACCOMMODATION_HOUSEKEEPING,
-    PlatformModule.ACCOMMODATION_GUEST_SERVICES,
-    PlatformModule.ACCOMMODATION_AMENITIES_INVENTORY,
-  ],
+  // DISABLED for the same reason as the ACCOMMODATION_HOTEL entry in
+  // VERTICAL_MODULES above — nothing behind these modules is implemented.
+  // Both lists have to stay empty: getCapabilities() unions them, so leaving
+  // either one populated re-enables the placeholder nav on its own.
+  [BusinessPreset.ACCOMMODATION]: [],
   [BusinessPreset.BUILDING_MATERIALS]: [
     PlatformModule.CONSTRUCTION_UNIT_CONVERSION,
     PlatformModule.CONSTRUCTION_PROJECT_REFERENCE,
