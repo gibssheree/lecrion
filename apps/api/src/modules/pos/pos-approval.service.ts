@@ -59,8 +59,28 @@ function getVoidMaxAgeMinutes(): number {
   return parseInt(process.env.VOID_MAX_AGE_MINUTES ?? '30', 10);
 }
 
+/**
+ * No fallback on purpose — this used to default to '1234'. MANAGER_PIN was
+ * not set in any .env, so every deployment was silently running the manager
+ * approval gate (the anti-fraud control this product is sold on) with a PIN
+ * printed in this source file. Fail closed instead: if it isn't configured,
+ * approvals are refused rather than accepted with a guessable PIN.
+ *
+ * Known limitation, deliberately not fixed here: this is one PIN per
+ * deployment, compared in plaintext, and `approvedBy` is supplied by the
+ * caller rather than derived from an authenticated manager. Per-manager
+ * hashed PINs are a real feature build (schema + auth flow), not a
+ * pre-demo patch.
+ */
 function getManagerPin(): string {
-  return process.env.MANAGER_PIN ?? '1234';
+  const pin = process.env.MANAGER_PIN;
+  if (!pin) {
+    throw new Error(
+      'MANAGER_PIN is not set. Configure it in .env — refusing to authorize ' +
+        'manager approvals with a default PIN.',
+    );
+  }
+  return pin;
 }
 
 @Injectable()
