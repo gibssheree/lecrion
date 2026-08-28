@@ -114,6 +114,11 @@ describe('StoresService capabilities', () => {
     );
 
     // ...but core POS/inventory/reports still work for a hotel's F&B outlet.
+    // core.pos in particular gates the "Kasir" nav entry — a hotel running
+    // its restaurant/bar on Lecrion must still be able to reach the till.
+    expect(capabilities.enabledModules).toContain(PlatformModule.CORE_POS);
+    expect(capabilities.enabledModules).toContain(PlatformModule.CORE_INVENTORY);
+    expect(capabilities.enabledModules).toContain(PlatformModule.CORE_REPORTS);
     expect(capabilities.coreModules.length).toBeGreaterThan(0);
     expect(capabilities.enabledModules).toEqual(
       expect.arrayContaining(capabilities.coreModules),

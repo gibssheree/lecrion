@@ -70,15 +70,25 @@ export function flattenNavigation(nodes: NavigationNode[]): NavigationItem[] {
 }
 
 const restaurantPresets: BusinessPresetKey[] = ["restaurant", "cafe"];
+
+// "accommodation" is included in both lists below: a hotel sells across a
+// counter too (restaurant, bar, room-service counter, gift shop) and needs a
+// product list to do it. It was previously excluded, which left an
+// accommodation store with no "Kasir" and no product menu at all — the gap
+// was hidden while the (placeholder) hotel nav still rendered, and became
+// visible once those modules were disabled. A hotel's F&B outlet is the part
+// of Lecrion that actually works today, so it has to be reachable.
 const sellWithCashierPresets: BusinessPresetKey[] = [
   "restaurant",
   "cafe",
   "retail_store",
   "building_materials",
+  "accommodation",
 ];
 const productListPresets: BusinessPresetKey[] = [
   "retail_store",
   "building_materials",
+  "accommodation",
 ];
 
 export const MAIN_NAV: NavigationNode[] = [
