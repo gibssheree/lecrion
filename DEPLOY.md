@@ -2,11 +2,13 @@
 
 Panduan menjalankan Lecrion di produksi.
 
-Ada dua jalur, keduanya menghasilkan stack yang sama:
+Ada tiga jalur:
 
-- **Opsi A — GitHub Actions** (otomatis, push ke `main` langsung deploy).
+- **Opsi PaaS — Railway / Render** (paling sederhana). Hubungkan repo GitHub,
+  tiap push langsung deploy. Tidak perlu menyewa atau mengurus server.
+- **Opsi A — VPS + GitHub Actions** (otomatis, push ke `main` langsung deploy).
   Butuh GitHub Actions aktif di akun Anda.
-- **Opsi B — build di server** (manual, tanpa Actions sama sekali).
+- **Opsi B — VPS, build di server** (manual, tanpa Actions sama sekali).
 
 > **Status akun saat ini:** GitHub Actions di akun `gibssheree` sedang terkunci —
 > setiap job berhenti dengan *"The job was not started because your account is
@@ -15,6 +17,137 @@ Ada dua jalur, keduanya menghasilkan stack yang sama:
 > pembayaran di akun. Selesaikan di **https://github.com/settings/billing**,
 > lalu Opsi A langsung bisa dipakai. Sampai itu beres, **pakai Opsi B** — hasil
 > akhirnya identik.
+
+---
+
+# Opsi PaaS — Railway / Render
+
+Jalur paling sederhana: tidak ada server yang perlu Anda urus, dan deploy
+terhubung langsung ke repo GitHub ini.
+
+## Kenapa satu service, bukan tiga
+
+Di Docker Compose, Lecrion berjalan sebagai tiga container (api, worker, web).
+Di PaaS itu tidak bisa, karena dua batasan nyata:
+
+- **Persistent disk hanya menempel ke satu service.** API dan worker
+  menulis file SQLite yang sama, jadi keduanya harus satu container.
+- **SPA harus satu origin dengan API.** Frontend memanggil API dengan path
+  relatif dan membuka Socket.IO ke `window.location.origin`.
+
+Karena itu ada `infra/docker/Dockerfile.allinone`: satu image berisi API
+(sekaligus menyajikan SPA), worker, dan migrasi. Tidak ada nginx — API
+menyajikan file SPA sendiri lewat `CLIENT_DIST_DIR`. Worker dijalankan sebagai
+JavaScript terkompilasi, jadi tidak ada devDependency yang ikut ke produksi.
+
+`scripts/start-allinone.js` mengurus urutannya: migrasi → worker → API. Bila
+salah satu proses mati, container ikut berhenti supaya platform me-restart-nya
+— lebih baik terlihat mati daripada jalan separuh.
+
+## Biaya — baca ini dulu
+
+**Tier gratis tidak bisa dipakai.** Baik Render maupun Railway menghapus
+penyimpanan pada tier gratis, dan Lecrion menyimpan seluruh transaksi di file
+SQLite. Tanpa persistent disk berbayar, data penjualan Anda hilang setiap kali
+service restart.
+
+Perkiraan biaya (verifikasi harga terkini di situs masing-masing, bisa berubah):
+
+| Platform | Perkiraan | Catatan |
+|---|---|---|
+| Railway | ~$5/bln | Volume termasuk. Region Singapura tersedia |
+| Render | ~$7/bln + disk | Blueprint `render.yaml` sudah disiapkan di repo ini |
+
+Keduanya memakai image yang sama, jadi Anda bisa pindah kapan saja.
+
+## Render (blueprint sudah siap)
+
+Repo ini sudah berisi `render.yaml`, jadi Render bisa membuat service-nya
+sendiri:
+
+1. **Dashboard Render → New → Blueprint** → pilih repo `gibssheree/lecrion`.
+2. Pilih branch `claude/lecrion-github-deploy-p90c6i` (perbaikannya ada di
+   sana, belum di `main`).
+3. Render membaca `render.yaml` dan menyiapkan service, disk 1 GB di
+   `/app/database`, serta mengacak sendiri `JWT_SECRET`, `JWT_REFRESH_SECRET`,
+   dan ketiga API key.
+4. Build pertama ~5–10 menit.
+
+Setelah service hidup, sambungkan domain Anda:
+
+- **Settings → Custom Domain** → masukkan `pos.domainanda.com`
+- Render memberi target CNAME; buat record itu di DNS Anda
+- TLS diterbitkan otomatis
+
+Lalu isi dua environment variable yang sengaja dikosongkan:
+
+- `DASHBOARD_ORIGIN` = `https://pos.domainanda.com`
+- `SEED_ON_START` = `true` **hanya untuk boot pertama**
+
+Setelah deploy pertama selesai dan Anda bisa login, **kembalikan
+`SEED_ON_START` ke `false`**. Kalau dibiarkan `true`, akun QA yang Anda hapus
+akan muncul lagi tiap restart.
+
+## Railway
+
+Railway tidak butuh file konfigurasi — ia membaca Dockerfile langsung:
+
+1. **New Project → Deploy from GitHub repo** → pilih repo ini, branch
+   `claude/lecrion-github-deploy-p90c6i`.
+2. **Settings → Build** → set Dockerfile path ke
+   `infra/docker/Dockerfile.allinone`.
+3. **Settings → Volumes** → tambahkan volume dengan mount path
+   `/app/database`. **Jangan lewatkan langkah ini** — tanpa volume, database
+   hilang tiap deploy.
+4. **Variables** → isi seperti daftar di bawah.
+5. **Settings → Networking → Custom Domain** → masukkan domain Anda, lalu buat
+   CNAME sesuai yang Railway berikan.
+
+Variable yang wajib diisi di Railway (Render mengisinya otomatis lewat
+blueprint):
+
+```
+DATABASE_URL=file:/app/database/canteen.db
+CLIENT_DIST_DIR=/app/apps/pos-web/dist
+NODE_ENV=production
+AUTH_DISABLED=false
+JWT_SECRET=<acak, 32 byte hex>
+JWT_REFRESH_SECRET=<acak, 32 byte hex>
+BOT_API_KEY=<acak>
+WORKER_API_KEY=<acak>
+DASHBOARD_API_KEY=<acak>
+DASHBOARD_ORIGIN=https://pos.domainanda.com
+DEFAULT_STORE_ID=default-store
+DEFAULT_TENANT_ID=default
+SEED_ON_START=true   # kembalikan ke false setelah login pertama berhasil
+```
+
+Buat nilai acaknya dengan `openssl rand -hex 32`.
+
+## Login pertama
+
+Buka domain Anda, login `admin@lecrion.com` / `admin123`.
+
+**Ganti password itu segera.** Seed juga membuat beberapa akun QA yang
+password-nya tertulis di `prisma/seed.ts` — dan repo Anda publik. Hapus akun
+yang tidak dipakai sebelum dipakai pelanggan.
+
+## Webhook WhatsApp
+
+Sama seperti pada VPS: arahkan webhook Fonnte ke
+`https://pos.domainanda.com/api/bot/webhook`, lalu isi `FONNTE_TOKEN`,
+`FONNTE_WA_NUMBER`, dan `FONNTE_WEBHOOK_SECRET` di Variables. Service akan
+restart otomatis.
+
+## Batasan yang perlu Anda tahu
+
+Karena SQLite, service ini **tidak boleh di-scale lebih dari satu instance**.
+Di Railway maupun Render, biarkan replica tetap 1. Bila nanti butuh lebih,
+pindah ke PostgreSQL — jalurnya tercatat di `prisma.config.ts`.
+
+---
+
+# Opsi A & B — VPS sendiri
 
 ## Ringkasan arsitektur
 

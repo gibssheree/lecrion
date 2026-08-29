@@ -1,4 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { AppModule } from './app.module';
@@ -16,7 +19,7 @@ import { RealtimeService } from './infrastructure/realtime/realtime.service';
 async function bootstrap() {
   const logger = new AppLoggerService();
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger,
     bufferLogs: true,
   });
@@ -58,6 +61,42 @@ async function bootstrap() {
 
   // Global prefix
   app.setGlobalPrefix('api');
+
+  // ── Optionally serve the pos-web SPA from this same process ─────────────
+  // The SPA calls the API on relative paths ("" as its base URL) and opens
+  // its Socket.IO connection against window.location.origin, so it only
+  // works when served from the same origin as the API. In the Docker Compose
+  // deployment nginx provides that origin; on a single-service host (Railway,
+  // Render, Fly — where one persistent volume can only attach to one service)
+  // there is no nginx, so the API serves the SPA itself.
+  //
+  // Unset CLIENT_DIST_DIR leaves behaviour exactly as before.
+  const clientDist = process.env['CLIENT_DIST_DIR'];
+  if (clientDist) {
+    const indexHtml = join(clientDist, 'index.html');
+    if (!existsSync(indexHtml)) {
+      logger.warn(
+        `CLIENT_DIST_DIR is set to '${clientDist}' but no index.html is there — not serving the SPA.`,
+        'Bootstrap',
+      );
+    } else {
+      // index:false so "/" falls through to the SPA fallback below rather
+      // than being served without the no-cache header the shell needs.
+      app.useStaticAssets(clientDist, { index: false });
+
+      // Client-side routing: any GET that isn't an API or realtime path
+      // returns the app shell and lets the router resolve it. Registered on
+      // the underlying express instance because Nest's router only knows
+      // about controller routes and would 404 these.
+      const expressApp = app.getHttpAdapter().getInstance();
+      expressApp.get(/^(?!\/api(?:\/|$)|\/ws(?:\/|$)).*/, (_req, res) => {
+        res.set('Cache-Control', 'no-cache');
+        res.sendFile(indexHtml);
+      });
+
+      logger.log(`[SPA] Serving pos-web from ${clientDist}`, 'Bootstrap');
+    }
+  }
 
   // Global validation pipe
   app.useGlobalPipes(AppValidationPipe);

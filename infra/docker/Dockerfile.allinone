@@ -1,0 +1,105 @@
+# syntax=docker/dockerfile:1
+# infra/docker/Dockerfile.allinone
+#
+# Single-image deployment for managed platforms (Railway, Render, Fly.io).
+#
+# Why one image instead of the three in docker-compose.yml: those platforms
+# attach a persistent volume to exactly one service, but the API and the
+# worker both write the same SQLite file, so they must share a container. The
+# SPA has to be there too — it calls the API on relative paths and opens
+# Socket.IO against window.location.origin, so it only works same-origin.
+# There is no nginx here; the API serves the SPA itself via CLIENT_DIST_DIR.
+#
+# The worker runs compiled JavaScript (not ts-node), so no devDependencies
+# reach the runtime image.
+#
+# Build: docker build -f infra/docker/Dockerfile.allinone -t lecrion .
+# Run:   docker run -p 3000:3000 --env-file .env -v lecrion_db:/app/database lecrion
+
+# ── Stage 1: build API, worker and SPA ───────────────────────────────────────
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Every workspace manifest the build needs, before `npm ci` so their
+# dependencies are resolved into the install.
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/pos-web/package.json ./apps/pos-web/
+COPY tsconfig.json ./
+COPY prisma.config.ts ./
+
+# No --ignore-scripts: better-sqlite3's install script builds its native
+# binding, and skipping it fails at runtime with "Could not locate the
+# bindings file".
+RUN npm ci
+
+COPY apps/api ./apps/api
+# apps/bot is not a service of its own, but apps/api's bot module imports
+# formatters/intents from it through the "@bot/*" path alias (tsconfig.json).
+COPY apps/bot ./apps/bot
+COPY apps/worker ./apps/worker
+COPY apps/pos-web ./apps/pos-web
+COPY libs ./libs
+COPY prisma ./prisma
+COPY scripts ./scripts
+
+# Generate the Prisma client for this schema (no postinstall hook runs it).
+RUN npx prisma generate
+
+# nest build must run from the API workspace — it reads apps/api/nest-cli.json
+# and tsconfig.build.json relative to the working directory.
+RUN cd apps/api && npx nest build
+
+# Worker compiles to plain JS so the runtime image needs no ts-node.
+RUN npx tsc -p apps/worker/tsconfig.json
+
+RUN cd apps/pos-web && npx vite build
+
+# ── Stage 2: runtime ─────────────────────────────────────────────────────────
+FROM node:22-alpine AS app
+
+WORKDIR /app
+
+RUN addgroup -S lecrion && adduser -S lecrion -G lecrion
+
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY prisma.config.ts ./
+
+# Production dependencies only. prisma (migrate deploy) and tsx (seed) are
+# regular dependencies, so they survive --omit=dev on purpose.
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
+COPY --from=builder /app/apps/pos-web/dist ./apps/pos-web/dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
+
+# The generated Prisma client is schema-specific and not part of the published
+# @prisma/client package, so carry it over rather than re-running generate.
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Mount the platform's persistent volume here — this is where the SQLite file
+# lives. Without a volume the database is lost on every redeploy.
+RUN mkdir -p database && chown lecrion:lecrion database
+
+ENV NODE_ENV=production
+ENV LOG_LEVEL=info
+ENV PORT=3000
+ENV DATABASE_URL=file:/app/database/canteen.db
+# Tells the API to serve the SPA from this path — see apps/api/src/main.ts.
+ENV CLIENT_DIST_DIR=/app/apps/pos-web/dist
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD wget -qO- "http://localhost:${PORT}/api/health" || exit 1
+
+USER lecrion
+
+EXPOSE 3000
+
+# Migrates, then runs worker + API under one supervisor. If either dies the
+# container exits so the platform restarts it.
+CMD ["node", "scripts/start-allinone.js"]

@@ -1,0 +1,94 @@
+# render.yaml — Render Blueprint
+#
+# Deploy Lecrion sebagai SATU service di Render, terhubung langsung ke repo
+# GitHub ini. Tiap push ke branch yang dipilih akan otomatis di-deploy.
+#
+# Kenapa satu service, bukan tiga seperti docker-compose: persistent disk di
+# Render (juga Railway dan Fly) hanya bisa menempel ke satu service, sedangkan
+# API dan worker menulis file SQLite yang sama. SPA juga harus satu origin
+# dengan API karena memakai path relatif. Semuanya digabung lewat
+# infra/docker/Dockerfile.allinone.
+#
+# Cara pakai:
+#   1. Render Dashboard -> New -> Blueprint -> pilih repo ini
+#   2. Render membaca file ini dan membuat service-nya
+#   3. Isi environment variable yang ditandai sync:false (lihat DEPLOY.md)
+#
+# CATATAN BIAYA: `plan: starter` berbayar. Tier gratis Render tidak punya
+# persistent disk dan mematikan service saat idle — database Anda akan hilang
+# tiap restart, jadi tier gratis tidak bisa dipakai untuk POS ini.
+
+services:
+  - type: web
+    name: lecrion
+    runtime: docker
+    dockerfilePath: ./infra/docker/Dockerfile.allinone
+    dockerContext: .
+    plan: starter
+    region: singapore
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    disk:
+      name: lecrion-db
+      # Harus cocok dengan DATABASE_URL di bawah. Tanpa disk ini, database
+      # hilang tiap deploy.
+      mountPath: /app/database
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        value: file:/app/database/canteen.db
+      - key: CLIENT_DIST_DIR
+        value: /app/apps/pos-web/dist
+      - key: AUTH_DISABLED
+        value: "false"
+
+      # Rahasia JWT — dibuat acak oleh Render sekali, lalu tetap. API menolak
+      # start bila kosong (SEC-02).
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+      # API key antar-service — punya default yang bisa ditebak di dalam kode,
+      # jadi harus diacak.
+      - key: BOT_API_KEY
+        generateValue: true
+      - key: WORKER_API_KEY
+        generateValue: true
+      - key: DASHBOARD_API_KEY
+        generateValue: true
+
+      - key: DEFAULT_STORE_ID
+        value: default-store
+      - key: DEFAULT_TENANT_ID
+        value: default
+
+      # Isi manual di dashboard Render setelah domain aktif, mis.
+      # https://pos.domainanda.com — dipakai CORS dan Socket.IO.
+      - key: DASHBOARD_ORIGIN
+        sync: false
+
+      # Set "true" HANYA untuk boot pertama agar database terisi data awal,
+      # lalu kembalikan ke "false". Lihat DEPLOY.md.
+      - key: SEED_ON_START
+        value: "false"
+
+      # Opsional — WhatsApp (Fonnte) dan AI. Kosongkan bila belum dipakai.
+      - key: FONNTE_TOKEN
+        sync: false
+      - key: FONNTE_WA_NUMBER
+        sync: false
+      - key: FONNTE_WEBHOOK_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
