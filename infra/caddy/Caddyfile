@@ -1,0 +1,23 @@
+# infra/caddy/Caddyfile
+#
+# Terminasi TLS untuk stack produksi. Caddy mengurus sertifikat Let's Encrypt
+# secara otomatis (terbit + perpanjang) selama domain sudah mengarah ke server
+# ini dan port 80/443 terbuka.
+#
+# Konten dan routing /api tetap ditangani oleh container `web` (nginx, lihat
+# infra/nginx/lecrion.conf) — Caddy hanya lapisan TLS di depannya.
+
+{$LECRION_DOMAIN} {
+	encode zstd gzip
+
+	# reverse_proxy meneruskan upgrade WebSocket apa adanya, jadi Socket.IO di
+	# /ws/realtime bekerja tanpa konfigurasi tambahan.
+	reverse_proxy web:80 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

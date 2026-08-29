@@ -1,0 +1,183 @@
+name: Deploy
+
+# Membangun image produksi, mendorongnya ke GitHub Container Registry (GHCR),
+# lalu — bila secret SSH sudah diisi — menerapkannya ke server lewat
+# `docker compose pull && up -d`.
+#
+# Tanpa secret SSH, job `deploy` berhenti dengan ringkasan yang menjelaskan apa
+# yang kurang; job `publish` tetap jalan sehingga image siap dipakai untuk
+# deploy manual. Daftar secret dan penyiapan server ada di DEPLOY.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: "Hanya build & push image, jangan sentuh server"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  publish:
+    name: Build & push (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: api, dockerfile: infra/docker/Dockerfile.api }
+          - { name: worker, dockerfile: infra/docker/Dockerfile.worker }
+          - { name: web, dockerfile: infra/docker/Dockerfile.web }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GHCR menolak huruf kapital di path image, sedangkan github.repository
+      # mempertahankan kapitalisasi asli pemilik repo.
+      - name: Compute image name
+        id: img
+        run: |
+          prefix=$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=${prefix}-${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:latest
+            ${{ steps.img.outputs.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    name: Deploy to server
+    needs: publish
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_deploy }}
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      APP_DIR: ${{ secrets.APP_DIR || '/opt/lecrion' }}
+      LECRION_DOMAIN: ${{ secrets.LECRION_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Secret tidak boleh dipakai langsung di `if:` sebuah step, jadi
+      # kesiapannya diringkas jadi satu output di sini.
+      - name: Check deployment secrets
+        id: check
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          missing=""
+          [ -n "$SSH_HOST" ] || missing="$missing SSH_HOST"
+          [ -n "$SSH_USER" ] || missing="$missing SSH_USER"
+          [ -n "$SSH_KEY" ] || missing="$missing SSH_PRIVATE_KEY"
+          [ -n "$LECRION_DOMAIN" ] || missing="$missing LECRION_DOMAIN"
+
+          if [ -n "$missing" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Deploy dilewati"
+              echo ""
+              echo "Image sudah dibangun dan tersedia di GHCR, tetapi tidak ada server yang disentuh."
+              echo ""
+              echo "Secret yang belum diisi:**$missing**"
+              echo ""
+              echo "Isi di **Settings → Secrets and variables → Actions**, lalu jalankan ulang workflow ini."
+              echo "Langkah penyiapan server ada di \`DEPLOY.md\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up SSH
+        if: steps.check.outputs.configured == 'true'
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # Host key dipin supaya deploy gagal keras, bukan mempercayai apa pun
+          # yang kebetulan menjawab di alamat itu.
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          test -s ~/.ssh/known_hosts
+
+      - name: Copy stack files to server
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          SSH="ssh -i $HOME/.ssh/id_deploy -p $SSH_PORT"
+          $SSH "$SSH_USER@$SSH_HOST" \
+            "mkdir -p '$APP_DIR/infra/docker' '$APP_DIR/infra/caddy' '$APP_DIR/infra/deploy'"
+          scp -i "$HOME/.ssh/id_deploy" -P "$SSH_PORT" \
+            infra/docker/docker-compose.prod.yml \
+            "$SSH_USER@$SSH_HOST:$APP_DIR/infra/docker/docker-compose.prod.yml"
+          scp -i "$HOME/.ssh/id_deploy" -P "$SSH_PORT" \
+            infra/caddy/Caddyfile \
+            "$SSH_USER@$SSH_HOST:$APP_DIR/infra/caddy/Caddyfile"
+          scp -i "$HOME/.ssh/id_deploy" -P "$SSH_PORT" \
+            infra/deploy/remote-deploy.sh \
+            "$SSH_USER@$SSH_HOST:$APP_DIR/infra/deploy/remote-deploy.sh"
+
+      - name: Pull images and restart stack
+        if: steps.check.outputs.configured == 'true'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          IMAGE_PREFIX=$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          ssh -i "$HOME/.ssh/id_deploy" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            APP_DIR="$APP_DIR" \
+            IMAGE_PREFIX="$IMAGE_PREFIX" \
+            IMAGE_TAG="${{ github.sha }}" \
+            LECRION_DOMAIN="$LECRION_DOMAIN" \
+            GHCR_USER="${{ github.actor }}" \
+            GHCR_TOKEN="$GHCR_TOKEN" \
+            bash "$APP_DIR/infra/deploy/remote-deploy.sh"
+
+      - name: Verify public endpoint
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          # Pada deploy pertama, Caddy perlu waktu menerbitkan sertifikat.
+          for _ in $(seq 1 20); do
+            if curl -sf "https://$LECRION_DOMAIN/api/health" -o /tmp/health.json; then
+              cat /tmp/health.json
+              if grep -q '"status":"ok"' /tmp/health.json; then
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "### Deploy berhasil" >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "https://$LECRION_DOMAIN — \`/api/health\` menjawab \`ok\`." >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo "Endpoint publik belum sehat setelah ~3 menit." >&2
+          exit 1

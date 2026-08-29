@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # ── Build + test the TypeScript workspaces ──────────────────────────────────
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # No --ignore-scripts: better-sqlite3's install script builds its native
+      # binding, and skipping it fails at runtime with "Could not locate the
+      # bindings file".
+      - name: Install dependencies
+        run: npm ci
+
+      # Not automatic in this repo — nothing runs it via postinstall.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck worker
+        run: npx tsc -p apps/worker/tsconfig.json --noEmit
+
+      - name: Build API
+        run: npm run build:api
+
+      - name: Build pos-web
+        run: npm --prefix apps/pos-web run build
+
+      - name: Test API
+        run: npm --prefix apps/api test -- --ci
+
+  # ── Boot the API against a real migrated DB ─────────────────────────────────
+  # Unit tests never bootstrap the Nest container, so a broken module wiring
+  # (a guard whose dependency isn't provided) passes them and only fails on a
+  # real server start. This job catches that class of bug before deploy.
+  smoke:
+    name: Smoke test (migrate + boot + request)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Apply migrations and seed
+        env:
+          DATABASE_URL: file:${{ github.workspace }}/database/canteen.db
+        run: |
+          mkdir -p database
+          npx prisma migrate deploy
+          npx tsx prisma/seed.ts
+
+      - name: Build API
+        run: npm run build:api
+
+      - name: Boot API and exercise endpoints
+        env:
+          DATABASE_URL: file:${{ github.workspace }}/database/canteen.db
+          NODE_ENV: production
+          PORT: "3000"
+          JWT_SECRET: ci-only-access-secret-not-used-anywhere-else
+          JWT_REFRESH_SECRET: ci-only-refresh-secret-not-used-anywhere-else
+          AUTH_DISABLED: "false"
+          DASHBOARD_ORIGIN: http://localhost:5174
+        run: |
+          set -euo pipefail
+          node apps/api/dist/apps/api/src/main.js > /tmp/api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/health > /tmp/health.json; then break; fi
+            # Fail fast if the process already died instead of waiting out the loop.
+            kill -0 "$API_PID" 2>/dev/null || { echo "API exited during startup"; cat /tmp/api.log; exit 1; }
+            sleep 1
+          done
+
+          echo "--- /api/health ---"
+          cat /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+
+          echo "--- /api/auth/login ---"
+          TOKEN=$(curl -sf -X POST http://localhost:3000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@lecrion.com","password":"admin123"}' \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const t=JSON.parse(d).accessToken;if(!t)throw new Error('no accessToken in login response');process.stdout.write(t)})")
+
+          echo "--- authenticated GETs ---"
+          for path in products categories reports/summary reports/pos/summary; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer $TOKEN" "http://localhost:3000/api/$path")
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "expected 200 for $path"; cat /tmp/api.log; exit 1; }
+          done
+
+      - name: Boot worker
+        env:
+          DATABASE_URL: file:${{ github.workspace }}/database/canteen.db
+          NODE_ENV: production
+          LOG_LEVEL: info
+        run: |
+          set -euo pipefail
+          # SIGTERM after 20s is the success path — the worker is a long-running
+          # process, so `timeout` returning 124 means it stayed up.
+          timeout 20 node -r ts-node/register -r tsconfig-paths/register \
+            apps/worker/src/main.ts > /tmp/worker.log 2>&1 || true
+          cat /tmp/worker.log
+          grep -q '"message":"Worker ready"' /tmp/worker.log
+
+  # ── Verify the deployment images actually build ─────────────────────────────
+  docker:
+    name: Build images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api, dockerfile: infra/docker/Dockerfile.api }
+          - { name: worker, dockerfile: infra/docker/Dockerfile.worker }
+          - { name: web, dockerfile: infra/docker/Dockerfile.web }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.name }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

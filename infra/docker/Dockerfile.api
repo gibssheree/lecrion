@@ -31,6 +31,9 @@ COPY apps/api ./apps/api
 COPY apps/bot ./apps/bot
 COPY libs ./libs
 COPY prisma ./prisma
+# Operational scripts (manual password reset). Run in the deployed container
+# with `npx tsx scripts/reset-password.ts` — see DEPLOY.md.
+COPY scripts ./scripts
 
 # Generate the Prisma client for this schema (not automatic in this repo).
 RUN npx prisma generate
@@ -62,8 +65,12 @@ RUN npm ci --omit=dev
 # pointing at apps/api/dist/libs/..., so no raw libs/ source is needed here).
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
-# Copy prisma schema + migrations (needed by `prisma migrate deploy`)
+# Copy prisma schema + migrations (needed by `prisma migrate deploy`) and the
+# seed + ops scripts. These run through tsx, which is a regular dependency
+# (not a devDependency) precisely so the `npm ci --omit=dev` above keeps it:
+# seeding and password resets are production operations, not dev-only ones.
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
 
 # Copy the generated Prisma client (schema-specific output, not part of the
 # published @prisma/client package) so we don't need to re-run `prisma

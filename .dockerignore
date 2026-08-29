@@ -14,6 +14,8 @@ database/*.db-wal
 npm-debug.log*
 docs_plan/
 
-# NOTE: prisma/ and infra/nginx are intentionally NOT ignored — Dockerfile.api
-# and Dockerfile.worker COPY prisma/ for migrations, and Dockerfile.web COPYs
-# infra/nginx/lecrion.conf. Do not re-add blanket "infra/" or "prisma/" ignores.
+# NOTE: prisma/, scripts/ and infra/nginx are intentionally NOT ignored —
+# Dockerfile.api and Dockerfile.worker COPY prisma/ for migrations,
+# Dockerfile.api COPYs scripts/ for the ops scripts (password reset), and
+# Dockerfile.web COPYs infra/nginx/lecrion.conf. Do not re-add blanket
+# "infra/", "prisma/" or "scripts/" ignores.

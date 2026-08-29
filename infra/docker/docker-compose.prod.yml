@@ -1,0 +1,87 @@
+# infra/docker/docker-compose.prod.yml
+#
+# Stack produksi. Berbeda dari docker-compose.yml (dev) dalam dua hal:
+#   1. Menarik image siap pakai dari GHCR, tidak build di server — server kecil
+#      tidak perlu punya toolchain build, dan deploy jadi hitungan detik.
+#   2. Caddy di depan sebagai satu-satunya port publik; ia menerbitkan dan
+#      memperbarui sertifikat TLS otomatis untuk ${LECRION_DOMAIN}.
+#
+# Dipakai oleh infra/deploy/remote-deploy.sh. Variabel yang harus ada:
+#   IMAGE_PREFIX    mis. ghcr.io/gibssheree/lecrion
+#   IMAGE_TAG       tag image (commit SHA), atau "latest"
+#   LECRION_DOMAIN  domain publik
+#
+# Jalankan manual:
+#   IMAGE_PREFIX=ghcr.io/gibssheree/lecrion IMAGE_TAG=latest \
+#   LECRION_DOMAIN=pos.contoh.com \
+#   docker compose -f infra/docker/docker-compose.prod.yml up -d
+
+services:
+  api:
+    image: ${IMAGE_PREFIX}-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      AUTH_DISABLED: "false"
+      DATABASE_URL: file:/app/database/canteen.db
+    volumes:
+      - lecrion_db:/app/database
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    # Tidak ada `ports:` — API hanya dijangkau lewat jaringan internal compose.
+
+  worker:
+    image: ${IMAGE_PREFIX}-worker:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/app/database/canteen.db
+      OUTBOX_POLL_MS: "5000"
+      READ_MODEL_INTERVAL_MS: "60000"
+    volumes:
+      - lecrion_db:/app/database
+    depends_on:
+      api:
+        # Menunggu api healthy berarti `prisma migrate deploy` (dijalankan saat
+        # api start) sudah selesai sebelum worker menyentuh DB yang sama.
+        condition: service_healthy
+
+  web:
+    image: ${IMAGE_PREFIX}-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    # Tidak ada `ports:` — Caddy yang memegang port publik.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      LECRION_DOMAIN: ${LECRION_DOMAIN:?LECRION_DOMAIN wajib diisi}
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Sertifikat harus persisten — tanpa ini Caddy meminta sertifikat baru
+      # setiap restart dan cepat kena rate limit Let's Encrypt.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  lecrion_db:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
