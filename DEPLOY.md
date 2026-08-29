@@ -2,13 +2,14 @@
 
 Panduan menjalankan Lecrion di produksi.
 
-Ada tiga jalur:
+Ada beberapa jalur:
 
-- **Opsi PaaS — Railway / Render** (paling sederhana). Hubungkan repo GitHub,
-  tiap push langsung deploy. Tidak perlu menyewa atau mengurus server.
-- **Opsi A — VPS + GitHub Actions** (otomatis, push ke `main` langsung deploy).
-  Butuh GitHub Actions aktif di akun Anda.
-- **Opsi B — VPS, build di server** (manual, tanpa Actions sama sekali).
+- **Opsi EC2 — AWS EC2** (di bawah). Satu instance, stack lengkap, HTTPS
+  otomatis. Ada skrip bootstrap yang menyiapkan semuanya dalam satu perintah.
+- **Opsi PaaS — Railway / Render**. Hubungkan repo GitHub, tiap push langsung
+  deploy. Tidak perlu mengurus server.
+- **Opsi A / B — VPS lain**. Sama seperti EC2, hanya beda cara membuka
+  firewall dan memasang Docker.
 
 > **Status akun saat ini:** GitHub Actions di akun `gibssheree` sedang terkunci —
 > setiap job berhenti dengan *"The job was not started because your account is
@@ -17,6 +18,169 @@ Ada tiga jalur:
 > pembayaran di akun. Selesaikan di **https://github.com/settings/billing**,
 > lalu Opsi A langsung bisa dipakai. Sampai itu beres, **pakai Opsi B** — hasil
 > akhirnya identik.
+
+---
+
+# Opsi EC2 — AWS
+
+EC2 pada dasarnya VPS biasa, jadi arsitekturnya sama dengan Opsi B: tiga
+container (api, worker, web) plus Caddy untuk TLS, dibangun langsung di
+instance. Yang khas EC2 hanya tiga hal, dan ketiganya sering jadi penyebab
+deploy gagal:
+
+- **Security Group**, bukan `ufw`. Ini firewall yang sebenarnya di AWS.
+- **Elastic IP**. Tanpa ini, IP publik berubah setiap instance di-stop/start
+  dan A-record domain Anda langsung mati.
+- **Ukuran disk root**. Default 8 GB akan penuh saat build Docker.
+
+## 1. Launch instance
+
+| Setting | Nilai | Alasan |
+|---|---|---|
+| AMI | Amazon Linux 2023, atau Ubuntu 24.04 | Skrip bootstrap mendukung keduanya |
+| Instance type | **t4g.small** (ARM/Graviton) atau t3.small | 2 GB RAM. Stack dibangun di instance, jadi ARM aman dan lebih murah |
+| Root volume | **gp3, 30 GB** | Bukan 8 GB default — layer build Docker + node_modules mudah melewatinya |
+| Key pair | buat/ pilih satu | Untuk SSH |
+
+`t4g.micro` / `t3.micro` (1 GB) juga bisa: skrip bootstrap otomatis membuat
+swap 2 GB agar build Vite tidak dibunuh OOM killer. Tapi build-nya jauh lebih
+lambat.
+
+Perkiraan biaya: instance `t4g.small` plus EBS 30 GB berkisar belasan dolar
+per bulan — lebih mahal daripada jalur PaaS (~$5–7). Verifikasi di kalkulator
+harga AWS untuk region Anda; harga berubah dan berbeda antar region. Pilih
+region terdekat (`ap-southeast-3` Jakarta, atau `ap-southeast-1` Singapura).
+
+## 2. Security Group
+
+Buat inbound rule berikut:
+
+| Type | Port | Source | Catatan |
+|---|---|---|---|
+| SSH | 22 | **IP Anda saja** | Jangan `0.0.0.0/0` |
+| HTTP | 80 | `0.0.0.0/0` | **Wajib** — Caddy memakai port 80 untuk menerbitkan sertifikat Let's Encrypt |
+| HTTPS | 443 | `0.0.0.0/0` | Trafik aplikasi |
+
+Port 80 sering ditutup orang karena "toh pakai HTTPS". Jangan — tanpa port 80,
+sertifikat TLS tidak akan pernah terbit dan situs Anda tidak bisa dibuka.
+
+## 3. Elastic IP
+
+**Elastic IPs → Allocate → Associate** ke instance Anda. Lalu buat A-record:
+
+```
+A    pos    <ELASTIC_IP>    →  pos.domainanda.com
+```
+
+Lakukan ini **sebelum** langkah berikutnya. Caddy memverifikasi domain saat
+pertama kali start; kalau DNS belum mengarah, penerbitan sertifikat gagal.
+
+## 4. Bootstrap
+
+Ada skrip yang mengerjakan sisanya: pasang Docker + plugin compose, buat swap
+bila perlu, clone repo, buat `.env` dengan rahasia acak, lalu menjalankan
+stack.
+
+**Cara A — saat launch instance.** Tempel ini ke kolom *Advanced details →
+User data*, ganti domainnya:
+
+```bash
+#!/bin/bash
+export LECRION_DOMAIN=pos.domainanda.com
+curl -fsSL https://raw.githubusercontent.com/gibssheree/lecrion/refs/heads/claude/lecrion-github-deploy-p90c6i/infra/deploy/ec2-bootstrap.sh \
+  | bash
+```
+
+**Cara B — di instance yang sudah jalan.** SSH lalu:
+
+```bash
+# Amazon Linux 2023
+sudo dnf install -y git
+# Ubuntu:  sudo apt-get update && sudo apt-get install -y git
+
+sudo git clone --branch claude/lecrion-github-deploy-p90c6i \
+  https://github.com/gibssheree/lecrion.git /opt/lecrion
+sudo LECRION_DOMAIN=pos.domainanda.com bash /opt/lecrion/infra/deploy/ec2-bootstrap.sh
+```
+
+Build pertama 5–15 menit tergantung ukuran instance. Skrip berhenti dengan
+pesan jelas kalau `api` tidak menjadi healthy, dan mencetak log terakhirnya.
+
+Skrip ini aman dijalankan ulang. `.env` yang sudah ada **tidak** ditimpa —
+menimpanya akan mengganti `JWT_SECRET` dan memutus semua sesi login yang
+sedang berjalan.
+
+Cek user data berjalan atau tidak:
+
+```bash
+sudo tail -f /var/log/cloud-init-output.log
+```
+
+## 5. Isi data awal
+
+```bash
+cd /opt/lecrion
+docker compose -f infra/docker/docker-compose.selfhost.yml exec api npx tsx prisma/seed.ts
+```
+
+Buka `https://pos.domainanda.com`, login `admin@lecrion.com` / `admin123`,
+lalu **segera ganti passwordnya**. Seed juga membuat beberapa akun QA yang
+password-nya tertulis di `prisma/seed.ts` — dan repo Anda publik. Hapus akun
+yang tidak dipakai.
+
+## 6. Update versi
+
+```bash
+cd /opt/lecrion
+git pull
+docker compose -f infra/docker/docker-compose.selfhost.yml up -d --build
+```
+
+Atau jalankan ulang `ec2-bootstrap.sh` — ia melakukan hal yang sama.
+
+Setelah billing GitHub Actions beres, Anda bisa mengotomatiskannya: isi secret
+`SSH_HOST` (Elastic IP), `SSH_USER` (`ec2-user` di Amazon Linux, `ubuntu` di
+Ubuntu), `SSH_PRIVATE_KEY` (isi file `.pem` key pair Anda), dan
+`LECRION_DOMAIN`. Lihat Opsi A.
+
+## Cadangkan database
+
+Data penjualan Anda ada di satu file SQLite di dalam Docker volume. Dua lapis
+yang saya sarankan:
+
+**Snapshot EBS** — lindungi seluruh instance. Atur di *EC2 → Lifecycle Manager*,
+harian, retensi 7 hari.
+
+**Dump file DB** — untuk pemulihan cepat satu file:
+
+```bash
+cd /opt/lecrion
+docker run --rm -v lecrion_lecrion_db:/db -v "$PWD":/backup alpine \
+  tar czf /backup/lecrion-db-$(date +%F).tar.gz -C /db .
+```
+
+Pastikan nama volume dengan `docker volume ls` — polanya
+`<nama-direktori>_lecrion_db`. Jadwalkan lewat cron, dan salin hasilnya ke S3
+kalau ingin aman dari kehilangan instance.
+
+## Kalau tidak bisa dibuka
+
+| Gejala | Penyebab paling sering |
+|---|---|
+| Browser timeout | Security Group belum membuka 443 (atau 80) |
+| Sertifikat gagal terbit | Port 80 tertutup, atau A-record belum mengarah ke Elastic IP |
+| Situs mati setelah instance di-restart | Tidak pakai Elastic IP — IP publik berubah |
+| Build dibunuh di tengah jalan | RAM 1 GB tanpa swap, atau disk root 8 GB penuh |
+| `api` tidak healthy | `docker compose -f infra/docker/docker-compose.selfhost.yml logs api` |
+
+Cek ruang disk kalau build gagal: `df -h /`. Bersihkan dengan
+`docker system prune -af`.
+
+## Catatan skala
+
+SQLite berarti **satu instance saja** — jangan taruh di balik Auto Scaling
+Group dengan lebih dari satu node. Untuk skala lebih besar, pindah ke RDS
+PostgreSQL; jalurnya tercatat di `prisma.config.ts`.
 
 ---
 
