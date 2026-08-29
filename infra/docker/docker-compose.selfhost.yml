@@ -1,0 +1,91 @@
+# infra/docker/docker-compose.selfhost.yml
+#
+# Stack produksi yang MEMBANGUN image langsung di server, tanpa registry dan
+# tanpa GitHub Actions. Pakai ini bila Actions tidak tersedia (mis. akun
+# terkunci karena billing) atau bila Anda memang ingin deploy manual.
+#
+# Bedanya dengan docker-compose.prod.yml: di sana image ditarik dari GHCR,
+# di sini dibangun dari source. Sisanya identik — termasuk Caddy di depan
+# untuk TLS otomatis, dan hanya Caddy yang membuka port publik.
+#
+# Server perlu RAM >= 2 GB untuk membangun image (build Vite + nest cukup berat).
+# Bila VPS Anda 1 GB, aktifkan swap dulu:
+#   fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+#
+# Jalankan dari root repo di server:
+#   export LECRION_DOMAIN=pos.contoh.com
+#   docker compose -f infra/docker/docker-compose.selfhost.yml up -d --build
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      AUTH_DISABLED: "false"
+      DATABASE_URL: file:/app/database/canteen.db
+    volumes:
+      - lecrion_db:/app/database
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.worker
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/app/database/canteen.db
+      OUTBOX_POLL_MS: "5000"
+      READ_MODEL_INTERVAL_MS: "60000"
+    volumes:
+      - lecrion_db:/app/database
+    depends_on:
+      api:
+        # api menjalankan `prisma migrate deploy` saat start, jadi menunggunya
+        # healthy memastikan migrasi selesai sebelum worker menyentuh DB.
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      LECRION_DOMAIN: ${LECRION_DOMAIN:?LECRION_DOMAIN wajib diisi}
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Sertifikat harus persisten — tanpa ini Caddy meminta sertifikat baru
+      # setiap restart dan cepat kena rate limit Let's Encrypt.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  lecrion_db:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

@@ -1,6 +1,20 @@
 # Deploy Lecrion
 
-Panduan menjalankan Lecrion di produksi lewat GitHub Actions.
+Panduan menjalankan Lecrion di produksi.
+
+Ada dua jalur, keduanya menghasilkan stack yang sama:
+
+- **Opsi A — GitHub Actions** (otomatis, push ke `main` langsung deploy).
+  Butuh GitHub Actions aktif di akun Anda.
+- **Opsi B — build di server** (manual, tanpa Actions sama sekali).
+
+> **Status akun saat ini:** GitHub Actions di akun `gibssheree` sedang terkunci —
+> setiap job berhenti dengan *"The job was not started because your account is
+> locked due to a billing issue."* Repo ini publik, jadi ini bukan soal kuota
+> menit (public repo dapat menit tanpa batas), melainkan tagihan atau metode
+> pembayaran di akun. Selesaikan di **https://github.com/settings/billing**,
+> lalu Opsi A langsung bisa dipakai. Sampai itu beres, **pakai Opsi B** — hasil
+> akhirnya identik.
 
 ## Ringkasan arsitektur
 
@@ -60,7 +74,7 @@ Buka port 80 dan 443 di firewall:
 ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw enable
 ```
 
-## Langkah 2 — Buat kunci SSH untuk GitHub Actions
+## Langkah 2 — Buat kunci SSH untuk GitHub Actions (Opsi A)
 
 **Di komputer Anda** (bukan di server):
 
@@ -131,7 +145,7 @@ Ganti `pos.contoh.com` dengan domain Anda. Variabel opsional lainnya
 (WhatsApp, Gemini, ambang batas kasir) ada di `.env.example` — bisa ditambahkan
 kapan saja, lalu jalankan ulang deploy.
 
-## Langkah 4 — Isi secret di GitHub
+## Langkah 4 — Isi secret di GitHub (Opsi A)
 
 **Settings → Secrets and variables → Actions → New repository secret**
 
@@ -147,7 +161,7 @@ kapan saja, lalu jalankan ulang deploy.
 `GITHUB_TOKEN` untuk mendorong image ke GHCR disediakan otomatis oleh Actions —
 tidak perlu dibuat.
 
-## Langkah 5 — Deploy
+## Langkah 5 — Deploy (Opsi A: GitHub Actions)
 
 Push ke `main`, atau jalankan manual lewat **Actions → Deploy → Run workflow**.
 
@@ -167,6 +181,51 @@ Bila secret SSH belum diisi, job deploy tidak error — ia berhenti dengan
 ringkasan yang menyebut secret mana yang kurang, sementara image tetap terbangun
 dan tersedia di GHCR.
 
+## Langkah 5b — Deploy (Opsi B: build di server, tanpa Actions)
+
+Lewati Langkah 2 dan 4 — tidak ada SSH key atau secret yang perlu disiapkan.
+
+Di server, ambil source dan bangun langsung di sana:
+
+```bash
+ssh deploy@IP_SERVER
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/gibssheree/lecrion.git /opt/lecrion
+cd /opt/lecrion
+```
+
+Buat `/opt/lecrion/.env` seperti pada Langkah 3, lalu:
+
+```bash
+export LECRION_DOMAIN=pos.contoh.com
+docker compose -f infra/docker/docker-compose.selfhost.yml up -d --build
+```
+
+Build pertama memakan beberapa menit. Bila VPS Anda hanya 1 GB RAM, aktifkan
+swap dulu supaya build Vite tidak kehabisan memori:
+
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+Cek hasilnya:
+
+```bash
+docker compose -f infra/docker/docker-compose.selfhost.yml ps
+curl https://pos.contoh.com/api/health
+```
+
+**Update ke versi terbaru** cukup tarik commit baru lalu bangun ulang:
+
+```bash
+cd /opt/lecrion && git pull
+docker compose -f infra/docker/docker-compose.selfhost.yml up -d --build
+```
+
+Untuk perintah operasional di bawah, ganti `docker-compose.prod.yml` menjadi
+`docker-compose.selfhost.yml`.
+
 ## Langkah 6 — Buat akun pertama
 
 Database baru masih kosong. Isi data awal sekali saja:
@@ -176,6 +235,8 @@ ssh deploy@IP_SERVER
 cd /opt/lecrion
 docker compose -f infra/docker/docker-compose.prod.yml exec api npx tsx prisma/seed.ts
 ```
+
+Pada Opsi B, ganti `docker-compose.prod.yml` menjadi `docker-compose.selfhost.yml`.
 
 Seed membuat akun owner `admin@lecrion.com` / `admin123`.
 **Ganti password ini segera setelah login pertama.** Seed juga membuat beberapa
