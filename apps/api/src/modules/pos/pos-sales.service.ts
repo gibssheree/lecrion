@@ -524,6 +524,7 @@ export class PosSalesService {
             channel: dto.channel ?? 'in_store',
             external_order_id: dto.externalOrderId ?? null,
             courier_name: dto.courierName ?? null,
+            folio_id: dto.folioId ?? null,
             subtotal: this.roundMoney(subtotal),
             discount_amount: discountAmount,
             discount_reason: discountReason ?? null,
@@ -538,6 +539,56 @@ export class PosSalesService {
             created_at: now,
           },
         });
+
+        if (dto.folioId) {
+          const folio = await tx.accommodation_folios.findFirst({
+            where: { id: dto.folioId, store_id: storeId, status: 'open' },
+          });
+          if (!folio) {
+            throw new BadRequestException(
+              `Open folio #${dto.folioId} not found for store ${storeId}`,
+            );
+          }
+          await tx.accommodation_folio_items.create({
+            data: {
+              folio_id: folio.id,
+              source_type: 'pos_sale',
+              source_id: String(sale.id),
+              description: `POS sale ${receiptNumber}`,
+              quantity: 1,
+              unit_price: total,
+              discount: 0,
+              tax: 0,
+              total,
+              posted_by: cashierId,
+              posted_at: now,
+            },
+          });
+          const folioItems = await tx.accommodation_folio_items.findMany({
+            where: { folio_id: folio.id },
+          });
+          const subtotal = folioItems.reduce(
+            (sum, item) => sum + item.quantity * item.unit_price,
+            0,
+          );
+          const discount = folioItems.reduce(
+            (sum, item) => sum + item.discount,
+            0,
+          );
+          const tax = folioItems.reduce((sum, item) => sum + item.tax, 0);
+          const folioTotal = Math.max(0, subtotal - discount + tax);
+          await tx.accommodation_folios.update({
+            where: { id: folio.id },
+            data: {
+              subtotal,
+              discount,
+              tax,
+              total: folioTotal,
+              balance_due: Math.max(0, folioTotal - folio.paid_amount),
+              updated_at: now,
+            },
+          });
+        }
 
         await tx.pos_sale_items.createMany({
           data: receiptItems.map((item) => ({

@@ -58,7 +58,9 @@ describe('StoresService capabilities', () => {
     const capabilities = await service.getCapabilities('default-store');
 
     expect(capabilities.businessVertical).toBe(BusinessVertical.RETAIL);
-    expect(capabilities.enabledModules).toContain(PlatformModule.RETAIL_BARCODE);
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.RETAIL_BARCODE,
+    );
     expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_KDS);
   });
 
@@ -70,8 +72,12 @@ describe('StoresService capabilities', () => {
 
     expect(capabilities.businessVertical).toBe(BusinessVertical.RETAIL);
     expect(capabilities.businessPreset).toBe('retail_store');
-    expect(capabilities.enabledModules).toContain(PlatformModule.RETAIL_BARCODE);
-    expect(capabilities.enabledModules).toContain(PlatformModule.RETAIL_VARIANTS);
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.RETAIL_BARCODE,
+    );
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.RETAIL_VARIANTS,
+    );
   });
 
   it('keeps cafe as an F&B preset without default KDS/table modules', async () => {
@@ -86,10 +92,12 @@ describe('StoresService capabilities', () => {
     expect(capabilities.businessPreset).toBe('cafe');
     expect(capabilities.enabledModules).toContain(PlatformModule.FNB_MODIFIERS);
     expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_KDS);
-    expect(capabilities.enabledModules).not.toContain(PlatformModule.FNB_TABLES);
+    expect(capabilities.enabledModules).not.toContain(
+      PlatformModule.FNB_TABLES,
+    );
   });
 
-  it('maps accommodation preset to the hotel vertical but enables no accommodation modules yet', async () => {
+  it('maps accommodation preset to the hotel vertical and enables shipped modules', async () => {
     const prisma = createPrismaMock({ businessVertical: 'accommodation' });
     const service = new StoresService(prisma as never);
 
@@ -100,24 +108,26 @@ describe('StoresService capabilities', () => {
     );
     expect(capabilities.businessPreset).toBe('accommodation');
 
-    // None of the accommodation modules ship yet — every route behind them is
-    // a static placeholder (see the VERTICAL_MODULES comment). They must stay
-    // disabled so the nav doesn't advertise pages that do nothing.
-    expect(capabilities.enabledModules).not.toContain(
+    expect(capabilities.enabledModules).toContain(
       PlatformModule.ACCOMMODATION_RESERVATIONS,
     );
-    expect(capabilities.enabledModules).not.toContain(
+    expect(capabilities.enabledModules).toContain(
       PlatformModule.ACCOMMODATION_ROOMS,
     );
-    expect(capabilities.enabledModules).not.toContain(
+    expect(capabilities.enabledModules).toContain(
       PlatformModule.ACCOMMODATION_CHECKIN,
+    );
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.ACCOMMODATION_HOUSEKEEPING,
     );
 
     // ...but core POS/inventory/reports still work for a hotel's F&B outlet.
     // core.pos in particular gates the "Kasir" nav entry — a hotel running
     // its restaurant/bar on Lecrion must still be able to reach the till.
     expect(capabilities.enabledModules).toContain(PlatformModule.CORE_POS);
-    expect(capabilities.enabledModules).toContain(PlatformModule.CORE_INVENTORY);
+    expect(capabilities.enabledModules).toContain(
+      PlatformModule.CORE_INVENTORY,
+    );
     expect(capabilities.enabledModules).toContain(PlatformModule.CORE_REPORTS);
     expect(capabilities.coreModules.length).toBeGreaterThan(0);
     expect(capabilities.enabledModules).toEqual(
@@ -180,17 +190,15 @@ describe('StoresService capabilities', () => {
 
   it('stores business vertical requests as pending profile changes', async () => {
     const prisma = createPrismaMock();
-    prisma.$queryRawUnsafe
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          store_id: 'default-store',
-          requested_business_vertical: BusinessVertical.WAREHOUSE_LOGISTICS,
-          verified_business_vertical: BusinessVertical.GENERAL,
-          verification_status: StoreVerificationStatus.PENDING,
-          notes: 'Requested by owner@example.test',
-        },
-      ]);
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        store_id: 'default-store',
+        requested_business_vertical: BusinessVertical.WAREHOUSE_LOGISTICS,
+        verified_business_vertical: BusinessVertical.GENERAL,
+        verification_status: StoreVerificationStatus.PENDING,
+        notes: 'Requested by owner@example.test',
+      },
+    ]);
     const service = new StoresService(prisma as never);
 
     const profile = await service.requestBusinessVertical({

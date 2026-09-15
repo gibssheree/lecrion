@@ -28,6 +28,7 @@ const InvoicesPage = lazy(() => import("../pages/InvoicesPage"));
 const VerticalFeaturePage = lazy(() => import("../pages/VerticalFeaturePage"));
 const SettingsPage = lazy(() => import("../pages/SettingsPage"));
 const KdsPage = lazy(() => import("../pages/KdsPage"));
+const AccommodationPage = lazy(() => import("../pages/AccommodationPage"));
 
 // Phase 12 — vertical-specific pages (real implementations, replace placeholders)
 const TablesPage = lazy(() => import("../pages/TablesPage"));
@@ -85,7 +86,9 @@ const ChatbotSettingsPage = lazy(
 const OrderDetailPage = lazy(() => import("../pages/OrderDetailPage"));
 const ProductDetailPage = lazy(() => import("../pages/ProductDetailPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
-const PrivacyPolicyPage = lazy(() => import("../pages/legal/PrivacyPolicyPage"));
+const PrivacyPolicyPage = lazy(
+  () => import("../pages/legal/PrivacyPolicyPage"),
+);
 const TermsPage = lazy(() => import("../pages/legal/TermsPage"));
 
 /** Thin fallback shown while a lazy chunk is downloading. */
@@ -265,16 +268,9 @@ export const router = createBrowserRouter([
         path: "/sales/reservations",
         element: (
           <Protected requiredModule="accommodation.reservations">
-            <VerticalFeature
-              title="Reservasi"
-              domain="sales"
-              description="Ruang kerja reservasi kamar untuk akomodasi, dari booking awal sampai kesiapan check-in."
-              checkpoints={[
-                "Kalender reservasi",
-                "Data tamu dan durasi menginap",
-                "Status booking dan pembayaran awal",
-              ]}
-            />
+            <S>
+              <AccommodationPage mode="reservations" />
+            </S>
           </Protected>
         ),
       },
@@ -282,16 +278,9 @@ export const router = createBrowserRouter([
         path: "/sales/checkins",
         element: (
           <Protected requiredModule="accommodation.checkin">
-            <VerticalFeature
-              title="Check-in / Check-out"
-              domain="sales"
-              description="Alur operasional tamu masuk, tamu keluar, deposit, dan final invoice hotel."
-              checkpoints={[
-                "Daftar tamu hari ini",
-                "Deposit dan charge tambahan",
-                "Finalisasi check-out",
-              ]}
-            />
+            <S>
+              <AccommodationPage mode="checkins" />
+            </S>
           </Protected>
         ),
       },
@@ -420,16 +409,9 @@ export const router = createBrowserRouter([
             requiredModule="accommodation.rooms"
             requiredPermission="canManageProducts"
           >
-            <VerticalFeature
-              title="Tipe Kamar"
-              domain="products"
-              description="Kelola tipe kamar, kapasitas, harga dasar, dan inventori kamar yang bisa dipesan."
-              checkpoints={[
-                "Tipe dan kapasitas kamar",
-                "Harga dasar per malam",
-                "Fasilitas kamar",
-              ]}
-            />
+            <S>
+              <AccommodationPage mode="rooms" />
+            </S>
           </Protected>
         ),
       },

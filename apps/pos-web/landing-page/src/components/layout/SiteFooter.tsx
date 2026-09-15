@@ -49,7 +49,7 @@ export default function SiteFooter() {
               laporan di atas satu basis data.
             </p>
             <a className="lp-footer__mail" href="mailto:halo@lecrion.id">
-              halo@lecrion.id
+              lecriontech@gmail.com
             </a>
           </div>
 

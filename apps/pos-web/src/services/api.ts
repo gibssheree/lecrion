@@ -10,7 +10,11 @@ const SHARED_REFRESH_COOKIE = "lecrion_refresh_token";
 
 // Paths that must never trigger the refresh-and-retry flow — refreshing on
 // a failed login/refresh/register call would either be meaningless or loop.
-const AUTH_BOOTSTRAP_PATHS = ["/api/auth/login", "/api/auth/refresh", "/api/auth/register"];
+const AUTH_BOOTSTRAP_PATHS = [
+  "/api/auth/login",
+  "/api/auth/refresh",
+  "/api/auth/register",
+];
 
 function readCookie(name: string): string | null {
   const prefix = `${name}=`;
@@ -146,7 +150,10 @@ async function request<T = unknown>(
 
   // Access token expired mid-session — silently refresh and retry once,
   // rather than surfacing a 401 and bouncing the user to the login screen.
-  if (res.status === 401 && !AUTH_BOOTSTRAP_PATHS.some((p) => path.startsWith(p))) {
+  if (
+    res.status === 401 &&
+    !AUTH_BOOTSTRAP_PATHS.some((p) => path.startsWith(p))
+  ) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       res = await doFetch(newToken);
@@ -1579,6 +1586,181 @@ export const upsertRecipe = (data: {
 
 export const deleteRecipe = (menuId: number) =>
   request(`/api/recipes/menu/${menuId}`, { method: "DELETE" });
+
+// ── Accommodation front office (Phase 1-4) ─────────────────────────────────
+export interface AccommodationRoomType {
+  id: number;
+  code: string;
+  name: string;
+  capacity: number;
+  base_rate: number;
+  _count?: { rooms: number };
+}
+
+export interface AccommodationRoom {
+  id: number;
+  room_number: string;
+  floor: string | null;
+  status: string;
+  room_type: AccommodationRoomType;
+}
+
+export interface AccommodationReservation {
+  id: number;
+  reservation_number: string;
+  status: string;
+  check_in_date: string;
+  check_out_date: string;
+  rate: number;
+  room: AccommodationRoom | null;
+  room_type: AccommodationRoomType;
+  customer: { id: number; name: string; phone: string | null } | null;
+  guests: Array<{
+    id: number;
+    name: string;
+    phone: string | null;
+    is_primary: boolean;
+  }>;
+}
+
+export interface AccommodationFolio {
+  id: number;
+  folio_number: string;
+  status: string;
+  total: number;
+  paid_amount: number;
+  balance_due: number;
+  stay: { id: number; room: AccommodationRoom } | null;
+  items: Array<{
+    id: number;
+    description: string;
+    source_type: string;
+    total: number;
+  }>;
+}
+
+export const getAccommodationRoomTypes = (storeId = "default-store") =>
+  request<AccommodationRoomType[]>(
+    `/api/accommodation/room-types${buildQs({ storeId })}`,
+  );
+
+export const updateAccommodationRoomType = (
+  id: number,
+  data: Partial<{
+    code: string;
+    name: string;
+    description: string;
+    capacity: number;
+    baseRate: number;
+    isActive: boolean;
+  }>,
+  storeId = "default-store",
+) =>
+  request<AccommodationRoomType>(
+    `/api/accommodation/room-types/${id}${buildQs({ storeId })}`,
+    { method: "PATCH", body: JSON.stringify(data) },
+  );
+
+export const getAccommodationRooms = (
+  storeId = "default-store",
+  status?: string,
+) =>
+  request<AccommodationRoom[]>(
+    `/api/accommodation/rooms${buildQs({ storeId, status })}`,
+  );
+
+export const updateAccommodationRoom = (
+  id: number,
+  data: Partial<{
+    roomTypeId: number;
+    roomNumber: string;
+    floor: string;
+    notes: string;
+    isActive: boolean;
+  }>,
+  storeId = "default-store",
+) =>
+  request<AccommodationRoom>(
+    `/api/accommodation/rooms/${id}${buildQs({ storeId })}`,
+    { method: "PATCH", body: JSON.stringify(data) },
+  );
+
+export const getAccommodationReservations = (
+  storeId = "default-store",
+  status?: string,
+) =>
+  request<AccommodationReservation[]>(
+    `/api/accommodation/reservations${buildQs({ storeId, status })}`,
+  );
+
+export const createAccommodationReservation = (data: {
+  storeId?: string;
+  roomTypeId: number;
+  roomId?: number;
+  checkInDate: string;
+  checkOutDate: string;
+  rate?: number;
+  guests?: Array<{ name: string; phone?: string; isPrimary?: boolean }>;
+  source?: string;
+}) =>
+  request<AccommodationReservation>("/api/accommodation/reservations", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const checkInAccommodation = (data: {
+  storeId?: string;
+  reservationId: number;
+  roomId?: number;
+  guestName?: string;
+  checkedInBy?: string;
+}) =>
+  request<any>("/api/accommodation/check-ins", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const getAccommodationFolios = (
+  storeId = "default-store",
+  status?: string,
+) =>
+  request<AccommodationFolio[]>(
+    `/api/accommodation/folios${buildQs({ storeId, status })}`,
+  );
+
+export const checkOutAccommodation = (
+  stayId: number,
+  storeId = "default-store",
+  checkedOutBy?: string,
+) =>
+  request<any>(
+    `/api/accommodation/stays/${stayId}/check-out${buildQs({ storeId })}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ checkedOutBy }),
+    },
+  );
+
+export const getAccommodationHousekeeping = (
+  storeId = "default-store",
+  status?: string,
+) =>
+  request<any[]>(
+    `/api/accommodation/housekeeping/tasks${buildQs({ storeId, status })}`,
+  );
+
+export const updateAccommodationHousekeeping = (
+  id: number,
+  status: string,
+  storeId = "default-store",
+) =>
+  request<any>(
+    `/api/accommodation/housekeeping/tasks/${id}/status${buildQs({ storeId })}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
 
 // ── Phase 12: Stock Opname ───────────────────────────────────────────────────
 

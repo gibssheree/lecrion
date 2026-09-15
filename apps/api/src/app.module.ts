@@ -34,6 +34,7 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { SupportModule } from './modules/support/support.module';
 import { AggregatorModule } from './modules/aggregator/aggregator.module';
+import { AccommodationModule } from './modules/accommodation/accommodation.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { AggregatorModule } from './modules/aggregator/aggregator.module';
     InvoicesModule,
     SupportModule,
     AggregatorModule,
+    AccommodationModule,
   ],
   controllers: [],
   providers: [],

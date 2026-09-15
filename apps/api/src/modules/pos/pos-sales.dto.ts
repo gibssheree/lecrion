@@ -130,6 +130,11 @@ export class CreatePosSaleDto {
   @IsOptional()
   @IsString()
   courierName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  folioId?: number;
 }
 
 export interface PosSaleReceipt {

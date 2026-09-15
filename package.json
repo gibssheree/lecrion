@@ -28,6 +28,8 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:reset-password": "npx tsx scripts/reset-password.ts",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:seed:demo": "npx tsx prisma/seed-demo.ts",
     "build:api": "npm --prefix apps/api run build",
     "lint:api": "npm --prefix apps/api run lint"
   },

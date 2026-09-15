@@ -32,8 +32,7 @@ const FACTS = [
   { label: "Produk", value: "Lecrion POS, Lecrion Chatbot" },
   { label: "Model", value: "Langganan bulanan per paket (Starter, Pro, Enterprise)" },
   { label: "Wilayah layanan", value: "Indonesia" },
-  { label: "Badan usaha", value: "Lengkapi sebelum rilis" },
-  { label: "Berdiri", value: "Lengkapi sebelum rilis" },
+  { label: "Berdiri", value: "01 Juli 2026" },
 ];
 
 export default function CompanySection() {

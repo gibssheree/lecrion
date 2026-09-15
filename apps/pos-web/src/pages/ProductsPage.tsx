@@ -141,18 +141,31 @@ export default function ProductsPage() {
                     <td>{product.sku ?? "-"}</td>
                     <td>Rp{fmt(product.price)}</td>
                     <td>{product.costPrice == null ? "-" : `Rp${fmt(product.costPrice)}`}</td>
-                    <td>{fmt(product.stock)}</td>
                     <td>
+                      {(product.isStockTracked ?? true) ? fmt(product.stock) : "-"}
+                    </td>
+                    <td>
+                      {/* Products that are not stock-tracked (made-to-order F&B,
+                          services, room-nights) always sit at stock 0 and must not
+                          read as "Habis" — the API already treats them as available
+                          (catalog.service.ts) and useProducts excludes them from the
+                          low/out-of-stock counts. */}
                       <span className={`stock-badge ${
                         product.isActive === false
                           ? "stock-badge--service"
-                          : product.stock <= 0
-                            ? "stock-badge--out"
-                            : product.stock <= 5
-                              ? "stock-badge--low"
-                              : "stock-badge--ok"
+                          : !(product.isStockTracked ?? true)
+                            ? "stock-badge--ok"
+                            : product.stock <= 0
+                              ? "stock-badge--out"
+                              : product.stock <= 5
+                                ? "stock-badge--low"
+                                : "stock-badge--ok"
                       }`}>
-                        {product.isActive === false ? "Nonaktif" : product.stock <= 0 ? "Habis" : "Aktif"}
+                        {product.isActive === false
+                          ? "Nonaktif"
+                          : (product.isStockTracked ?? true) && product.stock <= 0
+                            ? "Habis"
+                            : "Aktif"}
                       </span>
                     </td>
                   </tr>

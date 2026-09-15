@@ -460,18 +460,21 @@ model pos_sales {
   channel                 String?           @default("in_store")
   external_order_id       String?
   courier_name            String?
+  folio_id                Int?
   // ─────────────────────────────────────────────────────────────────────────
   created_at              String            @default("datetime('now')")
   pos_sale_items          pos_sale_items[]
   pos_corrections         pos_corrections[]
   customer                customers?        @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   promotion               promotions?       @relation(fields: [promotion_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  folio                   accommodation_folios? @relation(fields: [folio_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([created_at], map: "idx_pos_sales_created")
   @@index([store_id, created_at], map: "idx_pos_sales_store_created")
   @@index([register_session_id, created_at], map: "idx_pos_sales_session_created")
   @@index([status], map: "idx_pos_sales_status")
   @@index([customer_id], map: "idx_pos_sales_customer")
+  @@index([folio_id], map: "idx_pos_sales_folio")
 }
 
 model pos_sale_items {
@@ -1042,10 +1045,190 @@ model customers {
   customer_points customer_points[]
   vouchers        vouchers[]
   pos_sales       pos_sales[]
+  reservations    accommodation_reservations[]
+  folios          accommodation_folios[]
 
   @@index([store_id, is_active], map: "idx_customers_store_active")
   @@index([name], map: "idx_customers_name")
   @@index([phone], map: "idx_customers_phone")
+}
+
+// ── Accommodation front office ─────────────────────────────────────────────
+// Phase 1-4: room inventory, reservations, stays, and guest folios.
+// Status values are validated in the API layer and kept as strings to match
+// the rest of this SQLite-first schema.
+model accommodation_room_types {
+  id             Int      @id @default(autoincrement())
+  store_id       String
+  code           String
+  name           String
+  description    String?
+  capacity       Int      @default(2)
+  base_rate      Float    @default(0)
+  is_active      Boolean  @default(true)
+  created_at     String   @default("datetime('now')")
+  updated_at     String   @default("datetime('now')")
+  rooms          accommodation_rooms[]
+  reservations   accommodation_reservations[]
+
+  @@unique([store_id, code], map: "uniq_accommodation_room_type_code")
+  @@index([store_id, is_active], map: "idx_accommodation_room_types_store")
+}
+
+model accommodation_rooms {
+  id             Int                         @id @default(autoincrement())
+  store_id       String
+  room_type_id   Int
+  room_number    String
+  floor          String?
+  status         String                      @default("vacant")
+  notes          String?
+  is_active      Boolean                     @default(true)
+  created_at     String                      @default("datetime('now')")
+  updated_at     String                      @default("datetime('now')")
+  room_type      accommodation_room_types   @relation(fields: [room_type_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reservations   accommodation_reservations[]
+  stays          accommodation_stays[]
+  housekeeping   accommodation_housekeeping_tasks[]
+
+  @@unique([store_id, room_number], map: "uniq_accommodation_room_number")
+  @@index([store_id, status], map: "idx_accommodation_rooms_store_status")
+  @@index([room_type_id], map: "idx_accommodation_rooms_type")
+}
+
+model accommodation_reservations {
+  id                 Int                         @id @default(autoincrement())
+  store_id           String
+  reservation_number String                      @unique
+  status             String                      @default("tentative")
+  customer_id        Int?
+  room_type_id       Int
+  room_id            Int?
+  check_in_date      String
+  check_out_date     String
+  adults             Int                         @default(1)
+  children           Int                         @default(0)
+  source             String                      @default("direct")
+  rate               Float                       @default(0)
+  deposit_amount     Float                       @default(0)
+  notes              String?
+  created_by         String?
+  created_at         String                      @default("datetime('now')")
+  updated_at         String                      @default("datetime('now')")
+  customer           customers?                  @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  room_type          accommodation_room_types   @relation(fields: [room_type_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  room               accommodation_rooms?       @relation(fields: [room_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  stays              accommodation_stays[]
+  folios             accommodation_folios[]
+  guests             accommodation_reservation_guests[]
+
+  @@index([store_id, status], map: "idx_accommodation_reservations_store_status")
+  @@index([store_id, check_in_date, check_out_date], map: "idx_accommodation_reservations_dates")
+  @@index([customer_id], map: "idx_accommodation_reservations_customer")
+}
+
+model accommodation_reservation_guests {
+  id              Int                         @id @default(autoincrement())
+  reservation_id  Int
+  name            String
+  identity_type   String?
+  identity_number String?
+  phone           String?
+  email           String?
+  is_primary      Boolean                     @default(false)
+  created_at      String                      @default("datetime('now')")
+  reservation     accommodation_reservations @relation(fields: [reservation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([reservation_id], map: "idx_accommodation_reservation_guests")
+}
+
+model accommodation_stays {
+  id                    Int                         @id @default(autoincrement())
+  store_id              String
+  reservation_id        Int?
+  room_id               Int
+  primary_guest_name    String
+  status                String                      @default("expected")
+  actual_check_in_at   String?
+  actual_check_out_at  String?
+  expected_check_out   String
+  notes                 String?
+  checked_in_by         String?
+  checked_out_by        String?
+  created_at            String                      @default("datetime('now')")
+  updated_at            String                      @default("datetime('now')")
+  reservation           accommodation_reservations? @relation(fields: [reservation_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  room                  accommodation_rooms         @relation(fields: [room_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  folios                accommodation_folios[]
+
+  @@index([store_id, status], map: "idx_accommodation_stays_store_status")
+  @@index([room_id, status], map: "idx_accommodation_stays_room_status")
+}
+
+model accommodation_folios {
+  id                 Int                         @id @default(autoincrement())
+  store_id           String
+  folio_number       String                      @unique
+  reservation_id     Int?
+  stay_id            Int?
+  customer_id        Int?
+  status             String                      @default("open")
+  subtotal           Float                       @default(0)
+  discount           Float                       @default(0)
+  tax                Float                       @default(0)
+  service_charge     Float                       @default(0)
+  total              Float                       @default(0)
+  paid_amount        Float                       @default(0)
+  balance_due        Float                       @default(0)
+  created_at         String                      @default("datetime('now')")
+  updated_at         String                      @default("datetime('now')")
+  reservation        accommodation_reservations? @relation(fields: [reservation_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  stay               accommodation_stays?        @relation(fields: [stay_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  customer           customers?                  @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  items              accommodation_folio_items[]
+  pos_sales          pos_sales[]
+
+  @@index([store_id, status], map: "idx_accommodation_folios_store_status")
+  @@index([stay_id], map: "idx_accommodation_folios_stay")
+}
+
+model accommodation_folio_items {
+  id           Int                    @id @default(autoincrement())
+  folio_id     Int
+  source_type  String
+  source_id    String?
+  description  String
+  quantity     Float                  @default(1)
+  unit_price   Float                  @default(0)
+  discount     Float                  @default(0)
+  tax          Float                  @default(0)
+  total        Float                  @default(0)
+  posted_at    String                 @default("datetime('now')")
+  posted_by    String?
+  folio        accommodation_folios   @relation(fields: [folio_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([folio_id, posted_at], map: "idx_accommodation_folio_items")
+  @@index([source_type, source_id], map: "idx_accommodation_folio_source")
+}
+
+model accommodation_housekeeping_tasks {
+  id           Int                @id @default(autoincrement())
+  store_id     String
+  room_id      Int
+  task_type    String             @default("cleaning")
+  status       String             @default("pending")
+  priority     String             @default("normal")
+  assigned_to  String?
+  started_at   String?
+  completed_at String?
+  notes        String?
+  created_by   String?
+  created_at   String             @default("datetime('now')")
+  updated_at   String             @default("datetime('now')")
+  room         accommodation_rooms @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([store_id, status], map: "idx_accommodation_housekeeping_store_status")
+  @@index([room_id, status], map: "idx_accommodation_housekeeping_room_status")
 }
 
 // ── Phase 7: Loyalty Programs ─────────────────────────────────────────────────
