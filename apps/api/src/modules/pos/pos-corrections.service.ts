@@ -235,6 +235,7 @@ export class PosCorrectionsService {
           manager_approval_id: approvalId,
           original_order_id: orderId,
           sale_id: sale?.id ?? null,
+          store_id: (order as any).store_id,
           amount: 0,
           metadata: JSON.stringify({ previousStatus: order.status }),
           created_at: now,
@@ -624,6 +625,7 @@ export class PosCorrectionsService {
           manager_approval_id: refundApprovalId,
           original_order_id: orderId,
           sale_id: sale?.id ?? null,
+          store_id: (order as any).store_id,
           amount: refundAmount,
           metadata: JSON.stringify({
             refundedLines,
@@ -729,6 +731,10 @@ export class PosCorrectionsService {
       include: { order_items: true, payments: true },
     });
     if (!order) throw new NotFoundException(`Order #${orderId} not found`);
+    // Cross-tenant guard — see the matching comment in voidOrder above.
+    if (user?.storeId && (order as any).store_id !== user.storeId) {
+      throw new NotFoundException(`Order #${orderId} not found`);
+    }
 
     // Build sold qty map
     const soldQtyMap = new Map<number, { name: string; soldQty: number }>();
@@ -779,7 +785,7 @@ export class PosCorrectionsService {
 
     const now = new Date().toISOString();
     const returnedItems: ReturnItemsResponse['returnedItems'] = [];
-    const storeId = order.payments[0]?.store_id ?? 'default-store';
+    const storeId = (order as any).store_id;
     let correctionNumber = '';
 
     await this.prisma.$transaction(async (tx) => {
@@ -856,6 +862,7 @@ export class PosCorrectionsService {
           operator_id: operatorId,
           original_order_id: orderId,
           sale_id: sale?.id ?? null,
+          store_id: storeId,
           amount: 0,
           metadata: JSON.stringify({ returnedItems }),
           created_at: now,
@@ -907,7 +914,7 @@ export class PosCorrectionsService {
    */
   async listCorrections(params: {
     type?: string;
-    storeId?: string;
+    storeId: string;
     fromDate?: string;
     toDate?: string;
     limit?: number;
@@ -931,7 +938,7 @@ export class PosCorrectionsService {
     const limit = Math.min(Number(params.limit) || 50, 200);
     const offset = Number(params.offset) || 0;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { store_id: params.storeId };
     if (params.type) where['type'] = params.type;
     if (params.fromDate || params.toDate) {
       const range: Record<string, string> = {};

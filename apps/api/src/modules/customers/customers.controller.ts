@@ -54,6 +54,7 @@ import {
   CreatePromotionDto,
   CreateVoucherDto,
 } from './promotions.service';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('customers')
 export class CustomersController {
@@ -66,13 +67,13 @@ export class CustomersController {
   // ── Customer CRUD ──────────────────────────────────────────────────────────
 
   @Get('search')
-  searchCustomers(@Query('q') q: string, @Query('storeId') storeId: string) {
-    return this.customers.search(q || '', storeId || 'default-store');
+  searchCustomers(@Query('q') q: string, @StoreId() storeId: string) {
+    return this.customers.search(q || '', storeId);
   }
 
   @Get('loyalty/program')
-  getLoyaltyProgram(@Query('storeId') storeId: string) {
-    return this.loyalty.getActiveProgram(storeId || 'default-store');
+  getLoyaltyProgram(@StoreId() storeId: string) {
+    return this.loyalty.getActiveProgram(storeId);
   }
 
   @Post('loyalty/program')
@@ -83,7 +84,7 @@ export class CustomersController {
   @Get('promotions/calculate')
   async calculateDiscount(
     @Query('total') total: string,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('voucherCode') voucherCode: string,
   ) {
     const orderTotal = parseFloat(total);
@@ -96,7 +97,7 @@ export class CustomersController {
     try {
       return this.promotions.calculateDiscount(
         orderTotal,
-        storeId || 'default-store',
+        storeId,
         voucherCode || undefined,
       );
     } catch (err: any) {
@@ -118,11 +119,11 @@ export class CustomersController {
 
   @Get('promotions')
   listPromotions(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('status') status: string,
   ) {
     return this.promotions.listPromotions(
-      storeId || 'default-store',
+      storeId,
       status || undefined,
     );
   }
@@ -160,11 +161,11 @@ export class CustomersController {
 
   @Get('vouchers')
   listVouchers(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('status') status: string,
   ) {
     return this.promotions.listVouchers(
-      storeId || 'default-store',
+      storeId,
       status || undefined,
     );
   }
@@ -186,12 +187,12 @@ export class CustomersController {
 
   @Get()
   listCustomers(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('limit') limit: string,
     @Query('offset') offset: string,
   ) {
     return this.customers.list(
-      storeId || 'default-store',
+      storeId,
       Number(limit) || 50,
       Number(offset) || 0,
     );
@@ -216,9 +217,9 @@ export class CustomersController {
   @Get(':id/points')
   async getPoints(
     @Param('id', ParseIntPipe) id: number,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
-    const store = storeId || 'default-store';
+    const store = storeId;
     const balance = await this.loyalty.getBalance(id, store);
     const history = await this.loyalty.getPointHistory(id, store);
     return { customerId: id, balance, history };

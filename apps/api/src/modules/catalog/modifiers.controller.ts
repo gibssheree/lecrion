@@ -38,6 +38,7 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('modifiers')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,11 +48,11 @@ export class ModifiersController {
   @Get('groups')
   @Roles('owner', 'manager', 'cashier', 'inventory_staff')
   listGroups(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('includeInactive') includeInactive: string,
   ) {
     return this.modifiers.listGroups(
-      storeId || 'default-store',
+      storeId,
       includeInactive === 'true',
     );
   }

@@ -23,6 +23,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 import { AuthUser } from '../auth/auth.types';
 
 @Controller('operations/documents')
@@ -51,7 +52,7 @@ export class OperationsController {
   @Get()
   @Roles('owner', 'manager', 'inventory_staff', 'cashier')
   listDocuments(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('documentType') documentType?: string,
     @Query('status') status?: string,
     @Query('limit') limit?: string,

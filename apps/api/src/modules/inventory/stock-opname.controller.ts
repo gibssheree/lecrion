@@ -32,6 +32,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 import { AuthUser } from '../auth/auth.types';
 
 @Controller('stock-opname')
@@ -42,12 +43,12 @@ export class StockOpnameController {
   @Get('sessions')
   @Roles('owner', 'manager', 'inventory_staff')
   listSessions(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('status') status: string,
     @Query('limit') limit: string,
   ) {
     return this.opname.listSessions(
-      storeId || 'default-store',
+      storeId,
       (status || undefined) as StockOpnameStatus | undefined,
       Number(limit) || 50,
     );

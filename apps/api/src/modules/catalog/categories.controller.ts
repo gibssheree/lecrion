@@ -31,6 +31,7 @@ import {
   CreateCategoryDto,
   UpdateCategoryDto,
 } from './categories.service';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('categories')
 export class CategoriesController {
@@ -39,10 +40,10 @@ export class CategoriesController {
   // ── GET /api/categories ────────────────────────────────────────────────────
   @Get()
   async getCategories(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('includeInactive') includeInactive: string,
   ) {
-    const store = storeId || 'default-store';
+    const store = storeId;
     const showAll = includeInactive === 'true';
     const categories = await this.categoriesService.getFlat(store, showAll);
     return { categories };
@@ -51,10 +52,10 @@ export class CategoriesController {
   // ── GET /api/categories/tree ───────────────────────────────────────────────
   @Get('tree')
   async getCategoryTree(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('includeInactive') includeInactive: string,
   ) {
-    const store = storeId || 'default-store';
+    const store = storeId;
     const showAll = includeInactive === 'true';
     const tree = await this.categoriesService.getTree(store, showAll);
     return { tree };

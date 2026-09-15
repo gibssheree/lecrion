@@ -12,6 +12,7 @@ import {
 import { PlatformModule } from '@libs/contracts/src/modules';
 import { RequireModule } from '../../common/decorators/require-module.decorator';
 import { ModuleCapabilityGuard } from '../../common/guards/module-capability.guard';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 import { AccommodationService } from './accommodation.service';
 import {
   CheckInDto,
@@ -32,46 +33,51 @@ export class AccommodationController {
   @Get('room-types')
   @RequireModule(PlatformModule.ACCOMMODATION_ROOMS)
   listRoomTypes(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('includeInactive') includeInactive: string,
   ) {
     return this.accommodation.listRoomTypes(
-      storeId || 'default-store',
+      storeId,
       includeInactive === 'true',
     );
   }
 
   @Post('room-types')
   @RequireModule(PlatformModule.ACCOMMODATION_ROOMS)
-  createRoomType(@Body() body: CreateRoomTypeDto) {
-    return this.accommodation.createRoomType(body);
+  createRoomType(@Body() body: CreateRoomTypeDto, @StoreId() storeId: string) {
+    return this.accommodation.createRoomType(body, storeId);
   }
 
   @Patch('room-types/:id')
   @RequireModule(PlatformModule.ACCOMMODATION_ROOMS)
-  updateRoomType(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateRoomTypeDto, @Query('storeId') storeId: string) {
-    return this.accommodation.updateRoomType(id, body, storeId || 'default-store');
+  updateRoomType(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateRoomTypeDto,
+    @StoreId() storeId: string,
+  ) {
+    return this.accommodation.updateRoomType(id, body, storeId);
   }
 
   @Get('rooms')
   @RequireModule(PlatformModule.ACCOMMODATION_ROOMS)
-  listRooms(
-    @Query('storeId') storeId: string,
-    @Query('status') status: string,
-  ) {
-    return this.accommodation.listRooms(storeId || 'default-store', status);
+  listRooms(@StoreId() storeId: string, @Query('status') status: string) {
+    return this.accommodation.listRooms(storeId, status);
   }
 
   @Post('rooms')
   @RequireModule(PlatformModule.ACCOMMODATION_ROOMS)
-  createRoom(@Body() body: CreateRoomDto) {
-    return this.accommodation.createRoom(body);
+  createRoom(@Body() body: CreateRoomDto, @StoreId() storeId: string) {
+    return this.accommodation.createRoom(body, storeId);
   }
 
   @Patch('rooms/:id')
   @RequireModule(PlatformModule.ACCOMMODATION_ROOMS)
-  updateRoom(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateRoomDto, @Query('storeId') storeId: string) {
-    return this.accommodation.updateRoom(id, body, storeId || 'default-store');
+  updateRoom(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateRoomDto,
+    @StoreId() storeId: string,
+  ) {
+    return this.accommodation.updateRoom(id, body, storeId);
   }
 
   @Patch('rooms/:id/status')
@@ -79,25 +85,21 @@ export class AccommodationController {
   setRoomStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: string,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
-    return this.accommodation.setRoomStatus(
-      id,
-      status,
-      storeId || 'default-store',
-    );
+    return this.accommodation.setRoomStatus(id, status, storeId);
   }
 
   @Get('availability')
   @RequireModule(PlatformModule.ACCOMMODATION_RESERVATIONS)
   availability(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('roomTypeId', ParseIntPipe) roomTypeId: number,
     @Query('checkInDate') checkInDate: string,
     @Query('checkOutDate') checkOutDate: string,
   ) {
     return this.accommodation.availability(
-      storeId || 'default-store',
+      storeId,
       roomTypeId,
       checkInDate,
       checkOutDate,
@@ -107,19 +109,19 @@ export class AccommodationController {
   @Get('reservations')
   @RequireModule(PlatformModule.ACCOMMODATION_RESERVATIONS)
   listReservations(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('status') status: string,
   ) {
-    return this.accommodation.listReservations(
-      storeId || 'default-store',
-      status,
-    );
+    return this.accommodation.listReservations(storeId, status);
   }
 
   @Post('reservations')
   @RequireModule(PlatformModule.ACCOMMODATION_RESERVATIONS)
-  createReservation(@Body() body: CreateReservationDto) {
-    return this.accommodation.createReservation(body);
+  createReservation(
+    @Body() body: CreateReservationDto,
+    @StoreId() storeId: string,
+  ) {
+    return this.accommodation.createReservation(body, storeId);
   }
 
   @Post('reservations/:id/assign-room')
@@ -127,51 +129,40 @@ export class AccommodationController {
   assignRoom(
     @Param('id', ParseIntPipe) id: number,
     @Body('roomId', ParseIntPipe) roomId: number,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
-    return this.accommodation.assignRoom(
-      id,
-      roomId,
-      storeId || 'default-store',
-    );
+    return this.accommodation.assignRoom(id, roomId, storeId);
   }
 
   @Post('check-ins')
   @RequireModule(PlatformModule.ACCOMMODATION_CHECKIN)
-  checkIn(@Body() body: CheckInDto) {
-    return this.accommodation.checkIn(body);
+  checkIn(@Body() body: CheckInDto, @StoreId() storeId: string) {
+    return this.accommodation.checkIn(body, storeId);
   }
 
   @Get('stays/:id')
   @RequireModule(PlatformModule.ACCOMMODATION_CHECKIN)
   getStay(
     @Param('id', ParseIntPipe) id: number,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
-    return this.accommodation.getStay(id, storeId || 'default-store');
+    return this.accommodation.getStay(id, storeId);
   }
 
   @Post('stays/:id/check-out')
   @RequireModule(PlatformModule.ACCOMMODATION_CHECKIN)
   checkOut(
     @Param('id', ParseIntPipe) id: number,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Body('checkedOutBy') checkedOutBy?: string,
   ) {
-    return this.accommodation.checkOut(
-      id,
-      storeId || 'default-store',
-      checkedOutBy,
-    );
+    return this.accommodation.checkOut(id, storeId, checkedOutBy);
   }
 
   @Get('folios')
   @RequireModule(PlatformModule.ACCOMMODATION_CHECKIN)
-  listFolios(
-    @Query('storeId') storeId: string,
-    @Query('status') status: string,
-  ) {
-    return this.accommodation.listFolios(storeId || 'default-store', status);
+  listFolios(@StoreId() storeId: string, @Query('status') status: string) {
+    return this.accommodation.listFolios(storeId, status);
   }
 
   @Post('folios/:id/charges')
@@ -179,9 +170,9 @@ export class AccommodationController {
   postCharge(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: PostChargeDto,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
-    return this.accommodation.postCharge(id, body, storeId || 'default-store');
+    return this.accommodation.postCharge(id, body, storeId);
   }
 
   @Post('folios/:id/payments')
@@ -189,21 +180,18 @@ export class AccommodationController {
   postPayment(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: PostFolioPaymentDto,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
-    return this.accommodation.postPayment(id, body, storeId || 'default-store');
+    return this.accommodation.postPayment(id, body, storeId);
   }
 
   @Get('housekeeping/tasks')
   @RequireModule(PlatformModule.ACCOMMODATION_HOUSEKEEPING)
   listHousekeeping(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('status') status: string,
   ) {
-    return this.accommodation.listHousekeeping(
-      storeId || 'default-store',
-      status,
-    );
+    return this.accommodation.listHousekeeping(storeId, status);
   }
 
   @Patch('housekeeping/tasks/:id/status')
@@ -212,12 +200,12 @@ export class AccommodationController {
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: string,
     @Body('assignedTo') assignedTo: string,
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
   ) {
     return this.accommodation.updateHousekeeping(
       id,
       status,
-      storeId || 'default-store',
+      storeId,
       assignedTo,
     );
   }

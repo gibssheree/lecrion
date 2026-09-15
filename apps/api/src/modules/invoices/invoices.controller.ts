@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 import { AuthUser } from '../auth/auth.types';
 
 @Controller('invoices')
@@ -24,14 +25,14 @@ export class InvoicesController {
 
   @Get('summary')
   @Roles('owner', 'manager')
-  getSummary(@Query('storeId') storeId?: string) {
+  getSummary(@StoreId() storeId?: string) {
     return this.invoices.getSummary(storeId);
   }
 
   @Get()
   @Roles('owner', 'manager', 'cashier')
   list(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('status') status?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,

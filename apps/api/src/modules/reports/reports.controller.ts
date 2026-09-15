@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RequireModule } from '../../common/decorators/require-module.decorator';
 import { ModuleCapabilityGuard } from '../../common/guards/module-capability.guard';
 import { PlatformModule } from '@libs/contracts/src/modules';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard, RolesGuard, ModuleCapabilityGuard)
@@ -35,36 +36,41 @@ export class ReportsController {
 
   @Get('summary')
   @Roles('owner', 'manager')
-  getSalesSummary() {
-    return this.reportsService.getSalesSummary();
+  getSalesSummary(@StoreId() storeId: string) {
+    return this.reportsService.getSalesSummary(storeId);
   }
 
   @Get('daily')
   @Roles('owner', 'manager')
-  getSalesDaily(@Query('limit') limit?: string) {
-    return this.reportsService.getSalesDaily(limit ? parseInt(limit, 10) : 14);
+  getSalesDaily(@StoreId() storeId: string, @Query('limit') limit?: string) {
+    return this.reportsService.getSalesDaily(
+      storeId,
+      limit ? parseInt(limit, 10) : 14,
+    );
   }
 
   @Get('by-payment')
   @Roles('owner', 'manager')
-  getSalesByPayment() {
-    return this.reportsService.getSalesByPayment();
+  getSalesByPayment(@StoreId() storeId: string) {
+    return this.reportsService.getSalesByPayment(storeId);
   }
 
   @Get('by-type')
   @Roles('owner', 'manager')
-  getSalesByType() {
-    return this.reportsService.getSalesByType();
+  getSalesByType(@StoreId() storeId: string) {
+    return this.reportsService.getSalesByType(storeId);
   }
 
   @Get('top-products')
   @Roles('owner', 'manager')
   getSalesTopProducts(
+    @StoreId() storeId: string,
     @Query('year') year?: string,
     @Query('month') month?: string,
     @Query('limit') limit?: string,
   ) {
     return this.reportsService.getSalesTopProducts({
+      storeId,
       year: year ? parseInt(year, 10) : undefined,
       month: month ? parseInt(month, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : 5,
@@ -73,22 +79,31 @@ export class ReportsController {
 
   @Get('stock-changes')
   @Roles('owner', 'manager', 'inventory_staff')
-  getStockChangeLogs(@Query('limit') limit?: string) {
+  getStockChangeLogs(
+    @StoreId() storeId: string,
+    @Query('limit') limit?: string,
+  ) {
     return this.reportsService.getStockChangeLogs(
+      storeId,
       limit ? parseInt(limit, 10) : 30,
     );
   }
 
   @Get('year/:year')
   @Roles('owner', 'manager')
-  getYearBundle(@Param('year') year: string) {
-    return this.reportsService.getYearDetailBundle(parseInt(year, 10));
+  getYearBundle(@StoreId() storeId: string, @Param('year') year: string) {
+    return this.reportsService.getYearDetailBundle(storeId, parseInt(year, 10));
   }
 
   @Get('year/:year/month/:month')
   @Roles('owner', 'manager')
-  getMonthBundle(@Param('year') year: string, @Param('month') month: string) {
+  getMonthBundle(
+    @StoreId() storeId: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+  ) {
     return this.reportsService.getMonthDetailBundle(
+      storeId,
       parseInt(year, 10),
       parseInt(month, 10),
     );
@@ -127,7 +142,7 @@ export class ReportsController {
   @Get('pos/summary')
   @Roles('owner', 'manager', 'cashier')
   getPosSummary(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
@@ -137,7 +152,7 @@ export class ReportsController {
   @Get('pos/daily')
   @Roles('owner', 'manager', 'cashier')
   getPosDaily(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('limit') limit?: string,
   ) {
     return this.posReports.getPosDaily({
@@ -149,7 +164,7 @@ export class ReportsController {
   @Get('pos/payment-mix')
   @Roles('owner', 'manager', 'cashier')
   getPosPaymentMix(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
@@ -159,7 +174,7 @@ export class ReportsController {
   @Get('pos/corrections')
   @Roles('owner', 'manager')
   getPosCorrections(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('limit') limit?: string,
@@ -181,7 +196,7 @@ export class ReportsController {
   @Get('pos/top-products')
   @Roles('owner', 'manager', 'cashier')
   getPosTopProducts(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('limit') limit?: string,
@@ -200,7 +215,7 @@ export class ReportsController {
   @Roles('owner', 'manager', 'cashier')
   @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getPosHourly(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('date') date?: string,
   ) {
     return this.posReports.getPosHourly({ storeId, date });
@@ -210,7 +225,7 @@ export class ReportsController {
   @Roles('owner', 'manager')
   @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getCashierPerformance(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
@@ -221,7 +236,7 @@ export class ReportsController {
   @Roles('owner', 'manager')
   @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getPromoPerformance(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
@@ -232,7 +247,7 @@ export class ReportsController {
   @Roles('owner', 'manager')
   @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
   getCustomerRepeatRate(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
@@ -241,7 +256,7 @@ export class ReportsController {
 
   @Get('pos/daily-close-summary')
   @Roles('owner', 'manager')
-  getDailyCloseSummary(@Query('storeId') storeId?: string) {
+  getDailyCloseSummary(@StoreId() storeId?: string) {
     return this.posReports
       .formatDailyCloseSummary(storeId)
       .then((text) => ({ text }));
@@ -249,7 +264,7 @@ export class ReportsController {
 
   @Get('pos/low-stock-alert')
   @Roles('owner', 'manager', 'inventory_staff')
-  getLowStockAlert(@Query('storeId') storeId?: string) {
+  getLowStockAlert(@StoreId() storeId?: string) {
     return this.posReports
       .formatLowStockAlert(storeId)
       .then((text) => ({ text }));
@@ -258,7 +273,7 @@ export class ReportsController {
   @Get('pos/forecast')
   @Roles('owner', 'manager')
   @RequireModule(PlatformModule.REPORTS_ADVANCED_ANALYTICS)
-  getForecast(@Query('storeId') storeId?: string) {
+  getForecast(@StoreId() storeId?: string) {
     return this.posReports.getForecast({ storeId });
   }
 
@@ -280,7 +295,7 @@ export class ReportsController {
   @RequireModule(PlatformModule.REPORTS_CSV_EXPORT)
   async exportPosCsv(
     @Res() res: Response,
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {

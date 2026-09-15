@@ -16,6 +16,7 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -37,7 +38,7 @@ export class PaymentsController {
   @Get()
   @Roles('owner', 'manager')
   listPayments(
-    @Query('storeId') storeId?: string,
+    @StoreId() storeId?: string,
     @Query('limit') limit?: string,
   ) {
     return this.paymentsService.listPayments(

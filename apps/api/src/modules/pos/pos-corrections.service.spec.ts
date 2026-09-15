@@ -25,6 +25,7 @@ function makeOrder(
   overrides: Partial<{
     id: number;
     status: string;
+    store_id: string;
     payments: any[];
     order_items: any[];
   }> = {},
@@ -706,6 +707,41 @@ describe('PosCorrectionsService.returnItems', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('rejects returning items on another store\'s order (cross-tenant guard, SEC-13)', async () => {
+    const { service } = makeHarness();
+    await expect(
+      service.returnItems(
+        1,
+        { items: [{ productId: 1, returnQty: 1 }], reason: 'test' },
+        { storeId: 'store-someone-else', actor: 'u1' } as any,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows returning items when the authenticated user matches the order\'s store', async () => {
+    const { service } = makeHarness();
+    const result = await service.returnItems(
+      1,
+      { items: [{ productId: 1, returnQty: 1 }], reason: 'test' },
+      { storeId: 'default-store', actor: 'u1' } as any,
+    );
+    expect(result.returnedItems).toHaveLength(1);
+  });
+
+  it('stamps the correction document with the order\'s store_id, not a guessed default', async () => {
+    const order = makeOrder({ store_id: 'store-b' });
+    const { service, tx } = makeHarness(order);
+    await service.returnItems(1, {
+      items: [{ productId: 1, returnQty: 1 }],
+      reason: 'test',
+    });
+    expect(tx.pos_corrections.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ store_id: 'store-b' }),
+      }),
+    );
+  });
+
   it('rejects return of product not in order', async () => {
     const { service } = makeHarness();
     await expect(
@@ -743,5 +779,64 @@ describe('PosCorrectionsService.returnItems', () => {
       reason: 'test',
     });
     expect(tx.orders.update).not.toHaveBeenCalled();
+  });
+});
+
+// ── listCorrections tests (SEC-13) ──────────────────────────────────────────
+//
+// pos_corrections had no store_id at all, and the list endpoint applied no
+// store filter — any authenticated cashier/manager/owner of any store could
+// read every merchant's void/refund/return reasons and amounts via
+// GET /api/pos/corrections. Both are fixed: the column now exists and is
+// populated on every write, and the read path filters by it.
+
+describe('PosCorrectionsService.listCorrections store scoping (SEC-13)', () => {
+  function makeListHarness() {
+    const prisma = {
+      pos_corrections: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+    const noop = {} as any;
+    const service = new PosCorrectionsService(
+      prisma as any,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+    );
+    return { service, prisma };
+  }
+
+  it('always filters by the caller\'s store_id', async () => {
+    const { service, prisma } = makeListHarness();
+    await service.listCorrections({ storeId: 'store-a' });
+
+    expect(prisma.pos_corrections.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ store_id: 'store-a' }),
+      }),
+    );
+    expect(prisma.pos_corrections.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ store_id: 'store-a' }),
+      }),
+    );
+  });
+
+  it('keeps the store filter even when other filters are combined', async () => {
+    const { service, prisma } = makeListHarness();
+    await service.listCorrections({ storeId: 'store-a', type: 'void' });
+
+    expect(prisma.pos_corrections.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          store_id: 'store-a',
+          type: 'void',
+        }),
+      }),
+    );
   });
 });

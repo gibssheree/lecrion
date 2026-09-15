@@ -42,7 +42,7 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 export class AccommodationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listRoomTypes(storeId = 'default-store', includeInactive = false) {
+  async listRoomTypes(storeId: string, includeInactive = false) {
     return this.prisma.accommodation_room_types.findMany({
       where: {
         store_id: storeId,
@@ -53,8 +53,7 @@ export class AccommodationService {
     });
   }
 
-  async createRoomType(dto: CreateRoomTypeDto) {
-    const storeId = dto.storeId ?? 'default-store';
+  async createRoomType(dto: CreateRoomTypeDto, storeId: string) {
     if (!dto.code?.trim() || !dto.name?.trim()) {
       throw new BadRequestException('code and name are required');
     }
@@ -82,7 +81,7 @@ export class AccommodationService {
     }
   }
 
-  async updateRoomType(id: number, dto: UpdateRoomTypeDto, storeId = 'default-store') {
+  async updateRoomType(id: number, dto: UpdateRoomTypeDto, storeId: string) {
     const existing = await this.prisma.accommodation_room_types.findFirst({ where: { id, store_id: storeId } });
     if (!existing) throw new NotFoundException('Room type not found');
     if (dto.capacity !== undefined && dto.capacity < 1) throw new BadRequestException('capacity must be positive');
@@ -106,7 +105,7 @@ export class AccommodationService {
     }
   }
 
-  async listRooms(storeId = 'default-store', status?: string) {
+  async listRooms(storeId: string, status?: string) {
     return this.prisma.accommodation_rooms.findMany({
       where: {
         store_id: storeId,
@@ -118,8 +117,7 @@ export class AccommodationService {
     });
   }
 
-  async createRoom(dto: CreateRoomDto) {
-    const storeId = dto.storeId ?? 'default-store';
+  async createRoom(dto: CreateRoomDto, storeId: string) {
     const roomType = await this.prisma.accommodation_room_types.findFirst({
       where: { id: dto.roomTypeId, store_id: storeId, is_active: true },
     });
@@ -143,7 +141,7 @@ export class AccommodationService {
     }
   }
 
-  async updateRoom(id: number, dto: UpdateRoomDto, storeId = 'default-store') {
+  async updateRoom(id: number, dto: UpdateRoomDto, storeId: string) {
     const existing = await this.prisma.accommodation_rooms.findFirst({ where: { id, store_id: storeId } });
     if (!existing) throw new NotFoundException('Room not found');
     if (dto.roomTypeId !== undefined) {
@@ -169,7 +167,7 @@ export class AccommodationService {
     }
   }
 
-  async setRoomStatus(id: number, status: string, storeId = 'default-store') {
+  async setRoomStatus(id: number, status: string, storeId: string) {
     if (!ROOM_STATUSES.includes(status as RoomStatus)) {
       throw new BadRequestException(`Invalid room status: ${status}`);
     }
@@ -232,7 +230,7 @@ export class AccommodationService {
     };
   }
 
-  async listReservations(storeId = 'default-store', status?: string) {
+  async listReservations(storeId: string, status?: string) {
     return this.prisma.accommodation_reservations.findMany({
       where: { store_id: storeId, ...(status ? { status } : {}) },
       include: {
@@ -246,8 +244,7 @@ export class AccommodationService {
     });
   }
 
-  async createReservation(dto: CreateReservationDto) {
-    const storeId = dto.storeId ?? 'default-store';
+  async createReservation(dto: CreateReservationDto, storeId: string) {
     const checkIn = dateOnly(dto.checkInDate, 'checkInDate');
     const checkOut = dateOnly(dto.checkOutDate, 'checkOutDate');
     this.validateDateRange(checkIn, checkOut);
@@ -317,7 +314,7 @@ export class AccommodationService {
     return created;
   }
 
-  async assignRoom(id: number, roomId: number, storeId = 'default-store') {
+  async assignRoom(id: number, roomId: number, storeId: string) {
     const reservation = await this.prisma.accommodation_reservations.findFirst({
       where: { id, store_id: storeId },
     });
@@ -351,8 +348,7 @@ export class AccommodationService {
     });
   }
 
-  async checkIn(dto: CheckInDto) {
-    const storeId = dto.storeId ?? 'default-store';
+  async checkIn(dto: CheckInDto, storeId: string) {
     const reservation = await this.prisma.accommodation_reservations.findFirst({
       where: { id: dto.reservationId, store_id: storeId },
       include: { room_type: true, customer: true, guests: true },
@@ -448,7 +444,7 @@ export class AccommodationService {
     });
   }
 
-  async getStay(id: number, storeId = 'default-store') {
+  async getStay(id: number, storeId: string) {
     const stay = await this.prisma.accommodation_stays.findFirst({
       where: { id, store_id: storeId },
       include: {
@@ -464,7 +460,7 @@ export class AccommodationService {
   async postCharge(
     folioId: number,
     dto: PostChargeDto,
-    storeId = 'default-store',
+    storeId: string,
   ) {
     if (!dto.description?.trim() || dto.quantity === 0 || dto.unitPrice < 0)
       throw new BadRequestException('Invalid folio charge');
@@ -501,7 +497,7 @@ export class AccommodationService {
   async postPayment(
     folioId: number,
     dto: PostFolioPaymentDto,
-    storeId = 'default-store',
+    storeId: string,
   ) {
     if (dto.amount <= 0)
       throw new BadRequestException('Payment amount must be positive');
@@ -549,7 +545,7 @@ export class AccommodationService {
 
   async checkOut(
     stayId: number,
-    storeId = 'default-store',
+    storeId: string,
     checkedOutBy?: string,
   ) {
     const stay = await this.prisma.accommodation_stays.findFirst({
@@ -602,7 +598,7 @@ export class AccommodationService {
     });
   }
 
-  async listFolios(storeId = 'default-store', status?: string) {
+  async listFolios(storeId: string, status?: string) {
     return this.prisma.accommodation_folios.findMany({
       where: { store_id: storeId, ...(status ? { status } : {}) },
       include: {
@@ -615,7 +611,7 @@ export class AccommodationService {
     });
   }
 
-  async listHousekeeping(storeId = 'default-store', status?: string) {
+  async listHousekeeping(storeId: string, status?: string) {
     return this.prisma.accommodation_housekeeping_tasks.findMany({
       where: { store_id: storeId, ...(status ? { status } : {}) },
       include: { room: { include: { room_type: true } } },
@@ -626,7 +622,7 @@ export class AccommodationService {
   async updateHousekeeping(
     id: number,
     status: string,
-    storeId = 'default-store',
+    storeId: string,
     assignedTo?: string,
   ) {
     if (!['pending', 'in_progress', 'completed', 'cancelled'].includes(status))

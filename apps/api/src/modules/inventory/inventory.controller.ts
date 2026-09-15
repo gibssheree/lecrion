@@ -17,6 +17,7 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,14 +61,14 @@ export class InventoryController {
   @Get('movements')
   @Roles('owner', 'manager', 'inventory_staff')
   async getMovements(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('changeType') changeType: string,
     @Query('locationId') locationId: string,
     @Query('limit') limit: string,
     @Query('offset') offset: string,
   ) {
     return this.ledger.listMovements({
-      storeId: storeId || undefined,
+      storeId,
       changeType: changeType || undefined,
       locationId: locationId ? Number(locationId) : undefined,
       limit: Number(limit) || 50,
@@ -77,8 +78,8 @@ export class InventoryController {
 
   @Get('locations')
   @Roles('owner', 'manager', 'inventory_staff')
-  async listLocations(@Query('storeId') storeId: string) {
-    return this.locationService.listLocations(storeId || undefined);
+  async listLocations(@StoreId() storeId: string) {
+    return this.locationService.listLocations(storeId);
   }
 
   @Post('locations')
@@ -96,11 +97,11 @@ export class InventoryController {
   @Get('stock')
   @Roles('owner', 'manager', 'cashier', 'inventory_staff')
   async getStock(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('locationId') locationId: string,
   ) {
     return this.ledger.listStockByLocation(
-      storeId || 'default-store',
+      storeId,
       locationId ? Number(locationId) : undefined,
     );
   }

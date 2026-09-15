@@ -15,6 +15,7 @@ import { SuppliersService, SupplierDto } from './suppliers.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('suppliers')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -24,12 +25,12 @@ export class SuppliersController {
   @Get()
   @Roles('owner', 'manager', 'inventory_staff')
   list(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('includeInactive') includeInactive: string,
     @Query('q') q: string,
   ) {
     return this.suppliers.list(
-      storeId || 'default-store',
+      storeId,
       includeInactive === 'true',
       q || '',
     );

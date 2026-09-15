@@ -387,7 +387,10 @@ export class InventoryLedgerService {
   > {
     if (locationId) {
       const rows = await this.prisma.inventory_stock_balances.findMany({
-        where: { location_id: locationId },
+        where: {
+          location_id: locationId,
+          inventory_locations: { store_id: storeId },
+        },
         select: {
           menu_id: true,
           location_id: true,
@@ -397,7 +400,7 @@ export class InventoryLedgerService {
       // Fetch legacy stock for each product
       const menuIds = rows.map((r) => r.menu_id);
       const products = await this.prisma.menu.findMany({
-        where: { id: { in: menuIds } },
+        where: { id: { in: menuIds }, store_id: storeId },
         select: { id: true, stock: true },
       });
       const legacyMap = new Map(products.map((p) => [p.id, p.stock]));
@@ -412,7 +415,7 @@ export class InventoryLedgerService {
 
     // No locationId — return legacy menu.stock for all active products
     const products = await this.prisma.menu.findMany({
-      where: { is_active: true, is_stock_tracked: true },
+      where: { store_id: storeId, is_active: true, is_stock_tracked: true },
       select: { id: true, stock: true },
       orderBy: { name: 'asc' },
     });

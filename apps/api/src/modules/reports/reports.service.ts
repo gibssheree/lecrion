@@ -37,7 +37,7 @@ export class ReportsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSalesSummary() {
+  async getSalesSummary(storeId: string) {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`
       WITH revenue_orders AS (
         SELECT DISTINCT o.id
@@ -45,6 +45,7 @@ export class ReportsService {
         JOIN payments p ON p.order_id = o.id
         WHERE o.status IN (${REVENUE_STATUS_SQL})
           AND p.status = ${PAID_PAYMENT_SQL}
+          AND o.store_id = ?
       ),
       payment_totals AS (
         SELECT p.order_id, SUM(p.amount) AS total_revenue
@@ -67,7 +68,7 @@ export class ReportsService {
       FROM revenue_orders ro
       LEFT JOIN item_totals it ON it.order_id = ro.id
       LEFT JOIN payment_totals pt ON pt.order_id = ro.id
-    `);
+    `, storeId);
     const row = rows[0] ?? {};
     return {
       totalOrders: toNumber(row.total_orders),
@@ -77,7 +78,7 @@ export class ReportsService {
     };
   }
 
-  async getSalesByPayment() {
+  async getSalesByPayment(storeId: string) {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT
         p.payment_method,
@@ -92,6 +93,7 @@ export class ReportsService {
             WHERE p2.payment_method = p.payment_method
               AND p2.status = ${PAID_PAYMENT_SQL}
               AND o2.status IN (${REVENUE_STATUS_SQL})
+              AND o2.store_id = ?
           )
         ), 0) AS total_items,
         COALESCE(SUM(p.amount), 0) AS total_revenue
@@ -99,9 +101,10 @@ export class ReportsService {
       JOIN orders o ON o.id = p.order_id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
       GROUP BY p.payment_method
       ORDER BY total_sales DESC
-    `);
+    `, storeId, storeId);
     return rows.map((r) => ({
       paymentMethod: r.payment_method || '-',
       totalSales: toNumber(r.total_sales),
@@ -110,7 +113,7 @@ export class ReportsService {
     }));
   }
 
-  async getSalesByType() {
+  async getSalesByType(storeId: string) {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT
         o.type AS order_type,
@@ -125,6 +128,7 @@ export class ReportsService {
             WHERE o2.type = o.type
               AND o2.status IN (${REVENUE_STATUS_SQL})
               AND p2.status = ${PAID_PAYMENT_SQL}
+              AND o2.store_id = ?
           )
         ), 0) AS total_items,
         COALESCE(SUM(p.amount), 0) AS total_revenue
@@ -132,9 +136,10 @@ export class ReportsService {
       JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
       GROUP BY o.type
       ORDER BY total_sales DESC
-    `);
+    `, storeId, storeId);
     return rows.map((r) => ({
       orderType: r.order_type || '-',
       totalSales: toNumber(r.total_sales),
@@ -143,7 +148,7 @@ export class ReportsService {
     }));
   }
 
-  async getSalesDaily(limit = 14) {
+  async getSalesDaily(storeId: string, limit = 14) {
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 14;
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
@@ -156,6 +161,7 @@ export class ReportsService {
           JOIN payments p2 ON p2.order_id = o2.id
           WHERE o2.status IN (${REVENUE_STATUS_SQL})
             AND p2.status = ${PAID_PAYMENT_SQL}
+            AND o2.store_id = ?
             AND strftime('%Y-%m-%d', o2.created_at) = strftime('%Y-%m-%d', o.created_at)
         ), 0) AS total_items,
         COALESCE(SUM(p.amount), 0) AS total_revenue
@@ -163,9 +169,12 @@ export class ReportsService {
       JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
       GROUP BY strftime('%Y-%m-%d', o.created_at)
       ORDER BY sales_date DESC
       LIMIT ?`,
+      storeId,
+      storeId,
       safeLimit,
     );
     return rows.map((r) => ({
@@ -176,7 +185,7 @@ export class ReportsService {
     }));
   }
 
-  async getSalesForDate(dateValue: string) {
+  async getSalesForDate(storeId: string, dateValue: string) {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
         COUNT(DISTINCT o.id) AS total_orders,
@@ -189,6 +198,7 @@ export class ReportsService {
             JOIN payments p2 ON p2.order_id = o2.id
             WHERE o2.status IN (${REVENUE_STATUS_SQL})
               AND p2.status = ${PAID_PAYMENT_SQL}
+              AND o2.store_id = ?
               AND strftime('%Y-%m-%d', o2.created_at) = strftime('%Y-%m-%d', ?)
           )
         ), 0) AS total_items,
@@ -197,8 +207,11 @@ export class ReportsService {
       JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
         AND strftime('%Y-%m-%d', o.created_at) = strftime('%Y-%m-%d', ?)`,
+      storeId,
       dateValue,
+      storeId,
       dateValue,
     );
     const row = rows[0] ?? {};
@@ -209,7 +222,7 @@ export class ReportsService {
     };
   }
 
-  async getSalesForYear(yearValue: number | string) {
+  async getSalesForYear(storeId: string, yearValue: number | string) {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
         COUNT(DISTINCT o.id) AS total_orders,
@@ -222,6 +235,7 @@ export class ReportsService {
             JOIN payments p2 ON p2.order_id = o2.id
             WHERE o2.status IN (${REVENUE_STATUS_SQL})
               AND p2.status = ${PAID_PAYMENT_SQL}
+              AND o2.store_id = ?
               AND strftime('%Y', o2.created_at) = ?
           )
         ), 0) AS total_items,
@@ -230,8 +244,11 @@ export class ReportsService {
       JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
         AND strftime('%Y', o.created_at) = ?`,
+      storeId,
       String(yearValue),
+      storeId,
       String(yearValue),
     );
     const row = rows[0] ?? {};
@@ -243,6 +260,7 @@ export class ReportsService {
   }
 
   async getSalesForMonth(
+    storeId: string,
     yearValue: number | string,
     monthValue: number | string,
   ) {
@@ -258,6 +276,7 @@ export class ReportsService {
             JOIN payments p2 ON p2.order_id = o2.id
             WHERE o2.status IN (${REVENUE_STATUS_SQL})
               AND p2.status = ${PAID_PAYMENT_SQL}
+              AND o2.store_id = ?
               AND strftime('%Y', o2.created_at) = ?
               AND strftime('%m', o2.created_at) = ?
           )
@@ -267,10 +286,13 @@ export class ReportsService {
       JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
         AND strftime('%Y', o.created_at) = ?
         AND strftime('%m', o.created_at) = ?`,
+      storeId,
       String(yearValue),
       String(monthValue).padStart(2, '0'),
+      storeId,
       String(yearValue),
       String(monthValue).padStart(2, '0'),
     );
@@ -282,7 +304,7 @@ export class ReportsService {
     };
   }
 
-  async getSalesMonthlyBreakdown(yearValue: number | string) {
+  async getSalesMonthlyBreakdown(storeId: string, yearValue: number | string) {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
         CAST(strftime('%m', o.created_at) AS INTEGER) AS month_number,
@@ -292,9 +314,11 @@ export class ReportsService {
       JOIN payments p ON p.order_id = o.id
       WHERE o.status IN (${REVENUE_STATUS_SQL})
         AND p.status = ${PAID_PAYMENT_SQL}
+        AND o.store_id = ?
         AND strftime('%Y', o.created_at) = ?
       GROUP BY strftime('%m', o.created_at)
       ORDER BY month_number ASC`,
+      storeId,
       String(yearValue),
     );
     return rows.map((r) => ({
@@ -306,12 +330,20 @@ export class ReportsService {
   }
 
   async getSalesTopProducts(
-    options: { year?: number; month?: number; limit?: number } = {},
+    options: {
+      storeId: string;
+      year?: number;
+      month?: number;
+      limit?: number;
+    },
   ) {
-    const { year, month, limit = 5 } = options;
+    const { storeId, year, month, limit = 5 } = options;
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
-    const conditions: string[] = [`o.status IN (${REVENUE_STATUS_SQL})`];
-    const params: any[] = [];
+    const conditions: string[] = [
+      `o.status IN (${REVENUE_STATUS_SQL})`,
+      `o.store_id = ?`,
+    ];
+    const params: any[] = [storeId];
 
     if (Number.isInteger(year)) {
       conditions.push("strftime('%Y', o.created_at) = ?");
@@ -346,7 +378,7 @@ export class ReportsService {
     }));
   }
 
-  async getStockChangeLogs(limit = 30) {
+  async getStockChangeLogs(storeId: string, limit = 30) {
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 30;
     try {
       const rows = await this.prisma.$queryRawUnsafe<any[]>(
@@ -355,8 +387,10 @@ export class ReportsService {
           scl.order_id, scl.change_type, scl.qty_before, scl.qty_change, scl.qty_after, scl.note, scl.created_at
         FROM stock_change_logs scl
         LEFT JOIN menu m ON m.id = scl.menu_id
+        WHERE scl.store_id = ?
         ORDER BY scl.created_at DESC, scl.id DESC
         LIMIT ?`,
+        storeId,
         safeLimit,
       );
       return rows.map((r) => ({
@@ -378,19 +412,19 @@ export class ReportsService {
     }
   }
 
-  async getYearDetailBundle(year: number) {
+  async getYearDetailBundle(storeId: string, year: number) {
     const [yearSales, monthlyBreakdown, topProducts] = await Promise.all([
-      this.getSalesForYear(year),
-      this.getSalesMonthlyBreakdown(year),
-      this.getSalesTopProducts({ year, limit: 10 }),
+      this.getSalesForYear(storeId, year),
+      this.getSalesMonthlyBreakdown(storeId, year),
+      this.getSalesTopProducts({ storeId, year, limit: 10 }),
     ]);
     return { yearSales, monthlyBreakdown, topProducts };
   }
 
-  async getMonthDetailBundle(year: number, month: number) {
+  async getMonthDetailBundle(storeId: string, year: number, month: number) {
     const [monthSales, topProducts] = await Promise.all([
-      this.getSalesForMonth(year, month),
-      this.getSalesTopProducts({ year, month, limit: 8 }),
+      this.getSalesForMonth(storeId, year, month),
+      this.getSalesTopProducts({ storeId, year, month, limit: 8 }),
     ]);
     return { monthSales, topProducts };
   }

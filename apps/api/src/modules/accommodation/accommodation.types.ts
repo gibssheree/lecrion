@@ -40,7 +40,6 @@ export const HOUSEKEEPING_STATUSES = [
 export type HousekeepingStatus = (typeof HOUSEKEEPING_STATUSES)[number];
 
 export interface CreateRoomTypeDto {
-  storeId?: string;
   code: string;
   name: string;
   description?: string;
@@ -49,7 +48,6 @@ export interface CreateRoomTypeDto {
 }
 
 export interface CreateRoomDto {
-  storeId?: string;
   roomTypeId: number;
   roomNumber: string;
   floor?: string;
@@ -74,7 +72,6 @@ export interface UpdateRoomDto {
 }
 
 export interface CreateReservationDto {
-  storeId?: string;
   customerId?: number;
   roomTypeId: number;
   roomId?: number;
@@ -98,7 +95,6 @@ export interface CreateReservationDto {
 }
 
 export interface CheckInDto {
-  storeId?: string;
   reservationId: number;
   roomId?: number;
   guestName?: string;

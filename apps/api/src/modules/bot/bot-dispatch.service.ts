@@ -268,17 +268,17 @@ export class BotDispatchService {
         return this.handleIngredientPopIce();
 
       case 'report_today':
-        return this.handleReportToday();
+        return this.handleReportToday(storeId!);
       case 'report_year':
-        return this.handleReportYear(intent.year);
+        return this.handleReportYear(intent.year, storeId!);
       case 'report_year_detail':
-        return this.handleReportYearDetail(intent.year);
+        return this.handleReportYearDetail(intent.year, storeId!);
       case 'report_month':
-        return this.handleReportMonth(intent.year, intent.month);
+        return this.handleReportMonth(intent.year, intent.month, storeId!);
       case 'report_best_month':
-        return this.handleReportBestMonth(intent.year);
+        return this.handleReportBestMonth(intent.year, storeId!);
       case 'report_summary':
-        return this.handleReportSummary();
+        return this.handleReportSummary(storeId!);
 
       // ── Favorites ────────────────────────────────────────────────────────
       // The favorites table exists in the schema but the bot has no user
@@ -616,33 +616,39 @@ export class BotDispatchService {
 
   // ─── Report handlers ───────────────────────────────────────────────────────
 
-  private async handleReportToday(): Promise<DispatchResult> {
+  private async handleReportToday(storeId: string): Promise<DispatchResult> {
     const today = new Date().toISOString().slice(0, 10);
-    const sales = await this.reports.getSalesForDate(today);
+    const sales = await this.reports.getSalesForDate(storeId, today);
     return {
       reply: formatReportReply('Laporan penjualan hari ini', sales),
       entryType: 'report',
     };
   }
 
-  private async handleReportYear(year: number): Promise<DispatchResult> {
+  private async handleReportYear(
+    year: number,
+    storeId: string,
+  ): Promise<DispatchResult> {
     if (!this.isValidYear(year))
       return {
         reply: 'Format tahun tidak valid. Contoh: total penghasilan tahun 2025',
         entryType: 'report',
       };
-    const sales = await this.reports.getSalesForYear(year);
+    const sales = await this.reports.getSalesForYear(storeId, year);
     return {
       reply: formatReportReply(`Laporan penjualan tahun ${year}`, sales),
       entryType: 'report',
     };
   }
 
-  private async handleReportYearDetail(year: number): Promise<DispatchResult> {
+  private async handleReportYearDetail(
+    year: number,
+    storeId: string,
+  ): Promise<DispatchResult> {
     if (!this.isValidYear(year))
       return { reply: 'Format tahun tidak valid.', entryType: 'report' };
     const { yearSales, monthlyBreakdown, topProducts } =
-      await this.reports.getYearDetailBundle(year);
+      await this.reports.getYearDetailBundle(storeId, year);
     return {
       reply: formatYearDetailReport(
         year,
@@ -657,6 +663,7 @@ export class BotDispatchService {
   private async handleReportMonth(
     year: number,
     month: number,
+    storeId: string,
   ): Promise<DispatchResult> {
     if (!this.isValidYear(year) || !this.isValidMonth(month)) {
       return {
@@ -666,6 +673,7 @@ export class BotDispatchService {
       };
     }
     const { monthSales, topProducts } = await this.reports.getMonthDetailBundle(
+      storeId,
       year,
       month,
     );
@@ -675,18 +683,24 @@ export class BotDispatchService {
     };
   }
 
-  private async handleReportBestMonth(year: number): Promise<DispatchResult> {
+  private async handleReportBestMonth(
+    year: number,
+    storeId: string,
+  ): Promise<DispatchResult> {
     if (!this.isValidYear(year))
       return { reply: 'Format tahun tidak valid.', entryType: 'report' };
-    const monthlyBreakdown = await this.reports.getSalesMonthlyBreakdown(year);
+    const monthlyBreakdown = await this.reports.getSalesMonthlyBreakdown(
+      storeId,
+      year,
+    );
     return {
       reply: formatBestMonthReply(year, monthlyBreakdown),
       entryType: 'report',
     };
   }
 
-  private async handleReportSummary(): Promise<DispatchResult> {
-    const sales = await this.reports.getSalesSummary();
+  private async handleReportSummary(storeId: string): Promise<DispatchResult> {
+    const sales = await this.reports.getSalesSummary(storeId);
     return {
       reply: formatReportReply('Ringkasan seluruh penjualan sukses', sales),
       entryType: 'report',

@@ -35,6 +35,7 @@ import { OpenSessionDto, CloseSessionDto } from './pos-session.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 interface PosCheckoutItem {
   productId: number;
@@ -195,8 +196,8 @@ export class PosController {
   @Get('corrections')
   @Roles('owner', 'manager', 'cashier')
   listCorrections(
+    @StoreId() storeId: string,
     @Query('type') type?: string,
-    @Query('storeId') storeId?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('limit') limit?: string,

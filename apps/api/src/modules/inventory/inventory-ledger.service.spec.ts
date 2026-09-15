@@ -451,6 +451,35 @@ describe('InventoryLedgerService', () => {
     });
   });
 
+  // ── listStockByLocation (SEC-13) ────────────────────────────────────────────
+  //
+  // storeId used to be accepted but never applied to the Prisma query, so any
+  // authenticated user of any store could read another store's stock levels
+  // via GET /api/inventory/stock. Now it must scope both branches.
+
+  describe('listStockByLocation store scoping (SEC-13)', () => {
+    it('scopes the per-location branch to the caller\'s store', async () => {
+      await service.listStockByLocation('store-a', 5);
+      expect(prismaMock.inventory_stock_balances.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            location_id: 5,
+            inventory_locations: { store_id: 'store-a' },
+          }),
+        }),
+      );
+    });
+
+    it('scopes the no-location fallback to the caller\'s store', async () => {
+      await service.listStockByLocation('store-a');
+      expect(prismaMock.menu.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ store_id: 'store-a' }),
+        }),
+      );
+    });
+  });
+
   // ── getStockBalances ───────────────────────────────────────────────────────
 
   describe('getStockBalances', () => {

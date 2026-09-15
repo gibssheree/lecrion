@@ -535,6 +535,7 @@ model pos_corrections {
   manager_approval_id Int?
   original_order_id   Int
   sale_id             Int?
+  store_id            String             @default("default-store")
   amount              Float              @default(0)
   metadata            String?
   created_at          String             @default("datetime('now')")
@@ -544,6 +545,7 @@ model pos_corrections {
   @@index([original_order_id], map: "idx_pos_corrections_order")
   @@index([sale_id], map: "idx_pos_corrections_sale")
   @@index([type, created_at], map: "idx_pos_corrections_type_created")
+  @@index([store_id], map: "idx_pos_corrections_store")
 }
 
 model read_model_snapshots {

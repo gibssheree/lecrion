@@ -50,6 +50,7 @@ import {
 import { RequireModule } from '../../common/decorators/require-module.decorator';
 import { ModuleCapabilityGuard } from '../../common/guards/module-capability.guard';
 import { PlatformModule } from '@libs/contracts/src/modules';
+import { StoreId } from '../../common/decorators/store-id.decorator';
 
 @Controller('fnb')
 @UseGuards(ModuleCapabilityGuard)
@@ -63,8 +64,8 @@ export class FnbController {
 
   @Get('areas')
   @RequireModule(PlatformModule.FNB_TABLES)
-  getAreas(@Query('storeId') storeId: string) {
-    return this.tables.getAreas(storeId || 'default-store');
+  getAreas(@StoreId() storeId: string) {
+    return this.tables.getAreas(storeId);
   }
 
   @Post('areas')
@@ -99,11 +100,11 @@ export class FnbController {
   @Get('tables')
   @RequireModule(PlatformModule.FNB_TABLES)
   getTables(
-    @Query('storeId') storeId: string,
+    @StoreId() storeId: string,
     @Query('available') available: string,
     @Query('includeInactive') includeInactive: string,
   ) {
-    const store = storeId || 'default-store';
+    const store = storeId;
     if (available === 'true') return this.tables.getAvailableTables(store);
     return this.tables.getTables(store, includeInactive === 'true');
   }
@@ -192,8 +193,8 @@ export class FnbController {
 
   @Get('kitchen/tickets')
   @RequireModule(PlatformModule.FNB_KDS)
-  getActiveTickets(@Query('storeId') storeId: string) {
-    return this.kitchen.getActiveTickets(storeId || 'default-store');
+  getActiveTickets(@StoreId() storeId: string) {
+    return this.kitchen.getActiveTickets(storeId);
   }
 
   @Get('kitchen/tickets/:id')
