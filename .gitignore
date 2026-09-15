@@ -8,6 +8,8 @@ apps/api/.env
 database/canteen.db
 database/canteen.db-shm
 database/canteen.db-wal
+database/*.bak
+database/*.bak-*
 apps/*/dist/
 
 # Compiled output accidentally committed alongside libs/*/src TypeScript
